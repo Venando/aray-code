@@ -138,7 +138,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     private Dictionary<string, object?> BuildConnectParams(string nonce)
     {
         var authToken = _cfg.AuthToken ?? "";
-        var scopes = new[] { "operator.read", "operator.write", "operator.approvals" };
+        var scopes = new[] { "operator.read", "operator.write", "operator.approvals", "operator.admin" };
         var platform = DeviceIdentity.GetPlatform().ToLowerInvariant();
         var deviceFamily = "desktop";
         var clientId = "cli";
