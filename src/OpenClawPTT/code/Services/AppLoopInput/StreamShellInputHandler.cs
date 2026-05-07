@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Diagnostics;
 using Spectre.Console;
 using StreamShell;
 
@@ -30,6 +31,7 @@ public sealed class StreamShellInputHandler : IDisposable
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     private readonly IPttStateMachine _pttStateMachine;
     private readonly ITtsSummarizer? _ttsSummarizer;
+    private readonly ErrorLogStore _errorLog;
 
     public StreamShellInputHandler(
         IStreamShellHost host,
@@ -42,7 +44,8 @@ public sealed class StreamShellInputHandler : IDisposable
         IAgentSettingsPersistence agentSettingsPersistence,
         IPttStateMachine pttStateMachine,
         IDirectLlmService? directLlmService = null,
-        ITtsSummarizer? ttsSummarizer = null)
+        ITtsSummarizer? ttsSummarizer = null,
+        ErrorLogStore? errorLogStore = null)
     {
         _host = host;
         _textSender = textSender;
@@ -55,7 +58,8 @@ public sealed class StreamShellInputHandler : IDisposable
         _agentSettingsPersistence = agentSettingsPersistence;
         _pttStateMachine = pttStateMachine;
         _ttsSummarizer = ttsSummarizer;
-        _agentSwitching = new AgentSwitchingCommands(host, textSender, gatewayService, appConfig, console, agentSettingsPersistence, pttStateMachine);
+        _errorLog = errorLogStore ?? new ErrorLogStore(appConfig.DataDir);
+        _agentSwitching = new AgentSwitchingCommands(host, textSender, gatewayService, appConfig, console, agentSettingsPersistence, pttStateMachine, _errorLog);
         _messageComposer = new TextMessageComposer(host, textSender);
     }
 
@@ -74,6 +78,12 @@ public sealed class StreamShellInputHandler : IDisposable
         // TTS summary test command
         _host.AddCommand(new Command("tts-test", "Test TTS summarization pipeline with sample file", LlmTestSummaryHandler));
 
+        // Diagnostics commands
+        _host.AddCommand(new Command("errors", "[N] Show recent gateway errors",
+            (args, named) => _agentSwitching.HandleErrorsCommand(args)));
+        _host.AddCommand(new Command("reconnect", "Reconnect to the gateway",
+            (args, named) => _agentSwitching.HandleReconnectCommand(args)));
+
         // AppConfig command to get/set any config value (named 'appconfig' to avoid
         // conflict with OpenClaw's built-in /config command).
         _host.AddCommand(new Command("appconfig", Markup.Escape("<key> [value] Get or set app config value"), ConfigHandler));
@@ -88,28 +98,16 @@ public sealed class StreamShellInputHandler : IDisposable
 
         _host.UserInputSubmitted += OnUserInput;
 
-        // First-connection: skip history and prompt to configure agents
-        if (!_agentSettingsPersistence.HasAnyPersistedSettings && AgentRegistry.Agents.Count > 0 && !FirstConnectionWizard.IsActive)
-        {
-            AgentRegistry.Deactivate();
-            var firstConnectionWizard = new FirstConnectionWizard(_host, _agentSettingsPersistence, onAgentConfigured: agent =>
-            {
-                _ = _agentSwitching.ActivateWithHistoryAsync(agent);
-            });
-            firstConnectionWizard.Run();
-        }
-        else
-        {
-            // Fetch initial session history after commands are registered
-            var sessionKey = AgentRegistry.ActiveSessionKey;
-            if (sessionKey != null)
-                await _agentSwitching.PrintSessionHistory(sessionKey);
-        }
+        // Fetch initial session history after commands are registered
+        var sessionKey = AgentRegistry.ActiveSessionKey;
+        if (sessionKey != null)
+            await _agentSwitching.PrintSessionHistory(sessionKey);
     }
 
     public void Dispose()
     {
         _host.UserInputSubmitted -= OnUserInput;
+        _errorLog.Dispose();
     }
 
     private Task QuitHandler(string[] args, System.Collections.Generic.Dictionary<string, string> named)
@@ -128,24 +126,11 @@ public sealed class StreamShellInputHandler : IDisposable
             return;
         }
 
-        // Deactivate the current agent so messages don't interfere with the wizard
-        var previousAgentId = AgentRegistry.ActiveAgentId;
-        AgentRegistry.Deactivate();
-
         _host.AddMessage("[cyan2]  Starting reconfiguration wizard...[/]");
         try
         {
             var newCfg = await _configService.ReconfigureAsync(_host, currentCfg, CancellationToken.None);
             _host.AddMessage("[green]  Configuration updated.[/]");
-
-            // Reactivate the previous agent, pull history, show banner
-            if (previousAgentId != null)
-            {
-                var agent = AgentRegistry.Agents.FirstOrDefault(a =>
-                    a.AgentId.Equals(previousAgentId, StringComparison.OrdinalIgnoreCase));
-                if (agent != null)
-                    await _agentSwitching.ActivateWithHistoryAsync(agent);
-            }
         }
         catch (OperationCanceledException)
         {
@@ -160,10 +145,6 @@ public sealed class StreamShellInputHandler : IDisposable
     /// </summary>
     private void OnUserInput(string input, InputType type, IReadOnlyList<Attachment> attachments)
     {
-        // Don't process input while any wizard is active — wizard handles it
-        if (AgentConfigWizard.IsActive || FirstConnectionWizard.IsActive || ConfigurationWizard.IsActive)
-            return;
-
         // Commands are auto-executed by StreamShell — skip
         if (type == InputType.Command)
             return;
@@ -174,15 +155,30 @@ public sealed class StreamShellInputHandler : IDisposable
 
         _messageComposer.TryToComposeMessage(input, attachments, out string? composedMessage);
 
-        // Don't try to send null/empty input
-        if (composedMessage == null)
-            return;
-
         // Use non-blocking send via fire-and-forget since StreamShell fires events synchronously.
         // Exceptions are caught and surfaced inside SendWithAttachmentsAsync.
         _ = Task.Run(async () =>
         {
-            await _messageComposer.SendWithAttachmentsAsync(composedMessage, CancellationToken.None);
+            try
+            {
+                await _messageComposer.SendWithAttachmentsAsync(composedMessage!, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                var classification = GatewayErrorClassifier.Classify(ex);
+                _errorLog.Write(new ErrorLogEntry
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Level = "error",
+                    Category = "gateway",
+                    Code = classification.Code,
+                    Message = classification.HumanMessage,
+                    SuggestedActions = classification.SuggestedActions,
+                    RawException = classification.RawMessage,
+                    StackTrace = classification.StackTrace
+                });
+                _host.AddMessage($"[red]  Failed to send: {classification.HumanMessage}[/]");
+            }
         });
     }
 

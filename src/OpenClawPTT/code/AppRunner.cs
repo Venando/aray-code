@@ -2,6 +2,7 @@ namespace OpenClawPTT;
 
 using System.Net.WebSockets;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Diagnostics;
 using StreamShell;
 
 /// <summary>
@@ -15,6 +16,7 @@ public class AppRunner : IDisposable
     private readonly IStreamShellHost _shellHost;
     private readonly IConfigurationService _configService;
     private readonly IColorConsole _console;
+    private readonly ErrorLogStore _errorLog;
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -30,6 +32,7 @@ public class AppRunner : IDisposable
         _shellHost = shellHost;
         _configService = configService;
         _console = console;
+        _errorLog = new ErrorLogStore(cfg.DataDir);
     }
 
     /// <summary>
@@ -67,23 +70,78 @@ public class AppRunner : IDisposable
         using var ttsSummarizer = _factory.CreateTtsSummarizer(directLlmService.IsConfigured ? directLlmService : null);
 
         using var gateway = _factory.CreateGatewayService(_cfg, ttsSummarizer, pttStateMachine);
+
+        // Wire ErrorLogStore into GatewayService so SendTextAsync/SendRpcAsync failures are logged
+        if (gateway is GatewayService gw)
+            gw.SetErrorLogStore(_errorLog);
+
+        // Try to connect. On failure, classify the error, show guidance, and
+        // continue with StreamShell alive so the user can run /reconnect.
+        var connectResult = await TryConnectWithGuidanceAsync(gateway, ct);
+        if (connectResult == ConnectResult.GiveUp)
+            return (int)AppLoopExitCode.Error;
+
+        return await RunPttLoopAsync(gateway, pttStateMachine, directLlmService, ttsSummarizer, ct);
+    }
+
+    /// <summary>Result of the guided connect attempt.</summary>
+    private enum ConnectResult { Success, ContinueWithoutGateway, GiveUp }
+
+    /// <summary>
+    /// Attempts to connect to the gateway. On failure, classifies the error
+    /// and shows actionable guidance instead of crashing.
+    /// </summary>
+    private async Task<ConnectResult> TryConnectWithGuidanceAsync(IGatewayService gateway, CancellationToken ct)
+    {
         try
         {
+            _console.PrintInfo("Connecting to gateway...");
             await gateway.ConnectAsync(ct);
+            _console.LogOk("gateway", "Gateway connected.");
+            return ConnectResult.Success;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            throw; // Cancellation is not an application error — let it propagate.
+            throw;
         }
-        catch (IOException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            return (int)AppLoopExitCode.Error;
+            var classification = GatewayErrorClassifier.Classify(ex);
+
+            // Always log the error
+            _errorLog.Write(new ErrorLogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "error",
+                Category = "gateway",
+                Code = classification.Code,
+                Message = classification.HumanMessage,
+                SuggestedActions = classification.SuggestedActions,
+                RawException = classification.RawMessage,
+                StackTrace = classification.StackTrace
+            });
+
+            // Show user-friendly message
+            _console.PrintWarning($"Gateway connection failed [{classification.Code}]");
+            _console.PrintWarning($"  {classification.HumanMessage}");
+
+            if (classification.SuggestedActions.Length > 0)
+            {
+                _console.PrintInfo("  Suggested actions:");
+                foreach (var action in classification.SuggestedActions)
+                    _console.PrintInfo($"    → {action}");
+            }
+
+            if (classification.ShouldStopApp)
+            {
+                _console.PrintError("Cannot continue without gateway connection.");
+                return ConnectResult.GiveUp;
+            }
+
+            // App stays alive — StreamShell keeps running, user can /reconnect
+            _console.PrintInfo("StreamShell is still available. Use /reconnect to retry, or /quit to exit.");
+            return ConnectResult.ContinueWithoutGateway;
         }
-        catch (WebSocketException)
-        {
-            return (int)AppLoopExitCode.Error;
-        }
-        return await RunPttLoopAsync(gateway, pttStateMachine, directLlmService, ttsSummarizer, ct);
     }
 
     private async Task<int> RunPttLoopAsync(IGatewayService gateway, IPttStateMachine pttStateMachine, IDirectLlmService directLlmService, ITtsSummarizer ttsSummarizer, CancellationToken ct)
@@ -114,7 +172,8 @@ public class AppRunner : IDisposable
             agentSettingsPersistence: _factory.GetAgentSettingsPersistence(),
             pttStateMachine: pttStateMachine,
             directLlmService: directLlmService.IsConfigured ? directLlmService : null,
-            ttsSummarizer: ttsSummarizer
+            ttsSummarizer: ttsSummarizer,
+            errorLogStore: _errorLog
         );
         await shellCommands.RegisterAsync();
         _console.PrintHelpMenu(_cfg);
@@ -126,9 +185,13 @@ public class AppRunner : IDisposable
         return (int)(await pttLoop.RunAsync(ct));
     }
 
+    /// <summary>Access the error log store (used by StreamShell commands).</summary>
+    internal ErrorLogStore GetErrorLogStore() => _errorLog;
+
     public void Dispose()
     {
         _cts?.Dispose();
         _cts = null;
+        _errorLog.Dispose();
     }
 }

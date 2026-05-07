@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Diagnostics;
 using Spectre.Console;
 
 namespace OpenClawPTT;
@@ -21,8 +22,9 @@ public sealed class AgentSwitchingCommands
     private readonly IColorConsole _console;
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     private readonly IPttStateMachine _pttStateMachine;
+    private readonly ErrorLogStore _errorLog;
 
-    public AgentSwitchingCommands(IStreamShellHost host, ITextMessageSender textSender, IGatewayService gatewayService, AppConfig appConfig, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IPttStateMachine pttStateMachine)
+    public AgentSwitchingCommands(IStreamShellHost host, ITextMessageSender textSender, IGatewayService gatewayService, AppConfig appConfig, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IPttStateMachine pttStateMachine, ErrorLogStore errorLog)
     {
         _host = host;
         _textSender = textSender;
@@ -31,6 +33,7 @@ public sealed class AgentSwitchingCommands
         _console = console;
         _agentSettingsPersistence = agentSettingsPersistence;
         _pttStateMachine = pttStateMachine;
+        _errorLog = errorLog;
     }
 
     /// <summary>Handler for /crew — lists available agents with all settings.</summary>
@@ -243,6 +246,75 @@ public sealed class AgentSwitchingCommands
         catch (Exception ex)
         {
             _host.AddMessage($"[red]  Failed to send command: {Markup.Escape(ex.Message)}[/]");
+        }
+    }
+
+    /// <summary>Handler for /errors — display recent error log entries.</summary>
+    public Task HandleErrorsCommand(string[] args)
+    {
+        int count = 10;
+        if (args.Length > 0 && int.TryParse(args[0], out var requested))
+            count = Math.Clamp(requested, 1, 100);
+
+        var entries = _errorLog.GetRecent(count);
+
+        if (entries.Count == 0)
+        {
+            _host.AddMessage("[green]  No errors logged.[/]");
+            return Task.CompletedTask;
+        }
+
+        _host.AddMessage($"[cyan2]  Recent errors ({entries.Count}):[/]");
+        foreach (var entry in entries)
+        {
+            var ts = entry.Timestamp.ToString("HH:mm:ss");
+            _host.AddMessage($"  [grey]{ts}[/] [bold]{Markup.Escape(entry.Code)}[/] {Markup.Escape(entry.Message)}");
+            if (entry.SuggestedActions.Length > 0)
+            {
+                foreach (var action in entry.SuggestedActions)
+                    _host.AddMessage($"    → [grey]{Markup.Escape(action)}[/]");
+            }
+        }
+        _host.AddMessage("[grey]  Use /errors N to show more, /errors clear to clear[/]");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Handler for /reconnect — attempt to reconnect to the gateway.</summary>
+    public async Task HandleReconnectCommand(string[] args)
+    {
+        _host.AddMessage("[cyan2]  Attempting to reconnect to gateway...[/]");
+        try
+        {
+            // GatewayService.RecreateWithConfig creates a fresh internal client
+            // but we need to dispose the old one. GatewayService handles this internally.
+            await _gatewayService.ConnectAsync(CancellationToken.None);
+            _host.AddMessage("[green]  Reconnected successfully.[/]");
+            // Pull session history for the now-active agent
+            var sessionKey = AgentRegistry.ActiveSessionKey;
+            if (sessionKey != null)
+                await PrintSessionHistory(sessionKey);
+        }
+        catch (Exception ex)
+        {
+            var classification = GatewayErrorClassifier.Classify(ex);
+            _errorLog.Write(new ErrorLogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "error",
+                Category = "gateway",
+                Code = classification.Code,
+                Message = classification.HumanMessage,
+                SuggestedActions = classification.SuggestedActions,
+                RawException = classification.RawMessage,
+                StackTrace = classification.StackTrace
+            });
+            _host.AddMessage($"[red]  Reconnect failed: {classification.HumanMessage}[/]");
+            if (classification.SuggestedActions.Length > 0)
+            {
+                _host.AddMessage("[grey]  Suggested actions:[/]");
+                foreach (var action in classification.SuggestedActions)
+                    _host.AddMessage($"    → [grey]{Markup.Escape(action)}[/]");
+            }
         }
     }
 }
