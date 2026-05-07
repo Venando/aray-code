@@ -179,6 +179,8 @@ public sealed class AgentHotkeyService : IDisposable
         // Unsubscribe fallback events (if any) before re-registering with indexed events.
         _hook.HotkeyPressed -= OnDefaultHotkeyPressed;
         _hook.HotkeyReleased -= OnDefaultHotkeyReleased;
+        _hook.HotkeyIndexPressed -= OnHotkeyPressed;
+        _hook.HotkeyIndexReleased -= OnHotkeyReleased;
 
         if (AgentRegistry.Agents.Count > 0)
         {

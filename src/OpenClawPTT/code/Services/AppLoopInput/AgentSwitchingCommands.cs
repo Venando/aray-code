@@ -76,11 +76,13 @@ public sealed class AgentSwitchingCommands
         // Deactivate the current agent so messages don't interfere with the wizard
         AgentRegistry.Deactivate();
 
+        AgentInfo? matched = null;
+
         if (args.Length > 0)
         {
             // Resolve agent name/ID and skip the agent selection step
             var search = string.Join(" ", args);
-            var matched = AgentRegistry.Agents.FirstOrDefault(a =>
+            matched = AgentRegistry.Agents.FirstOrDefault(a =>
                 a.Name.Equals(search, StringComparison.OrdinalIgnoreCase) ||
                 a.AgentId.Equals(search, StringComparison.OrdinalIgnoreCase));
 
@@ -89,36 +91,30 @@ public sealed class AgentSwitchingCommands
                 _host.AddMessage($"[red]  Agent not found: {Markup.Escape(search)}[/]");
                 return Task.CompletedTask;
             }
-
-            var wizard = new AgentConfigWizard(_host, _agentSettingsPersistence);
-            wizard.OnConfigured = agent =>
-            {
-                AgentRegistry.SetActiveAgent(agent.AgentId);
-                _ = ActivateWithHistoryAsync(agent);
-            };
-            _ = wizard.RunAsync(matched);
-            return Task.CompletedTask;
         }
-
-        // Show agent list, then start the wizard with agent selection step
-        var agents = AgentRegistry.Agents;
-        _host.AddMessage("[cyan2]  Select an agent to configure:[/]");
-        foreach (var agent in agents)
+        else
         {
-            var emoji = _agentSettingsPersistence.GetPersistedEmoji(agent.AgentId) ?? "🤖";
-            var color = _agentSettingsPersistence.GetPersistedColor(agent.AgentId);
-            var nameStr = color != null ? $"[{color}]{Markup.Escape(agent.Name)}[/]" : Markup.Escape(agent.Name);
-            _host.AddMessage($"  {emoji} {nameStr} [grey]({Markup.Escape(agent.AgentId)})[/]");
+            // Show agent list, then start the wizard with agent selection step
+            var agents = AgentRegistry.Agents;
+            _host.AddMessage("[cyan2]  Select an agent to configure:[/]");
+            foreach (var agent in agents)
+            {
+                var emoji = _agentSettingsPersistence.GetPersistedEmoji(agent.AgentId) ?? "🤖";
+                var color = _agentSettingsPersistence.GetPersistedColor(agent.AgentId);
+                var nameStr = color != null ? $"[{color}]{Markup.Escape(agent.Name)}[/]" : Markup.Escape(agent.Name);
+                _host.AddMessage($"  {emoji} {nameStr} [grey]({Markup.Escape(agent.AgentId)})[/]");
+            }
+            _host.AddMessage("");
         }
-        _host.AddMessage("");
 
-        var wizard2 = new AgentConfigWizard(_host, _agentSettingsPersistence);
-        wizard2.OnConfigured = agent =>
+
+        var wizard = new AgentConfigWizard(_host, _agentSettingsPersistence);
+        wizard.OnConfigured = agent =>
         {
             AgentRegistry.SetActiveAgent(agent.AgentId);
             _ = ActivateWithHistoryAsync(agent);
         };
-        _ = wizard2.RunAsync();
+        _ = wizard.RunAsync(matched);
         return Task.CompletedTask;
     }
 
@@ -205,6 +201,7 @@ public sealed class AgentSwitchingCommands
         {
             await _textSender.SendAsync(commandText, System.Threading.CancellationToken.None, printMessage: false);
             _console.PrintMarkupedUserMessage($"[blue on gray15]⚡ {Markup.Escape(commandText)} [/]");
+            _console.PrintMarkup("");
         }
         catch (Exception ex)
         {
