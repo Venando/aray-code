@@ -116,6 +116,12 @@ public sealed class MockGatewayService : IGatewayService
         _console.PrintInfo("[TEST MODE] Recreating gateway service (no-op)");
     }
 
+    public Task<JsonElement> SendRpcAsync(string method, object? parameters, CancellationToken ct = default)
+    {
+        // No-op in test mode — return empty JsonElement
+        return Task.FromResult(default(JsonElement));
+    }
+
     /// <summary>
     /// Returns simulated session history.
     /// </summary>

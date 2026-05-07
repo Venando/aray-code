@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
@@ -190,11 +191,44 @@ public sealed class AgentSwitchingCommands
 
     /// <summary>
     /// Forwards an OpenClaw slash command (e.g. /new, /stop) to the gateway.
+    /// /new and /reset are sent via the sessions.reset RPC rather than
+    /// as text commands, because the OpenClaw gateway no longer processes
+    /// slash commands from chat.send (regression in OpenClaw 2026.5.x).
     /// </summary>
-    public async Task HandleOpenClawCommand(string commandName, string[] args, System.Collections.Generic.Dictionary<string, string> named)
+    public async Task HandleOpenClawCommand(string commandName, string[] args, Dictionary<string, string> named)
     {
-        // Reconstruct the command text
-        var parts = new System.Collections.Generic.List<string> { "/" + commandName };
+        // Intercept /new and /reset — use sessions.reset RPC directly
+        if (string.Equals(commandName, "reset", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(commandName, "new", StringComparison.OrdinalIgnoreCase))
+        {
+            var sessionKey = AgentRegistry.ActiveSessionKey;
+            if (sessionKey == null)
+            {
+                _host.AddMessage("[yellow]  No active session to reset.[/]");
+                return;
+            }
+
+            var reason = string.Equals(commandName, "new", StringComparison.OrdinalIgnoreCase) ? "new" : "reset";
+            var displayCommand = "/" + commandName;
+
+            try
+            {
+                await _gatewayService.SendRpcAsync("sessions.reset", new Dictionary<string, object?>
+                {
+                    ["key"] = sessionKey,
+                    ["reason"] = reason
+                }, CancellationToken.None);
+                _console.PrintMarkupedUserMessage($"[blue on gray15]⚡ {Markup.Escape(displayCommand)} [/]");
+            }
+            catch (Exception ex)
+            {
+                _host.AddMessage($"[red]  Failed to reset session: {Markup.Escape(ex.Message)}[/]");
+            }
+            return;
+        }
+
+        // For all other commands, forward as text via chat.send
+        var parts = new List<string> { "/" + commandName };
         parts.AddRange(args);
         foreach (var kvp in named)
             parts.Add($"{kvp.Key}={kvp.Value}");
@@ -203,7 +237,7 @@ public sealed class AgentSwitchingCommands
 
         try
         {
-            await _textSender.SendAsync(commandText, System.Threading.CancellationToken.None, printMessage: false);
+            await _textSender.SendAsync(commandText, CancellationToken.None, printMessage: false);
             _console.PrintMarkupedUserMessage($"[blue on gray15]⚡ {Markup.Escape(commandText)} [/]");
         }
         catch (Exception ex)

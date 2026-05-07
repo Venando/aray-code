@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,6 +45,11 @@ public sealed class GatewayService : IGatewayService
     public async Task SendTextAsync(string text, CancellationToken ct)
     {
         await _gatewayClient.SendTextAsync(text, ct);
+    }
+
+    public async Task<JsonElement> SendRpcAsync(string method, object? parameters, CancellationToken ct)
+    {
+        return await _gatewayClient.SendEventAsync(method, parameters, ct);
     }
 
     public void RecreateWithConfig(AppConfig newConfig)

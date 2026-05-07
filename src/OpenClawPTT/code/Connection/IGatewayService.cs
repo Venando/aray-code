@@ -26,6 +26,9 @@ public interface IGatewayService : IDisposable, IGatewayUIEvents
     Task SendTextAsync(string text, CancellationToken ct = default);
     void RecreateWithConfig(AppConfig newConfig);
 
+    /// <summary>Sends a generic RPC request to the gateway.</summary>
+    Task<JsonElement> SendRpcAsync(string method, object? parameters, CancellationToken ct = default);
+
     /// <summary>Fetches recent chat history for a session. Returns null if unavailable.</summary>
     Task<List<ChatHistoryEntry>?> FetchSessionHistoryAsync(string sessionKey, int limit = 5);
 
