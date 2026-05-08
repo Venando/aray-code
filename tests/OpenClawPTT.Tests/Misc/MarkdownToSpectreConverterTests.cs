@@ -291,6 +291,7 @@ public class MarkdownToSpectreConverterTests
         var result = MarkdownToSpectreConverter.Convert(md);
         ValidateMarkup(result);
     }
+    
     private static void ValidateMarkup(string text)
     {
         var validateResult = MarkupValidator.Validate(text);
