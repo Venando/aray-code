@@ -71,18 +71,20 @@ public sealed class GatewayService : IGatewayService
         {
             await _gatewayClient.SendTextAsync(text, ct);
 
-            // After a successful send, check usage status to detect quota exhaustion
-            // (runs in background, doesn't block the message flow)
+            // After a successful send, run background checks to detect fallback
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await Task.Delay(200, ct);
+                    // Check provider quota (covers exhausted primary models)
                     await CheckUsageStatusAsync(ct);
+                    // Check session model override (detects silent fallback)
+                    await CheckSessionModelOverrideAsync(ct);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _console.Log("debug", $"usage.status check failed: {ex.Message}", LogLevel.Debug);
+                    _console.Log("debug", $"Post-send checks failed: {ex.Message}", LogLevel.Debug);
                 }
             }, ct);
         }
@@ -282,6 +284,75 @@ public sealed class GatewayService : IGatewayService
         {
             // usage.status might not be available if scope is insufficient
             _console.Log("debug", $"usage.status RPC: {gex.Message}", LogLevel.Debug);
+        }
+    }
+
+    /// <summary>
+    /// Checks the current session model state to detect if a fallback
+    /// auto-override was applied. When modelOverrideSource is "auto",
+    /// the primary model failed and a fallback was used instead.
+    /// </summary>
+    private async Task CheckSessionModelOverrideAsync(CancellationToken ct)
+    {
+        try
+        {
+            var sessionKey = AgentRegistry.ActiveSessionKey ?? "main";
+            var result = await _gatewayClient.SendEventAsync("sessions.list", new Dictionary<string, object?>
+            {
+                ["sessionKey"] = sessionKey
+            }, ct);
+
+            if (result.ValueKind == JsonValueKind.Undefined || result.ValueKind == JsonValueKind.Null)
+                return;
+
+            _console.Log("debug", $"sessions.list response: {result.ToString()[..Math.Min(result.ToString().Length, 800)]}", LogLevel.Debug);
+
+            // Try to find the session and check modelOverrideSource
+            JsonElement sessionEl = result;
+            // The response might be an array or have a sessions property
+            if (result.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var s in result.EnumerateArray())
+                {
+                    if (s.TryGetProperty("key", out var k) && k.GetString() == sessionKey)
+                    {
+                        sessionEl = s;
+                        break;
+                    }
+                }
+            }
+            else if (result.TryGetProperty("sessions", out var arr) && arr.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var s in arr.EnumerateArray())
+                {
+                    if (s.TryGetProperty("key", out var k) && k.GetString() == sessionKey)
+                    {
+                        sessionEl = s;
+                        break;
+                    }
+                }
+            }
+
+            // Check for modelOverrideSource = "auto" or model/provider override fields
+            if (sessionEl.TryGetProperty("modelOverrideSource", out var source) &&
+                source.GetString() == "auto")
+            {
+                var currentModel = sessionEl.TryGetProperty("model", out var m) ? m.GetString() : "unknown";
+                var currentProvider = sessionEl.TryGetProperty("modelProvider", out var p) ? p.GetString() : "unknown";
+                var originalModel = sessionEl.TryGetProperty("originalModel", out var om) ? om.GetString() : null;
+                var originalProvider = sessionEl.TryGetProperty("originalProvider", out var op) ? op.GetString() : null;
+
+                _console.PrintModelFallback(
+                    originalProvider ?? currentProvider ?? "?",
+                    originalModel ?? currentModel ?? "?",
+                    currentProvider ?? "?",
+                    currentModel ?? "?",
+                    false);
+            }
+        }
+        catch (GatewayException gex)
+        {
+            _console.Log("debug", $"sessions.list check: {gex.Message}", LogLevel.Debug);
         }
     }
 
