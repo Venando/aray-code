@@ -217,8 +217,6 @@ public class GatewayMessager : IDisposable, IRpcCaller
 
             case "model.failover":
                 _dispatcher.DispatchAndForget(new ModelFallbackEvent(name, payload));
-                // Also dispatch as a GatewayEvent so the generic handler logs it
-                _dispatcher.DispatchAndForget(new GatewayEvent(name, payload));
                 return;
 
             default:
