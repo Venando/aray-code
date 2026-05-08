@@ -1,5 +1,6 @@
 using OpenClawPTT;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Diagnostics;
 
 public class GatewayReconnector : IDisposable
 {
@@ -67,6 +68,19 @@ public class GatewayReconnector : IDisposable
                 }
                 catch (Exception ex)
                 {
+                    var classification = GatewayErrorClassifier.Classify(ex);
+                    if (!classification.ShouldRetry)
+                    {
+                        _console.LogError("gateway", classification.HumanMessage);
+                        if (classification.SuggestedActions.Length > 0)
+                        {
+                            _console.Log("gateway", "Suggested actions:");
+                            foreach (var action in classification.SuggestedActions)
+                                _console.Log("gateway", $"  - {action}");
+                        }
+                        _isReconnecting = false;
+                        break;
+                    }
                     _console.LogError("gateway", $"Reconnection failed: {ex.Message}");
                 }
             }

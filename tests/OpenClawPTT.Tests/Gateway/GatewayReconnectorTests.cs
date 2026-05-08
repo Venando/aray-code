@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Text.Json;
 using Moq;
 using OpenClawPTT;
 using OpenClawPTT.Services;
@@ -123,6 +124,96 @@ public class GatewayReconnectorTests : IDisposable
         // Should not throw — Dispose waits up to 5 seconds
         var exception = Record.Exception(() => reconn.Dispose());
         Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task ReconnectLoop_OnAuthError_LogsSuggestionAndDoesNotRetry()
+    {
+        // Arrange: connector fails with auth error
+        var callCount = 0;
+        _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => callCount++)
+            .ThrowsAsync(new GatewayException("Authentication failed: invalid token",
+                JsonDocument.Parse(/* lang=json */ """
+                    {"error":{"code":"UNAUTHORIZED","details":{"code":"UNAUTHORIZED","recommendedNextStep":"Generate a new token and set it in config."}}}
+                """).RootElement));
+
+        _mockConsole.Setup(x => x.Log(It.IsAny<string>(), It.IsAny<string>()));
+        _mockConsole.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<string>()));
+
+        // Act: start reconnection
+        var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
+
+        // Give it time to fail once
+        await Task.Delay(500);
+
+        // Assert: should have attempted only once, logged error + suggestion, and stopped
+        Assert.Equal(1, callCount);
+        _mockConsole.Verify(x => x.LogError("gateway",
+            It.Is<string>(s => s.Contains("Authentication failed"))), Times.AtLeastOnce);
+        _mockConsole.Verify(x => x.Log("gateway",
+            It.Is<string>(s => s.Contains("Suggested actions"))), Times.AtLeastOnce);
+        _mockConsole.Verify(x => x.Log("gateway",
+            It.Is<string>(s => s.Contains("Verify the gateway token"))), Times.AtLeastOnce);
+
+        _cts.Cancel();
+        try { await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1)); } catch { /* ignore */ }
+    }
+
+    [Fact]
+    public async Task ReconnectLoop_OnNetworkError_Retries()
+    {
+        // Arrange: connector fails with network error first, then succeeds
+        var attemptCount = 0;
+        _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => attemptCount++)
+            .Returns(() =>
+            {
+                if (attemptCount == 1)
+                    throw new WebSocketException("Connection refused");
+                return Task.CompletedTask; // second attempt succeeds
+            });
+
+        _mockConsole.Setup(x => x.Log(It.IsAny<string>(), It.IsAny<string>()));
+        _mockConsole.Setup(x => x.LogOk(It.IsAny<string>(), It.IsAny<string>()));
+
+        // Act: start reconnection
+        var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
+
+        // Give it time to fail, delay, then succeed
+        await Task.Delay(2000);
+
+        // Assert: should have attempted twice (fail once, succeed once)
+        Assert.Equal(2, attemptCount);
+        _mockConsole.Verify(x => x.LogOk("gateway", "Reconnected successfully."), Times.AtLeastOnce);
+
+        _cts.Cancel();
+        try { await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1)); } catch { /* ignore */ }
+    }
+
+    [Fact]
+    public async Task ReconnectLoop_OnDeviceTokenMismatch_LogsSuggestionAndDoesNotRetry()
+    {
+        var callCount = 0;
+        _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => callCount++)
+            .ThrowsAsync(new GatewayException("Device token mismatch",
+                JsonDocument.Parse(/* lang=json */ """
+                    {"error":{"code":"AUTH_DEVICE_TOKEN_MISMATCH","details":{"code":"AUTH_DEVICE_TOKEN_MISMATCH","recommendedNextStep":"Run: openclaw device token rotate"}}}
+                """).RootElement));
+
+        _mockConsole.Setup(x => x.Log(It.IsAny<string>(), It.IsAny<string>()));
+        _mockConsole.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<string>()));
+
+        var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
+        await Task.Delay(500);
+
+        Assert.Equal(1, callCount);
+        _mockConsole.Verify(x => x.Log("gateway",
+            It.Is<string>(s => s.Contains("openclaw device token rotate"))), Times.AtLeastOnce);
+
+        _cts.Cancel();
+        try { await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1)); } catch { /* ignore */ }
     }
 
     public void Dispose()
