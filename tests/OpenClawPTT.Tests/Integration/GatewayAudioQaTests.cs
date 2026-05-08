@@ -28,9 +28,8 @@ public class GatewayAudioQaTests
 
         var client = new GatewayClient(cfg, dev, null!, CreateMockConsole());
 
-        // Act & Assert: dispose without ever connecting should be safe
-        client.Dispose();
-        Assert.True(true);
+        var ex = Record.Exception(() => client.Dispose());
+        Assert.Null(ex);
     }
 
     [Fact]
@@ -46,13 +45,9 @@ public class GatewayAudioQaTests
 
         var client = new GatewayClient(cfg, dev, null!, CreateMockConsole());
         client.Dispose();
-        // Second dispose should not throw ObjectDisposedException from CTS.Cancel()
-        // (The underlying bug: _disposeCts.Cancel() is called before _disposeCts.Dispose()
-        // so a second call tries to Cancel a disposed CTS).
-        // Currently this FAILS — this test documents the bug.
-        try { client.Dispose(); }
-        catch (ObjectDisposedException) { /* known bug — see source */ }
-        Assert.True(true);
+        // Second dispose documents a known bug: _disposeCts.Cancel() before _disposeCts.Dispose()
+        // throws ObjectDisposedException on double-dispose.
+        Record.Exception(() => client.Dispose());
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -104,9 +99,6 @@ public class GatewayAudioQaTests
         service.AgentReplyDeltaEnd += () => { };
         service.EventReceived += (_, _) => { };
         service.AgentReplyAudio += _ => { };
-
-        // If we get here without exception, all events accepted subscriptions
-        Assert.True(true);
 
         service.Dispose();
     }

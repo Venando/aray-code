@@ -40,33 +40,19 @@ public class TranscriberFactoryTests
         Assert.Null(ex);
     }
 
-    [Fact]
-    public void Create_OpenAiProvider_EmptyApiKey_ThrowsArgumentException()
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_OpenAiProvider_InvalidApiKey_Throws(string apiKey)
     {
         var cfg = new AppConfig
         {
             SttProvider = "openai",
-            OpenAiApiKey = ""
+            OpenAiApiKey = apiKey
         };
 
         var ex = Record.Exception(() => TranscriberFactory.Create(cfg));
 
-        // OpenAI adapter throws ArgumentNullException for empty string key
-        Assert.True(ex is ArgumentNullException or ArgumentException);
-    }
-
-    [Fact]
-    public void Create_OpenAiProvider_WhitespaceApiKey_ThrowsArgumentException()
-    {
-        var cfg = new AppConfig
-        {
-            SttProvider = "openai",
-            OpenAiApiKey = "   "
-        };
-
-        var ex = Record.Exception(() => TranscriberFactory.Create(cfg));
-
-        // OpenAI adapter throws ArgumentNullException for whitespace-only key
         Assert.True(ex is ArgumentNullException or ArgumentException);
     }
 
@@ -92,26 +78,14 @@ public class TranscriberFactoryTests
 
     #region Default provider scenarios
 
-    [Fact]
-    public void Create_NullProvider_UsesGroq()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void Create_NullOrEmptyProvider_FallsBackToGroq(string? sttProvider)
     {
         var cfg = new AppConfig
         {
-            SttProvider = null,
-            GroqApiKey = "gsk_testkey"
-        };
-
-        var result = TranscriberFactory.Create(cfg);
-
-        Assert.IsType<GroqTranscriberAdapter>(result);
-    }
-
-    [Fact]
-    public void Create_EmptyProvider_UsesGroq()
-    {
-        var cfg = new AppConfig
-        {
-            SttProvider = "",
+            SttProvider = sttProvider,
             GroqApiKey = "gsk_testkey"
         };
 
