@@ -17,7 +17,7 @@ using NAudio;
 /// - Invalid/edge-case parameters
 /// </summary>
 [Collection("AudioRecorder")]
-public class AudioRecorderStabilityTests : IDisposable
+public class AudioRecorderStabilityTests
 {
     // ═══════════════════════════════════════════════════════════════
     // TEST: StartRecording with missing sox/arecord → throws (tool not found)
@@ -216,7 +216,6 @@ public class AudioRecorderStabilityTests : IDisposable
         }
     }
 
-    public void Dispose() { }
 }
 
 /// <summary>

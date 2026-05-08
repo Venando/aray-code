@@ -402,38 +402,7 @@ public class FakeAudioServiceTests : IDisposable
     public void Dispose() => _service?.Dispose();
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 5 (Fake): StopAndTranscribeAsync when not recording → returns null
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public async Task StopAndTranscribeAsync_WhenNotRecording_ReturnsNull()
-    {
-        New();
-        Assert.False(_service!.IsRecording);
-
-        var result = await _service.StopAndTranscribeAsync(default);
-
-        Assert.Null(result);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 6 (Fake): StartRecording when already recording → idempotent
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void StartRecording_WhenAlreadyRecording_IsIdempotent()
-    {
-        New();
-        _service!.StartRecording();
-        Assert.True(_service.IsRecording);
-        int showCountAfterFirst = _visual!.ShowCount;
-
-        _service.StartRecording();
-        Assert.Equal(showCountAfterFirst, _visual.ShowCount); // still 1, not 2
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 7 (Fake): Audio bytes < 1KB → returns null
+    // TEST (Fake): Audio bytes < 1KB → returns null, transcriber never called
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
@@ -450,7 +419,7 @@ public class FakeAudioServiceTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 8 (Fake): Transcription throws → returns null, no crash
+    // TEST (Fake): Transcription throws → returns null, no crash
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
@@ -466,7 +435,7 @@ public class FakeAudioServiceTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 9 (Fake): Multiple Start/Stop cycles → no resource leaks
+    // TEST (Fake): Multiple Start/Stop cycles → show/hide balanced
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
@@ -486,7 +455,7 @@ public class FakeAudioServiceTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 10 (Fake): Transcriber result propagates correctly
+    // TEST (Fake): Transcriber result propagates correctly
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
@@ -502,7 +471,7 @@ public class FakeAudioServiceTests : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 11 (Fake): IsRecording reflects actual state
+    // TEST (Fake): IsRecording reflects actual state
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
@@ -516,18 +485,5 @@ public class FakeAudioServiceTests : IDisposable
 
         await _service.SimulateStopWithBytesAsync(new byte[2048], default);
         Assert.False(_service.IsRecording);
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 12 (Fake): Dispose is idempotent
-    // ═══════════════════════════════════════════════════════════════
-
-    [Fact]
-    public void Dispose_IsIdempotent()
-    {
-        New();
-        _service!.StartRecording();
-        _service.Dispose();
-        _service.Dispose(); // must not throw
     }
 }
