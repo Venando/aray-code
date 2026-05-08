@@ -18,7 +18,6 @@ namespace OpenClawPTT.Tests;
 public class OpenAiTranscriberAdapterTests : IDisposable
 {
     private const string ValidApiKey = "test-key-123";
-    private const string TestUrl = "https://api.openai.com/v1/audio/transcriptions";
     private static readonly byte[] SmallWav = new byte[] { 0x52, 0x49, 0x46, 0x46 }; // "RIFF" — minimal WAV
 
     // ─── Helper: build an adapter with a mock handler that responds with the given function ───
@@ -42,10 +41,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
             httpHandler: handler.Object);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 2: HTTP 401 Unauthorized → fails immediately, no retry
-    // ═══════════════════════════════════════════════════════════════
-
     [Fact]
     public async Task TranscribeAsync_401Unauthorized_FailsImmediatelyNoRetry()
     {
@@ -68,10 +63,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
         Assert.Contains("401", ex.Message);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 3: HTTP 400 Bad Request → fails immediately, no retry
-    // ═══════════════════════════════════════════════════════════════
-
     [Fact]
     public async Task TranscribeAsync_400BadRequest_FailsImmediatelyNoRetry()
     {
@@ -92,10 +83,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
         Assert.Equal(1, callCount);
         Assert.Contains("400", ex.Message);
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 4: Network timeout → retries up to limit
-    // ═══════════════════════════════════════════════════════════════
 
     [Fact]
     public async Task TranscribeAsync_NetworkTimeout_RetriesUpToLimit()
@@ -118,10 +105,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
         Assert.Contains("timed out", ex.Message);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 5: Null audio bytes → throws ArgumentNullException
-    // ═══════════════════════════════════════════════════════════════
-
     [Fact]
     public async Task TranscribeAsync_NullAudioBytes_ThrowsArgumentNullException()
     {
@@ -137,10 +120,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
         Assert.Equal("wavBytes", ex.ParamName);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 6: Empty audio bytes → throws ArgumentNullException
-    // ═══════════════════════════════════════════════════════════════
-
     [Fact]
     public async Task TranscribeAsync_EmptyAudioBytes_ThrowsArgumentNullException()
     {
@@ -155,10 +134,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
 
         Assert.Equal("wavBytes", ex.ParamName);
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 7: Very large audio file → throws ArgumentOutOfRangeException
-    // ═══════════════════════════════════════════════════════════════
 
     [Fact]
     public async Task TranscribeAsync_VeryLargeAudioBytes_ThrowsArgumentOutOfRangeException()
@@ -192,10 +167,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
 
         Assert.Equal("wavBytes", ex.ParamName);
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST 8: Rapid successive calls → serialized, no race conditions
-    // ═══════════════════════════════════════════════════════════════
 
     [Fact]
     public async Task TranscribeAsync_ConcurrentCalls_AreSerialized()
@@ -234,10 +205,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
         Assert.Equal(1, maxConcurrent); // Never more than 1 call active
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // TEST: 503 eventually succeeds after retries → returns transcription
-    // ═══════════════════════════════════════════════════════════════
-
     [Fact]
     public async Task TranscribeAsync_503ThenSuccess_ReturnsResult()
     {
@@ -264,10 +231,6 @@ public class OpenAiTranscriberAdapterTests : IDisposable
         Assert.Equal(3, callCount); // 2 failures + 1 success
         Assert.Equal("hello world", result);
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEST: Successful transcription → returns correct text
-    // ═══════════════════════════════════════════════════════════════
 
     [Fact]
     public async Task TranscribeAsync_SuccessfulResponse_ReturnsTranscribedText()
