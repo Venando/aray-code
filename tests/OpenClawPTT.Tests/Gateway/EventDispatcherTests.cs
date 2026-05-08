@@ -154,7 +154,7 @@ public class EventDispatcherTests
         _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>()))
             .Callback<string>(t => captured = t);
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"assistant\", \"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}}");
         await handler.HandleAsync(new SessionMessageEvent("session.message", payload));
 
@@ -168,7 +168,7 @@ public class EventDispatcherTests
         _mockEvents.Setup(x => x.RaiseAgentReplyAudio(It.IsAny<string>()))
             .Callback<string>(t => captured = t);
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"assistant\", \"content\":[{\"type\":\"audio\",\"audio\":\"voice data\"}]}}");
         await handler.HandleAsync(new SessionMessageEvent("session.message", payload));
 
@@ -182,7 +182,7 @@ public class EventDispatcherTests
         _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>()))
             .Callback<string>(t => captured = t);
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"user\", \"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}}");
         await handler.HandleAsync(new SessionMessageEvent("session.message", payload));
 
@@ -192,7 +192,7 @@ public class EventDispatcherTests
     [Fact]
     public async Task SessionMessageHandler_NonArrayContent_DoesNotThrow()
     {
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"assistant\", \"content\":\"not an array\"}}");
         await handler.HandleAsync(new SessionMessageEvent("session.message", payload));
     }
@@ -204,7 +204,7 @@ public class EventDispatcherTests
         _mockEvents.Setup(x => x.RaiseAgentThinking(It.IsAny<string>()))
             .Callback<string>(t => capturedThinking = t);
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"assistant\", \"content\":[{\"type\":\"thinking\",\"thinking\":\" 分析中\"}]}}");
         await handler.HandleAsync(new SessionMessageEvent("session.message", payload));
 
@@ -218,7 +218,7 @@ public class EventDispatcherTests
         _mockEvents.Setup(x => x.RaiseAgentToolCall(It.IsAny<string>(), It.IsAny<string>()))
             .Callback<string, string>((n, a) => { capturedName = n; capturedArgs = a; });
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"assistant\", \"content\":[{\"type\":\"toolCall\",\"name\":\"read\",\"arguments\":\"{\\\"path\\\":\\\"a.md\\\"}\"}]}}");
         await handler.HandleAsync(new SessionMessageEvent("session.message", payload));
 
@@ -232,7 +232,7 @@ public class EventDispatcherTests
         var fired = false;
         _mockEvents.Setup(x => x.RaiseAgentReplyDeltaStart()).Callback(() => fired = true);
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"data\":{\"phase\":\"start\"}}");
         await handler.HandleAsync(new SessionMessageEvent("agent", payload));
 
@@ -256,7 +256,7 @@ public class EventDispatcherTests
         _mockEvents.Setup(x => x.RaiseAgentReplyDelta(It.IsAny<string>()))
             .Callback<string>(t => capturedDelta = t);
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, realtimeCfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, realtimeCfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"data\":{\"phase\":\"start\",\"delta\":\"hello\"}}");
         await handler.HandleAsync(new SessionMessageEvent("agent", payload));
 
@@ -270,7 +270,7 @@ public class EventDispatcherTests
         var startFired = false;
         _mockEvents.Setup(x => x.RaiseAgentReplyDeltaStart()).Callback(() => startFired = true);
 
-        var handler = new SessionMessageHandler(_mockEvents.Object, _mockRpc.Object, _cfg, _contentExtractor, _mockConsole.Object);
+        var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"state\":\"final\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"final text\"}]}}");
         await handler.HandleAsync(new SessionMessageEvent("chat", payload));
 

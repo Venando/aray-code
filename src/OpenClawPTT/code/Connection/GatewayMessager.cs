@@ -52,7 +52,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
 
         // Register default handlers
         _dispatcher.RegisterHandler<SessionMessageEvent>(
-            new SessionMessageHandler(_events, this, _cfg, _contentExtractor, _console));
+            new SessionMessageHandler(_events, _cfg, _contentExtractor, _console));
         _dispatcher.RegisterHandler<GatewayDisconnectedEvent>(
             new GatewayConnectionHandler(_console, _onDisconnection));
         _dispatcher.RegisterHandler<ModelFallbackEvent>(
