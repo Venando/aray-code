@@ -67,6 +67,8 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
 
     private void HandleSessionMessage(JsonElement payload)
     {
+        _console.Log("payload", payload.ToString(), LogLevel.Info);
+        
         var sessionKey = payload.TryGetProperty("sessionKey", out var skEl)
             ? skEl.GetString() : null;
 

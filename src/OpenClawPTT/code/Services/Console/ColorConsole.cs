@@ -207,13 +207,7 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public void PrintModelFailed(string errorMessage)
     {
-        ShellMsg($"[red]  ✗ All models failed: {Markup.Escape(errorMessage)}[/]");
-        if (errorMessage.Contains("usage limit", StringComparison.OrdinalIgnoreCase) ||
-            errorMessage.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
-            errorMessage.Contains("insufficient funds", StringComparison.OrdinalIgnoreCase))
-        {
-            ShellMsg($"[yellow]  ⚠ Tip: Check provider API quota at https://www.kimi.com/code/console[/]");
-        }
+        ShellMsg($"[red]  ✗ Model failed: {Markup.Escape(errorMessage)}[/]");
     }
 
     /// <inheritdoc />
