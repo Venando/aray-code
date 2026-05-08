@@ -195,11 +195,11 @@ _thinkingDisplay.DisplayThinking(thinking);
 
         if (isAudioEnabled && _hasAudioInCurrentMessage)
         {
-            _currentPrefix = $"  {emoji} 🔊 {coloredName}: ";
+            _currentPrefix = $"  {emoji} {coloredName}: ";
         }
         else if (isAudioEnabled)
         {
-            _currentPrefix = $"  {emoji} ✍️ {coloredName}: ";
+            _currentPrefix = $"  {emoji} {coloredName}: ";
         }
         else
         {
