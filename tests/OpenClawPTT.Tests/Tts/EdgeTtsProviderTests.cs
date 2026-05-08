@@ -134,9 +134,6 @@ public class EdgeTtsProviderTests
 
         public EdgeTtsProviderViaReflection(string subscriptionKey, HttpClient http)
         {
-            // EdgeTtsProvider is sealed, so we use the interface directly.
-            // Construct via factory-style pattern through the public ctor
-            // and replace the backing field via reflection.
             _inner = new EdgeTtsProvider(subscriptionKey);
             var field = typeof(EdgeTtsProvider).GetField("_http",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -146,23 +143,6 @@ public class EdgeTtsProviderTests
         public async Task<byte[]> SynthesizeAsync(string text, string? voice = null,
             string? model = null, CancellationToken ct = default)
             => await _inner.SynthesizeAsync(text, voice, model, ct);
-    }
-
-    /// <summary>
-    /// Minimal HttpMessageHandler stub that calls a user-supplied delegate.
-    /// </summary>
-    private sealed class HttpMessageHandlerStub : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, Task<HttpResponseMessage>> _respond;
-
-        public HttpMessageHandlerStub(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond)
-            => _respond = respond;
-
-        protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-            => await _respond(request);
-
-        protected override void Dispose(bool disposing) { }
     }
 
     #endregion

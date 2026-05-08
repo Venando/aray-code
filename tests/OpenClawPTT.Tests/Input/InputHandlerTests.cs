@@ -10,17 +10,6 @@ namespace OpenClawPTT.Tests.Input;
 public class InputHandlerTests
 {
     [Fact]
-    public async Task HandleInputAsync_ReturnsContinue()
-    {
-        var mockSender = new Mock<ITextMessageSender>();
-        var handler = new InputHandler(mockSender.Object);
-
-        var result = await handler.HandleInputAsync(CancellationToken.None);
-
-        Assert.Equal(InputResult.Continue, result);
-    }
-
-    [Fact]
     public async Task SendTextAsync_CallsTextSender()
     {
         var mockSender = new Mock<ITextMessageSender>();

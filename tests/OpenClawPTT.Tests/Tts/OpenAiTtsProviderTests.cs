@@ -142,7 +142,6 @@ public class OpenAiTtsProviderTests
         public OpenAiTtsProviderViaReflection(string apiKey, HttpClient http)
         {
             _inner = new OpenAiTtsProvider(apiKey);
-            // Replace the private _http field with our test client.
             var field = typeof(OpenAiTtsProvider).GetField("_http",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             field!.SetValue(_inner, http);
@@ -151,23 +150,6 @@ public class OpenAiTtsProviderTests
         public async Task<byte[]> SynthesizeAsync(string text, string? voice = null,
             string? model = null, CancellationToken ct = default)
             => await _inner.SynthesizeAsync(text, voice, model, ct);
-    }
-
-    /// <summary>
-    /// Stub HttpMessageHandler that invokes a user-supplied delegate per request.
-    /// </summary>
-    private sealed class HttpMessageHandlerStub : HttpMessageHandler
-    {
-        private readonly Func<HttpRequestMessage, Task<HttpResponseMessage>> _respond;
-
-        public HttpMessageHandlerStub(Func<HttpRequestMessage, Task<HttpResponseMessage>> respond)
-            => _respond = respond;
-
-        protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-            => await _respond(request);
-
-        protected override void Dispose(bool disposing) { }
     }
 
     #endregion

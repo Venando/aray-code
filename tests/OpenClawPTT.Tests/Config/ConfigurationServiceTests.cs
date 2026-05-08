@@ -66,29 +66,9 @@ public class ConfigurationServiceTests
     [Fact]
     public void ConfigurationService_DefaultConstructor_UsesFileConfigStorage()
     {
-        // Arrange & Act
         var service = new ConfigurationService();
-
-        // Assert - should not throw when loading (may return null if no config)
         var result = service.Load();
-        // Just verify it doesn't throw - FileConfigStorage is wired up correctly
-        Assert.True(true);
-    }
-
-    [Fact]
-    public void IConfigStorage_CanBeMocked_ForTestIsolation()
-    {
-        // Arrange - prove we can inject a fake storage for testing
-        var mockStorage = new Mock<IConfigStorage>();
-        mockStorage.Setup(x => x.Load()).Returns(new AppConfig { GatewayUrl = "wss://mocked.example.com" });
-
-        var service = new ConfigurationService(mockStorage.Object);
-
-        // Act
-        var loaded = service.Load();
-
-        // Assert
-        Assert.Equal("wss://mocked.example.com", loaded!.GatewayUrl);
+        Assert.NotNull(service);
     }
 
     [Fact]

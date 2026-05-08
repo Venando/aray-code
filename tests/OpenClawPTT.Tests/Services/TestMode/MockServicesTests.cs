@@ -111,10 +111,8 @@ public class MockServicesTests
     {
         var service = new MockGatewayService(TestScenarios.BasicChat, _mockConsole.Object);
 
-        service.Dispose();
-
-        // Should not throw
-        Assert.True(true);
+        var ex = Record.Exception(() => service.Dispose());
+        Assert.Null(ex);
     }
 
     #endregion
@@ -234,10 +232,8 @@ public class MockServicesTests
     {
         var service = new MockDirectLlmService(TestScenarios.BasicChat, _mockConsole.Object);
 
-        service.Dispose();
-
-        // Should not throw
-        Assert.True(true);
+        var ex = Record.Exception(() => service.Dispose());
+        Assert.Null(ex);
     }
 
     #endregion

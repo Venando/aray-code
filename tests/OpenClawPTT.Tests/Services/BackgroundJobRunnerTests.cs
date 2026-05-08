@@ -1,4 +1,5 @@
 using OpenClawPTT.Services;
+using System.Threading;
 using Xunit;
 
 namespace OpenClawPTT.Tests.Services;
@@ -89,28 +90,29 @@ public class BackgroundJobRunnerTests
     // ─── RunAndForget (Action) ───────────────────────────────────────
 
     [Fact]
-    public async Task RunAndForget_Action_ExecutesAndCompletes()
+    public void RunAndForget_Action_ExecutesAndCompletes()
     {
         var runner = new BackgroundJobRunner();
-        var completed = false;
+        using var completed = new ManualResetEventSlim(false);
+        var flag = false;
 
-        runner.RunAndForget(() => { completed = true; }, "simple-action");
+        runner.RunAndForget(() => { flag = true; completed.Set(); }, "simple-action");
 
-        // Allow the thread pool to execute the work item
-        await Task.Delay(200);
-        Assert.True(completed);
+        Assert.True(completed.Wait(1000), "Timed out waiting for fire-and-forget action");
+        Assert.True(flag);
     }
 
     [Fact]
-    public async Task RunAndForget_Action_HandlesException()
+    public void RunAndForget_Action_HandlesException()
     {
         var runner = new BackgroundJobRunner();
+        using var errorReceived = new ManualResetEventSlim(false);
         JobErrorEventArgs? captured = null;
-        runner.JobFailed += (_, args) => captured = args;
+        runner.JobFailed += (_, args) => { captured = args; errorReceived.Set(); };
 
         runner.RunAndForget(() => throw new InvalidOperationException("fire-and-forget boom"), "boom");
 
-        await Task.Delay(200);
+        Assert.True(errorReceived.Wait(1000), "Timed out waiting for JobFailed event");
         Assert.NotNull(captured);
         Assert.Equal("boom", captured!.JobInfo.JobName);
         Assert.IsType<InvalidOperationException>(captured.Exception);
@@ -120,27 +122,30 @@ public class BackgroundJobRunnerTests
     // ─── RunAndForget (async) ────────────────────────────────────────
 
     [Fact]
-    public async Task RunAndForget_AsyncAction_ExecutesAndCompletes()
+    public void RunAndForget_AsyncAction_ExecutesAndCompletes()
     {
         var runner = new BackgroundJobRunner();
-        var completed = false;
+        using var completed = new ManualResetEventSlim(false);
+        var flag = false;
 
         runner.RunAndForget(async () =>
         {
             await Task.Yield();
-            completed = true;
+            flag = true;
+            completed.Set();
         }, "async-action");
 
-        await Task.Delay(200);
-        Assert.True(completed);
+        Assert.True(completed.Wait(1000), "Timed out waiting for fire-and-forget async action");
+        Assert.True(flag);
     }
 
     [Fact]
-    public async Task RunAndForget_AsyncAction_HandlesException()
+    public void RunAndForget_AsyncAction_HandlesException()
     {
         var runner = new BackgroundJobRunner();
+        using var errorReceived = new ManualResetEventSlim(false);
         JobErrorEventArgs? captured = null;
-        runner.JobFailed += (_, args) => captured = args;
+        runner.JobFailed += (_, args) => { captured = args; errorReceived.Set(); };
 
         runner.RunAndForget(async () =>
         {
@@ -148,7 +153,7 @@ public class BackgroundJobRunnerTests
             throw new InvalidOperationException("async fire-and-forget boom");
         }, "async-boom");
 
-        await Task.Delay(200);
+        Assert.True(errorReceived.Wait(1000), "Timed out waiting for JobFailed event");
         Assert.NotNull(captured);
         Assert.Equal("async-boom", captured!.JobInfo.JobName);
         Assert.Equal("async fire-and-forget boom", captured.Exception.Message);
