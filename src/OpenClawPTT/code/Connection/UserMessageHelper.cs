@@ -5,6 +5,47 @@ namespace OpenClawPTT;
 
 public static class UserMessageHelper
 {
+    //msg example:
+    /*
+    {
+  "role": "assistant",
+  "content": [
+    {
+      "type": "thinking",
+      "thinking": "Done! Let me check if origin/main has advanced since I created the branch."
+    },
+    {
+      "type": "toolCall",
+      "id": "call_00_qZzwfBAUSoBkQVXLrhPl3378",
+      "name": "exec",
+      "arguments": {
+        "command": "cd ~/.openclaw/workspace/projects/streamshell/repo && git fetch origin && git merge-base --is-ancestor HEAD origin/main && echo \"up-to-date ✅\" || echo \"needs merge ⚠️\"",
+        "timeout": 10
+      }
+    }
+  ],
+  "api": "openai-completions",
+  "provider": "deepseek",
+  "model": "deepseek-v4-flash",
+  "usage": {
+    "input": 292,
+    "output": 126,
+    "totalTokens": 62242,
+    "cacheRead": 61824,
+    "cacheWrite": 0,
+    "cost": {
+      "total": 0.001807232
+    }
+  },
+  "stopReason": "toolUse",
+  "timestamp": 1778266536980,
+  "responseId": "10512b28-a199-41d8-994b-c853814589b5",
+  "__openclaw": {
+    "id": "1802a02b",
+    "seq": 93
+  }
+}
+    */
 
     public static bool TryGetChatHistoryEntry(JsonElement msg, out ChatHistoryEntry? enty)
     {

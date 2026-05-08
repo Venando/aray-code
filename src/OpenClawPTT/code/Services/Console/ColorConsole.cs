@@ -52,7 +52,7 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public void PrintHelpMenu(AppConfig appConfig)
     {
-        PrintAgentIntroduction(appConfig);
+        //PrintAgentIntroduction(appConfig);
         ShellMsg("    type [grey]/crew [/]to list agents [grey]/chat <agent>[/] to switch");
         ShellMsg("");
     }
@@ -77,7 +77,6 @@ public sealed class ColorConsole : IColorConsole
         var topLineStart = $"── {AppEmoji} PTT Active ─";
         var topLine = $"[deepskyblue3]╭{topLineStart}{new string('─', dashCount - topLineStart.Length)}╮[/]";
         var bottomLine = $"[deepskyblue3]╰{new string('─', dashCount)}╯[/]";
-        ShellMsg("");
         ShellMsg(topLine);
         ShellMsg($"[deepskyblue3]│[/]{middleContent}[deepskyblue3]│[/]");
         ShellMsg(bottomLine);

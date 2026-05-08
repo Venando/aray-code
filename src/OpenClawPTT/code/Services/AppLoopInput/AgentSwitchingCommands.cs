@@ -149,7 +149,6 @@ public sealed class AgentSwitchingCommands
             _appConfig.LastActiveAgentId = matched.AgentId;
             _configService.Save(_appConfig);
             await PrintSessionHistory(matched.SessionKey);
-            _console.PrintAgentIntroduction(_appConfig);
         }
         else
         {
@@ -164,7 +163,6 @@ public sealed class AgentSwitchingCommands
         _appConfig.LastActiveAgentId = agent.AgentId;
         _configService.Save(_appConfig);
         await PrintSessionHistory(agent.SessionKey);
-        _console.PrintAgentIntroduction(_appConfig);
     }
 
     /// <summary>Fetches and displays recent session history.</summary>
@@ -179,7 +177,8 @@ public sealed class AgentSwitchingCommands
         _pttStateMachine.DuringReplay = true;
         try
         {
-            _host.AddMessage("  [gray93 on #333333]── previous messages ──[/]");
+            _host.AddMessage("");
+            _host.AddMessage("  [gray93 on #333333]────── previous messages ──────[/]");
             _host.AddMessage("");
             foreach (var entry in history)
             {
@@ -206,6 +205,8 @@ public sealed class AgentSwitchingCommands
                 _host.AddMessage($"  [grey]Last message: {agoText}[/]");
             }
             _host.AddMessage("");
+
+            _console.PrintAgentIntroduction(_appConfig);
         }
         finally
         {

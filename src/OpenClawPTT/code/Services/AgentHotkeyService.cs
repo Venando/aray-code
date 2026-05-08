@@ -110,12 +110,7 @@ public sealed class AgentHotkeyService : IDisposable
                 // followed by agent introduction
                 if (PrintSessionHistoryAsync != null)
                 {
-                    _ = PrintSessionHistoryAsync(agent.SessionKey).ContinueWith(_ =>
-                        _console.PrintAgentIntroduction(_cfg), TaskContinuationOptions.ExecuteSynchronously);
-                }
-                else
-                {
-                    _console.PrintAgentIntroduction(_cfg);
+                    _ = PrintSessionHistoryAsync(agent.SessionKey);
                 }
         }
     }
