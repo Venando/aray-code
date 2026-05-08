@@ -75,7 +75,14 @@ public sealed class AgentOutputAdapter : IDisposable
 
     public void OnAgentReplyFull(string body)
     {
-        var markdownBody = MarkdownToSpectreConverter.Convert(body);
+        // Calculate available width for table rendering
+        int consoleWidth;
+        try { consoleWidth = Console.WindowWidth; } catch { consoleWidth = 80; }
+        int rightMargin = Math.Max(_config.RightMarginIndent, (int)(consoleWidth * 0.1));
+        int availableWidth = consoleWidth - _prefixLength - rightMargin;
+        if (availableWidth <= 0) availableWidth = consoleWidth / 2;
+
+        var markdownBody = MarkdownToSpectreConverter.Convert(body, availableWidth);
         bool useCapturing = _console.GetStreamShellHost() != null;
 
         EnsurePrefixPrinted();
