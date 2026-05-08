@@ -27,6 +27,12 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
 
     public async Task Run(CancellationToken cancellationToken = default) => await _host.Run(cancellationToken);
 
+    public void Clear()
+    {
+        // Clear the terminal screen using ANSI escape code
+        Spectre.Console.AnsiConsole.Clear();
+    }
+
     public void Stop() => _host.Stop();
 
     public void Dispose() => _host.Dispose();

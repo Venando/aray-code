@@ -34,6 +34,7 @@ public class ToolDisplayHandlerIntegrationTests
         public void AddMessage(string markup) => Messages.Add(markup);
         public void AddCommand(StreamShell.Command command) => Commands.Add(command);
         public Task Run(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public void Clear() { Messages.Clear(); }
         public void Stop() { }
         public void Dispose() { }
     }

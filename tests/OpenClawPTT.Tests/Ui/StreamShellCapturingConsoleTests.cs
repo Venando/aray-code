@@ -75,6 +75,7 @@ public class StreamShellCapturingConsoleTests
         public void AddMessage(string markup) => Messages.Add(markup);
         public void AddCommand(StreamShell.Command command) => Commands.Add(command);
         public System.Threading.Tasks.Task Run(System.Threading.CancellationToken cancellationToken = default) => System.Threading.Tasks.Task.CompletedTask;
+        public void Clear() { Messages.Clear(); }
         public void Stop() { }
         public void Dispose() { }
     }

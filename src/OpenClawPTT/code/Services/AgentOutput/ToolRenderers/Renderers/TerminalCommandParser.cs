@@ -285,7 +285,8 @@ public static class TerminalCommandParser
 
         // ── Detect here-doc ────────────────────────────────────────────────
         HereDocInfo? hereDoc = null;
-        var hdm = HereDocStartRe.Match(raw);
+        // Use multiline so $ matches end of any line (not just end of string)
+        var hdm = Regex.Match(raw, @"<<\s*'?(?<delim>\w+)'?\s*$", RegexOptions.Multiline);
         if (hdm.Success)
         {
             string delim = hdm.Groups["delim"].Value;

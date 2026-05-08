@@ -66,11 +66,27 @@ public sealed class ExecToolRenderer : ToolRendererBase
         ConsoleColor execColor = GetExecutableColor(meta.Type);
         Output.Print(execName, execColor);
 
-        // ── Positional arguments ───────────────────────────────────────────
+        // ── Positional arguments (with safety limit) ─────────────────────
+        int posCount = 0;
+        int posChars = 0;
+        const int maxPositionals = 20;
+        const int maxPosChars = 300;
         foreach (var pos in meta.Positionals)
         {
+            if (posCount >= maxPositionals || posChars >= maxPosChars)
+            {
+                // Skip here-doc body tokens that leaked past parsing
+                // and show a summary instead
+                var remaining = meta.Positionals.Count - posCount;
+                if (remaining > 0)
+                    Output.Print($" ... ({remaining} more tokens)", ConsoleColor.DarkGray);
+                break;
+            }
+            string fmt = FormatToken(pos);
+            posChars += fmt.Length;
             Output.Print(" ", ConsoleColor.White);
-            Output.Print(FormatToken(pos), ConsoleColor.Cyan);
+            Output.Print(fmt, ConsoleColor.Cyan);
+            posCount++;
         }
 
         // ── Script body (compact display) ────────────────────────────────────

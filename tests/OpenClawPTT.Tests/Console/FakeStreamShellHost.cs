@@ -19,6 +19,8 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
 
     public Task Run(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    public void Clear() { Messages.Clear(); }
+
     public void Stop() { /* no-op */ }
 
     public void Dispose() { /* no-op */ }

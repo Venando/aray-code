@@ -12,7 +12,7 @@ internal static class FilePathDisplayHelper
     /// <summary>
     /// The maximum number of characters to display for the full path.
     /// </summary>
-    private const int MaxLength = 40;
+    private const int MaxLength = 120;
 
     /// <summary>
     /// Length of the ".." separator used when truncating.

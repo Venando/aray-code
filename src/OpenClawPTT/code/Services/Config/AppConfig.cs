@@ -46,6 +46,7 @@ public sealed class AppConfig
     public ThinkingMode ThinkingDisplayMode { get; set; } = ThinkingMode.FirstNLines;
     public int ThinkingPreviewLines { get; set; } = 1;
     public int HistoryDisplayCount { get; set; } = 8;
+    public string? LastActiveAgentId { get; set; }
     public bool RequireConfirmBeforeSend { get; set; } = false;
 
     public string AgentName { get; set; } = "Agent";
@@ -153,6 +154,7 @@ public sealed class AppConfig
         ["HoldToTalk"] = "Hold key to record, release to send (vs toggle)",
         ["ThinkingDisplayMode"] = "How to show agent thinking: Off, FirstNLines, Summary, Full",
         ["ThinkingPreviewLines"] = "Rows of thinking to show in FirstNLines mode",
+        ["LastActiveAgentId"] = "Last active agent ID to restore on reconnect or restart",
         ["HistoryDisplayCount"] = "Number of previous messages to show on connect",
         ["RequireConfirmBeforeSend"] = "Ask for confirmation before sending messages",
         ["AgentName"] = "Default agent display name",

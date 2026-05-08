@@ -209,7 +209,22 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
         PersistDeviceTokenIfIssued(hello);
         var tickMs = ExtractTickIntervalMs(hello);
+
+        // Save last active agent before snapshot resets agents
+        var previousAgentId = AgentRegistry.ActiveAgentId;
+        if (previousAgentId != null)
+            _cfg.LastActiveAgentId = previousAgentId;
+
         _snapshotProcessor.ProcessSnapshot(hello);
+
+        // Restore last active agent after snapshot
+        var restoreId = _cfg.LastActiveAgentId;
+        if (restoreId != null && AgentRegistry.Agents.Any(a =>
+            a.AgentId.Equals(restoreId, StringComparison.OrdinalIgnoreCase)))
+        {
+            AgentRegistry.SetActiveAgent(restoreId);
+        }
+
         return tickMs;
     }
 
@@ -320,6 +335,10 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     {
         try
         {
+            // Save the active agent before disconnect so it can be restored on reconnect
+            if (AgentRegistry.ActiveAgentId != null)
+                _cfg.LastActiveAgentId = AgentRegistry.ActiveAgentId;
+
             await DisposeConnection(ct);
             _ = _gatewayReconnector.ScheduleReconnectAsync(ct);
         }

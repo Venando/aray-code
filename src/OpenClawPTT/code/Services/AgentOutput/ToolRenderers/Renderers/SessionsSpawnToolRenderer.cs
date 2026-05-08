@@ -28,7 +28,7 @@ public sealed class SessionsSpawnToolRenderer : ToolRendererBase
             Output.PrintLine("", ConsoleColor.DarkGray);
             const string taskPrefix = "  Task: ";
             Output.Print(taskPrefix, ConsoleColor.DarkGray);
-            Output.PrintTruncated(taskProp.GetString() ?? "", taskPrefix, rightMarginIndent, ConsoleColor.Gray, maxRows: 8);
+            Output.PrintTruncated(taskProp.GetString() ?? "", taskPrefix, rightMarginIndent, ConsoleColor.Gray, maxRows: 15);
         }
     }
 }

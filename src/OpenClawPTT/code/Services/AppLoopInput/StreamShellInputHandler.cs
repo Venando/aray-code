@@ -59,7 +59,7 @@ public sealed class StreamShellInputHandler : IDisposable
         _pttStateMachine = pttStateMachine;
         _ttsSummarizer = ttsSummarizer;
         _errorLog = errorLogStore ?? new ErrorLogStore(appConfig.DataDir);
-        _agentSwitching = new AgentSwitchingCommands(host, textSender, gatewayService, appConfig, console, agentSettingsPersistence, pttStateMachine, _errorLog);
+        _agentSwitching = new AgentSwitchingCommands(host, textSender, gatewayService, appConfig, console, agentSettingsPersistence, pttStateMachine, _configService, _errorLog);
         _messageComposer = new TextMessageComposer(host, textSender);
     }
 
@@ -77,6 +77,10 @@ public sealed class StreamShellInputHandler : IDisposable
 
         // TTS summary test command
         _host.AddCommand(new Command("tts-test", "Test TTS summarization pipeline with sample file", LlmTestSummaryHandler));
+
+        // Screen management
+        _host.AddCommand(new Command("clean", "Clear the terminal screen",
+            (args, named) => { _host.Clear(); return Task.CompletedTask; }));
 
         // Diagnostics commands
         _host.AddCommand(new Command("errors", "[N] Show recent gateway errors",

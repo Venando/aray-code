@@ -22,9 +22,10 @@ public sealed class AgentSwitchingCommands
     private readonly IColorConsole _console;
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     private readonly IPttStateMachine _pttStateMachine;
+    private readonly IConfigurationService _configService;
     private readonly ErrorLogStore _errorLog;
 
-    public AgentSwitchingCommands(IStreamShellHost host, ITextMessageSender textSender, IGatewayService gatewayService, AppConfig appConfig, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IPttStateMachine pttStateMachine, ErrorLogStore errorLog)
+    public AgentSwitchingCommands(IStreamShellHost host, ITextMessageSender textSender, IGatewayService gatewayService, AppConfig appConfig, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IPttStateMachine pttStateMachine, IConfigurationService configService, ErrorLogStore errorLog)
     {
         _host = host;
         _textSender = textSender;
@@ -33,6 +34,7 @@ public sealed class AgentSwitchingCommands
         _console = console;
         _agentSettingsPersistence = agentSettingsPersistence;
         _pttStateMachine = pttStateMachine;
+        _configService = configService;
         _errorLog = errorLog;
     }
 
@@ -144,6 +146,8 @@ public sealed class AgentSwitchingCommands
 
         if (AgentRegistry.SetActiveAgent(matched.AgentId))
         {
+            _appConfig.LastActiveAgentId = matched.AgentId;
+            _configService.Save(_appConfig);
             await PrintSessionHistory(matched.SessionKey);
             _console.PrintAgentIntroduction(_appConfig);
         }
@@ -157,6 +161,8 @@ public sealed class AgentSwitchingCommands
     public async Task ActivateWithHistoryAsync(AgentInfo agent)
     {
         AgentRegistry.SetActiveAgent(agent.AgentId);
+        _appConfig.LastActiveAgentId = agent.AgentId;
+        _configService.Save(_appConfig);
         await PrintSessionHistory(agent.SessionKey);
         _console.PrintAgentIntroduction(_appConfig);
     }
@@ -173,7 +179,8 @@ public sealed class AgentSwitchingCommands
         _pttStateMachine.DuringReplay = true;
         try
         {
-            _host.AddMessage("  [grey]── previous messages ──[/]");
+            _host.AddMessage("  [gray93 on #333333]── previous messages ──[/]");
+        _host.AddMessage("");
             foreach (var entry in history)
             {
                 if (entry.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
