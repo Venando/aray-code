@@ -180,7 +180,7 @@ public sealed class AgentSwitchingCommands
         try
         {
             _host.AddMessage("  [gray93 on #333333]── previous messages ──[/]");
-        _host.AddMessage("");
+            _host.AddMessage("");
             foreach (var entry in history)
             {
                 if (entry.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
@@ -188,6 +188,24 @@ public sealed class AgentSwitchingCommands
                 else
                     _gatewayService.DisplayHistoryEntry(entry);
             }
+
+            // Show how long ago the last message was
+            var lastEntry = history.LastOrDefault();
+            if (lastEntry?.CreatedAt != null)
+            {
+                var ago = DateTime.UtcNow - lastEntry.CreatedAt.Value.ToUniversalTime();
+                string agoText;
+                if (ago.TotalMinutes < 1)
+                    agoText = "just now";
+                else if (ago.TotalMinutes < 60)
+                    agoText = $"{(int)ago.TotalMinutes}m ago";
+                else if (ago.TotalHours < 24)
+                    agoText = $"{(int)ago.TotalHours}h {(int)(ago.TotalMinutes % 60)}m ago";
+                else
+                    agoText = $"{(int)ago.TotalDays}d ago";
+                _host.AddMessage($"  [grey]Last message: {agoText}[/]");
+            }
+            _host.AddMessage("");
         }
         finally
         {
