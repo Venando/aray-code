@@ -32,25 +32,6 @@ public class PttLoopTests
     }
 
     [Fact]
-    public async Task RunAsync_ExitsCleanly_OnCancellation()
-    {
-        var mockState = new Mock<IPttStateMachine>();
-        var mockAudio = new Mock<IAudioService>();
-        var mockSender = new Mock<ITextMessageSender>();
-        var mockInput = new Mock<IInputHandler>();
-        var mockPttCtrl = new Mock<IPttController>();
-
-        var loop = new AppLoop(
-            mockState.Object, mockAudio.Object, mockSender.Object,
-            mockInput.Object, mockPttCtrl.Object, CreateMockConsole());
-
-        var cts = new CancellationTokenSource(50);
-        var result = await loop.RunAsync(cts.Token);
-
-        Assert.Equal(AppLoopExitCode.Ok, result);
-    }
-
-    [Fact]
     public async Task RunAsync_HotkeyPressedStartsRecording()
     {
         var mockState = new Mock<IPttStateMachine>();

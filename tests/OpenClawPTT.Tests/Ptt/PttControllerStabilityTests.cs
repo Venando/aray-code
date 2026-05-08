@@ -17,14 +17,8 @@ public class PttControllerStabilityTests : IDisposable
     /// </summary>
     private sealed class FakeHotkeyHook : IGlobalHotkeyHook
     {
-        private bool _disposed;
         private Action? _hotkeyPressed;
         private Action? _hotkeyReleased;
-        private Action<int>? _hotkeyIndexPressed;
-        private Action<int>? _hotkeyIndexReleased;
-        private Action? _escapePressed;
-        public List<bool> StartCalls { get; } = new();
-        public List<bool> DisposeCalls { get; } = new();
 
         event Action? IGlobalHotkeyHook.HotkeyPressed
         {
@@ -36,33 +30,15 @@ public class PttControllerStabilityTests : IDisposable
             add { _hotkeyReleased += value; }
             remove { _hotkeyReleased -= value; }
         }
-        event Action<int>? IGlobalHotkeyHook.HotkeyIndexPressed
-        {
-            add { _hotkeyIndexPressed += value; }
-            remove { _hotkeyIndexPressed -= value; }
-        }
-        event Action<int>? IGlobalHotkeyHook.HotkeyIndexReleased
-        {
-            add { _hotkeyIndexReleased += value; }
-            remove { _hotkeyIndexReleased -= value; }
-        }
-        event Action? IGlobalHotkeyHook.EscapePressed
-        {
-            add { _escapePressed += value; }
-            remove { _escapePressed -= value; }
-        }
+        event Action<int>? IGlobalHotkeyHook.HotkeyIndexPressed { add { } remove { } }
+        event Action<int>? IGlobalHotkeyHook.HotkeyIndexReleased { add { } remove { } }
+        event Action? IGlobalHotkeyHook.EscapePressed { add { } remove { } }
 
         public void SetHotkey(Hotkey hotkey) { }
         public void SetHotkeys(System.Collections.Generic.IEnumerable<Hotkey> hotkeys) { }
         public bool BlockEscape { get; set; }
-        public void Start() { StartCalls.Add(true); }
-        public void Dispose()
-        {
-            if (!_disposed) { _disposed = true; DisposeCalls.Add(true); }
-        }
-
-        public void SimulatePress() => _hotkeyPressed?.Invoke();
-        public void SimulateRelease() => _hotkeyReleased?.Invoke();
+        public void Start() { }
+        public void Dispose() { }
     }
 
     /// <summary>
@@ -70,20 +46,8 @@ public class PttControllerStabilityTests : IDisposable
     /// </summary>
     private sealed class FakeHotkeyHookFactory : IHotkeyHookFactory
     {
-        public List<FakeHotkeyHook> CreatedHooks { get; } = new();
         public IGlobalHotkeyHook Create(Hotkey mapping, IColorConsole console)
-        {
-            var hook = new FakeHotkeyHook();
-            CreatedHooks.Add(hook);
-            return hook;
-        }
-    }
-
-    private readonly FakeHotkeyHookFactory _factory;
-
-    public PttControllerStabilityTests()
-    {
-        _factory = new FakeHotkeyHookFactory();
+            => new FakeHotkeyHook();
     }
 
     public void Dispose() { }
