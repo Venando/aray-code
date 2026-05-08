@@ -251,11 +251,11 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
             if (phaseType == "start")
             {
                 // New agent run starting — clear stale error state from previous runs
-                var sessionKey = payload.TryGetProperty("sessionKey", out var sk) ? sk.GetString() : null;
-                var agentId = payload.TryGetProperty("agentId", out var aId) ? aId.GetString() : null;
-                var errorKey = ErrorStateKey(sessionKey, agentId);
-                if (errorKey.Length > 0)
-                    _sessionErrors.TryRemove(errorKey, out _);
+                // var sessionKey = payload.TryGetProperty("sessionKey", out var sk) ? sk.GetString() : null;
+                // var agentId = payload.TryGetProperty("agentId", out var aId) ? aId.GetString() : null;
+                // var errorKey = ErrorStateKey(sessionKey, agentId);
+                // if (errorKey.Length > 0)
+                //     _sessionErrors.TryRemove(errorKey, out _);
 
                 if (_cfg.RealTimeReplyOutput)
                     _events.RaiseAgentReplyDeltaStart();
