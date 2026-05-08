@@ -47,6 +47,10 @@ public class GatewayMessager : IDisposable
             new SessionMessageHandler(_events, _cfg, _contentExtractor, _console));
         _dispatcher.RegisterHandler<GatewayDisconnectedEvent>(
             new GatewayConnectionHandler(_console, _onDisconnection));
+        _dispatcher.RegisterHandler<ModelFallbackEvent>(
+            new ModelFallbackHandler(_console));
+        _dispatcher.RegisterHandler<GatewayEvent>(
+            new GatewayEventHandler(_console));
     }
 
     public async Task ReceiveLoop(CancellationToken ct)

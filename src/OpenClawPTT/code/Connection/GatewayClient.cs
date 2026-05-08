@@ -20,6 +20,7 @@ public sealed class GatewayClient : IGatewayClient
     private readonly DeviceIdentity _dev;
     private readonly IGatewayEventSource _eventSource;
     private readonly Func<IGatewayConnectionLifecycle>? _lifecycleFactory;
+    private readonly IColorConsole _console;
 
     private IGatewayConnectionLifecycle? _lifecycle;
 
@@ -31,6 +32,7 @@ public sealed class GatewayClient : IGatewayClient
         _cfg = cfg;
         _dev = dev;
         _eventSource = eventSource;
+        _console = console;
         _lifecycleFactory = lifecycleFactory ?? (() => new GatewayConnectionLifecycle(_cfg, _dev, _eventSource, console));
         _lifecycle = _lifecycleFactory();
     }

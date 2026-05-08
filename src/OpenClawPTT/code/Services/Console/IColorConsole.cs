@@ -68,6 +68,12 @@ public interface IColorConsole
     
     /// <summary>Prints a gateway error with optional detail code and recommended step.</summary>
     void PrintGatewayError(string message, string? detailCode = null, string? recommendedStep = null);
+
+    /// <summary>Prints a model fallback warning showing the provider change.</summary>
+    void PrintModelFallback(string fromProvider, string fromModel, string toProvider, string toModel, bool isQuotaError);
+
+    /// <summary>Prints a model failure notification when all fallbacks are exhausted.</summary>
+    void PrintModelFailed(string errorMessage);
     
     // ── Logging ────────────────────────────────────────────────
 
@@ -77,6 +83,9 @@ public interface IColorConsole
     /// <summary>Logs a message with the specified tag and severity level.</summary>
     void Log(string tag, string msg, LogLevel level = LogLevel.Debug);
     
+    /// <summary>Logs a model quota warning (depleted/approaching limit).</summary>
+    void PrintModelQuotaWarning(string provider, string message);
+
     /// <summary>Logs a success message with the specified tag and severity level.</summary>
     void LogOk(string tag, string msg, LogLevel level = LogLevel.Info);
     

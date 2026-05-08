@@ -190,6 +190,40 @@ public sealed class ColorConsole : IColorConsole
             ShellMsg($"  Recommended : {Markup.Escape(recommendedStep)}");
     }
 
+    /// <inheritdoc />
+    public void PrintModelFallback(string fromProvider, string fromModel, string toProvider, string toModel, bool isQuotaError)
+    {
+        if (isQuotaError)
+        {
+            ShellMsg($"[orange1]  ⚠ Model fallback: [red]{Markup.Escape(fromProvider)}/{Markup.Escape(fromModel)}[/] quota exhausted → [green]{Markup.Escape(toProvider)}/{Markup.Escape(toModel)}[/][/]");
+            ShellMsg($"[orange1]  ⚠ Tip: Recharge [bold]{Markup.Escape(fromProvider)}[/] API quota or switch primary model in config[/]");
+        }
+        else
+        {
+            ShellMsg($"[yellow]  ⚠ Model fallback: [red]{Markup.Escape(fromProvider)}/{Markup.Escape(fromModel)}[/] unavailable → [green]{Markup.Escape(toProvider)}/{Markup.Escape(toModel)}[/][/]");
+        }
+    }
+
+    /// <inheritdoc />
+    public void PrintModelFailed(string errorMessage)
+    {
+        ShellMsg($"[red]  ✗ All models failed: {Markup.Escape(errorMessage)}[/]");
+        if (errorMessage.Contains("usage limit", StringComparison.OrdinalIgnoreCase) ||
+            errorMessage.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
+            errorMessage.Contains("insufficient funds", StringComparison.OrdinalIgnoreCase))
+        {
+            ShellMsg($"[yellow]  ⚠ Tip: Check provider API quota at https://www.kimi.com/code/console[/]");
+        }
+    }
+
+    /// <inheritdoc />
+    public void PrintModelQuotaWarning(string provider, string message)
+    {
+        var safeProvider = Markup.Escape(provider);
+        var safeMessage = Markup.Escape(message);
+        ShellMsg($"[yellow]  ⚠ [bold]{safeProvider}[/] quota: {safeMessage}[/]");
+    }
+
     // ── Logging ────────────────────────────────────────────────
 
     /// <inheritdoc />
