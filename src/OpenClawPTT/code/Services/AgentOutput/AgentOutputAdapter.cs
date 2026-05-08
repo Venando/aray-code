@@ -20,7 +20,6 @@ public sealed class AgentOutputAdapter : IDisposable
 
     private bool _prefixPrinted;
     private bool _isDeltaStarted;
-    private bool _hasAudioInCurrentMessage;
     private IAgentReplyFormatter? _formatter;
     private bool _disposed;
 
@@ -98,7 +97,6 @@ public sealed class AgentOutputAdapter : IDisposable
         }
 
         _prefixPrinted = false;
-        _hasAudioInCurrentMessage = false;
 
         // Fire TTS for non-streaming (single-shot) responses
         if (_audioResponseHandler != null && !string.IsNullOrWhiteSpace(body))
@@ -153,7 +151,6 @@ _thinkingDisplay.DisplayThinking(thinking);
 
         _isDeltaStarted = false;
         _prefixPrinted = false;
-        _hasAudioInCurrentMessage = false;
 
         if (_formatter != null)
         {
@@ -172,8 +169,7 @@ _thinkingDisplay.DisplayThinking(thinking);
 
     public void OnAgentReplyAudio(string audioText)
     {
-        _hasAudioInCurrentMessage = true;
-        // [audio] markers are no longer the TTS trigger — they only set the prefix emoji.
+        // [audio] markers are no longer the TTS trigger.
     }
 
     // ─── helpers ───────────────────────────────────────────────────
@@ -183,8 +179,6 @@ _thinkingDisplay.DisplayThinking(thinking);
         if (_prefixPrinted) return;
         _prefixPrinted = true;
 
-        var isAudioEnabled = _config.AudioResponseMode?.ToLowerInvariant() != "text-only";
-
         AgentRegistry.GetActiveNameAndEmoji(out var agentName, out var emoji, _config.AgentName);
         var color = AgentRegistry.GetActiveColor();
         var effectiveColor = color ?? AgentPersistedSettings.DefaultColor;
@@ -193,18 +187,7 @@ _thinkingDisplay.DisplayThinking(thinking);
         var colorClose = "[/]";
         var coloredName = $"{colorTag}{agentNameStr}{colorClose}";
 
-        if (isAudioEnabled && _hasAudioInCurrentMessage)
-        {
-            _currentPrefix = $"  {emoji} {coloredName}: ";
-        }
-        else if (isAudioEnabled)
-        {
-            _currentPrefix = $"  {emoji} {coloredName}: ";
-        }
-        else
-        {
-            _currentPrefix = $"  {emoji} {coloredName}: ";
-        }
+        _currentPrefix = $"  {emoji} {coloredName}: ";
 
         _prefixLength = _currentPrefix.Length;
         _newlineSuffix = new string(' ', _prefixLength);
