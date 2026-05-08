@@ -30,13 +30,11 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
     private readonly ConcurrentDictionary<string, SessionErrorState> _sessionErrors =
         new(StringComparer.Ordinal);
 
-    private sealed class SessionErrorState
-    {
-        public string? Provider { get; set; }
-        public string? Model { get; set; }
-        public string? ErrorMessage { get; set; }
-        public bool FallbackNotifiedForRun { get; set; }
-    }
+    private sealed record SessionErrorState(
+        string? Provider,
+        string? Model,
+        string? ErrorMessage,
+        bool FallbackNotifiedForRun);
 
     public SessionMessageHandler(
         IGatewayEventSource events,
@@ -180,13 +178,7 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
         // Record error state for fallback detection (per-session)
         if (sessionKey != null)
         {
-            _sessionErrors[sessionKey] = new SessionErrorState
-            {
-                Provider = provider,
-                Model = model,
-                ErrorMessage = errorMessage,
-                FallbackNotifiedForRun = false
-            };
+            _sessionErrors[sessionKey] = new SessionErrorState(provider, model, errorMessage, FallbackNotifiedForRun: false);
         }
     }
 
@@ -211,7 +203,7 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
         // If provider is the same, no fallback — the errored model handled it successfully
         if (string.Equals(currentProvider, state.Provider, StringComparison.OrdinalIgnoreCase))
         {
-            state.FallbackNotifiedForRun = true;
+            _sessionErrors.TryUpdate(sessionKey, state with { FallbackNotifiedForRun = true }, state);
             return;
         }
 
@@ -223,7 +215,7 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
             currentModel,
             isQuotaError: IsQuotaError(state.ErrorMessage ?? ""));
 
-        state.FallbackNotifiedForRun = true;
+        _sessionErrors.TryUpdate(sessionKey, state with { FallbackNotifiedForRun = true }, state);
     }
 
     private void HandleAgentStream(JsonElement payload)
