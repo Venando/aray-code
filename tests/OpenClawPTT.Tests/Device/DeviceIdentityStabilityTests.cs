@@ -3,27 +3,12 @@ using Xunit;
 
 namespace OpenClawPTT.Tests;
 
-/// <summary>
-/// Stability and edge-case tests for DeviceIdentity — Sign-Then-EnsureKeypair bug fix
-/// and robustness tests for filesystem errors, large payloads, and BuildV3Payload edge cases.
-/// </summary>
 public class DeviceIdentityStabilityTests : IDisposable
 {
     private readonly string _testDir;
-
-    public DeviceIdentityStabilityTests()
-    {
-        _testDir = Path.Combine(Path.GetTempPath(), $"oc_stability_{Guid.NewGuid():N}");
-    }
-
-    public void Dispose()
-    {
-        try { Directory.Delete(_testDir, recursive: true); } catch { }
-    }
-
+    public DeviceIdentityStabilityTests() { _testDir = Path.Combine(Path.GetTempPath(), $"oc_stability_{Guid.NewGuid():N}"); }
+    public void Dispose() { try { Directory.Delete(_testDir, recursive: true); } catch { } }
     private DeviceIdentity MakeDi() { Directory.CreateDirectory(_testDir); return new DeviceIdentity(_testDir); }
-
-    // ─── 1. Sign() before EnsureKeypair() → throws InvalidOperationException ────
 
     [Fact]
     public void Sign_BeforeEnsureKeypair_ThrowsInvalidOperationException()
@@ -34,209 +19,99 @@ public class DeviceIdentityStabilityTests : IDisposable
     }
 
     [Fact]
-    public void Sign_BeforeEnsureKeypair_NeverReturnsNull()
-    {
-        var di = MakeDi();
-        Assert.Throws<InvalidOperationException>(() => di.Sign("test"));
-    }
-
-    // ─── 2. EnsureKeypair() with read-only data directory → exception propagates ──
-
-    [Fact]
     public void EnsureKeypair_ReadOnlyDirectory_ThrowsIoOrUnauthorized()
     {
-        if (OperatingSystem.IsWindows())
-            return; // /dev approach only works on Unix-like systems
-
-        // /dev is never writable — the directory cannot be created
+        if (OperatingSystem.IsWindows()) return;
         var fakeDataDir = Path.Combine("/dev", $"oc_test_{Guid.NewGuid():N}");
         var di = new DeviceIdentity(fakeDataDir);
-        try
-        {
-            di.EnsureKeypair();
-            Assert.Fail("Expected an exception to be thrown");
-        }
-        catch (UnauthorizedAccessException) { /* expected on Linux/WSL */ }
-        catch (IOException) { /* expected on some systems */ }
+        try { di.EnsureKeypair(); Assert.Fail("Expected exception"); }
+        catch (UnauthorizedAccessException) { }
+        catch (IOException) { }
     }
-
-    // ─── 3. EnsureKeypair() when file is read-only → exception propagates ─────
 
     [Fact]
     public void EnsureKeypair_ExistingFileReadOnly_ThrowsIoOrUnauthorized()
     {
-        var di = MakeDi();
-        di.EnsureKeypair(); // create the file first (with a valid 32-byte key)
-
+        var di = MakeDi(); di.EnsureKeypair();
         var keyFile = Path.Combine(_testDir, "device.key");
-
         if (OperatingSystem.IsWindows())
         {
-            // Must create a fresh file so EnsureKeypair tries to WRITE (not just load).
-            File.Delete(keyFile);
-            using (File.Create(keyFile)) { }
+            File.Delete(keyFile); using (File.Create(keyFile)) { }
             File.SetAttributes(keyFile, FileAttributes.ReadOnly);
-            try
-            {
-                try { di.EnsureKeypair(); Assert.Fail("Expected exception"); }
-                catch (UnauthorizedAccessException) { /* ok */ }
-                catch (IOException) { /* ok */ }
-                catch (ArgumentException) { /* ok - empty file causes ArgumentException */ }
-            }
+            try { try { di.EnsureKeypair(); Assert.Fail("Expected"); } catch (UnauthorizedAccessException) { } catch (IOException) { } catch (ArgumentException) { } }
             finally { File.SetAttributes(keyFile, FileAttributes.Normal); }
         }
         else
         {
-            // Unix/WSL: chmod a-w removes write permission.
-            // Must create a fresh file so EnsureKeypair tries to WRITE (not just load).
-            File.Delete(keyFile);
-            using (File.Create(keyFile)) { }
+            File.Delete(keyFile); using (File.Create(keyFile)) { }
             Bash($"chmod a-w \"{keyFile}\"");
-            try
-            {
-                try { di.EnsureKeypair(); Assert.Fail("Expected exception"); }
-                catch (UnauthorizedAccessException) { /* ok - WSL throws this for EPERM */ }
-                catch (IOException) { /* ok - native Unix throws this */ }
-                catch (ArgumentException) { /* ok - empty file causes ArgumentException */ }
-            }
+            try { try { di.EnsureKeypair(); Assert.Fail("Expected"); } catch (UnauthorizedAccessException) { } catch (IOException) { } catch (ArgumentException) { } }
             finally { Bash($"chmod u+w \"{keyFile}\""); }
         }
     }
 
-    // ─── 5. EnsureKeypair() write failure leaves existing key intact ───────────
-
     [Fact]
     public void EnsureKeypair_WriteFailure_DoesNotCorruptExistingKey()
     {
-        var di = MakeDi();
+        var di = MakeDi(); di.EnsureKeypair();
+        var origPub = di.PublicKeyBase64; var origId = di.DeviceId;
+        var origContent = File.ReadAllText(Path.Combine(_testDir, "device.key"));
         di.EnsureKeypair();
-        var originalPubKey = di.PublicKeyBase64;
-        var originalDeviceId = di.DeviceId;
-        var keyFile = Path.Combine(_testDir, "device.key");
-        var originalContent = File.ReadAllText(keyFile);
-
-        // Calling again loads from existing file (doesn't try to write), identity stays valid
-        di.EnsureKeypair();
-
-        Assert.Equal(originalPubKey, di.PublicKeyBase64);
-        Assert.Equal(originalDeviceId, di.DeviceId);
-        Assert.Equal(originalContent, File.ReadAllText(keyFile));
+        Assert.Equal(origPub, di.PublicKeyBase64); Assert.Equal(origId, di.DeviceId);
+        Assert.Equal(origContent, File.ReadAllText(Path.Combine(_testDir, "device.key")));
     }
-
-    // ─── 6. Sign() with very large payload (>1MB) → still works ────────────────
 
     [Fact]
     public void Sign_LargePayload_StillWorks()
     {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var largePayload = new string('x', 1_200_000);
-
-        var sig = di.Sign(largePayload);
-
-        Assert.NotEmpty(sig);
-        var decoded = FromBase64Url(sig);
-        Assert.Equal(64, decoded.Length);
+        var sig = di.Sign(new string('x', 1_200_000));
+        Assert.NotEmpty(sig); Assert.Equal(64, DeviceTestHelpers.FromBase64Url(sig).Length);
     }
 
     [Fact]
     public void Sign_HugePayload_5MB_StillWorks()
     {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var hugePayload = new string('a', 5 * 1024 * 1024);
-
-        var sig = di.Sign(hugePayload);
-
-        Assert.NotEmpty(sig);
-        var decoded = FromBase64Url(sig);
-        Assert.Equal(64, decoded.Length);
+        var sig = di.Sign(new string('a', 5 * 1024 * 1024));
+        Assert.NotEmpty(sig); Assert.Equal(64, DeviceTestHelpers.FromBase64Url(sig).Length);
     }
-
-    // ─── 7. BuildV3Payload with null scope → handles gracefully ────────────────
 
     [Fact]
     public void BuildV3Payload_NullScope_ThrowsArgumentNullException()
     {
         var di = MakeDi(); di.EnsureKeypair();
-
-        IEnumerable<string>? nullScopes = null;
-        Assert.Throws<ArgumentNullException>(() =>
-            di.BuildV3Payload("linux", "desktop", "cid", "ptt", "user",
-                nullScopes!, 1000L, "tok", "non"));
+        IEnumerable<string>? ns = null;
+        Assert.Throws<ArgumentNullException>(() => di.BuildV3Payload("linux", "desktop", "cid", "ptt", "user", ns!, 1000L, "tok", "non"));
     }
 
     [Fact]
     public void BuildV3Payload_EmptyScope_Works()
     {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var payload = di.BuildV3Payload(
-            "linux", "desktop", "cid", "ptt", "user",
-            Array.Empty<string>(), 1000L, "tok", "non");
-
-        Assert.Contains("v3|", payload);
-        var parts = payload.Split('|');
-        Assert.Equal("", parts[5]);
+        var payload = di.BuildV3Payload("linux", "desktop", "cid", "ptt", "user", Array.Empty<string>(), 1000L, "tok", "non");
+        Assert.Contains("v3|", payload); Assert.Equal("", payload.Split('|')[5]);
     }
-
-    // ─── 8. BuildV3Payload with scope containing commas → joins correctly ─────
 
     [Fact]
     public void BuildV3Payload_ScopeWithCommas_JoinedWithComma()
     {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var scopes = new[] { "gateway.connect,admin", "audio.record" };
-
-        var payload = di.BuildV3Payload(
-            "linux", "desktop", "cid", "ptt", "user",
-            scopes, 1000L, "tok", "non");
-
-        var parts = payload.Split('|');
-        Assert.Equal("gateway.connect,admin,audio.record", parts[5]);
+        var payload = di.BuildV3Payload("linux", "desktop", "cid", "ptt", "user", new[] { "gateway.connect,admin", "audio.record" }, 1000L, "tok", "non");
+        Assert.Equal("gateway.connect,admin,audio.record", payload.Split('|')[5]);
     }
 
     [Fact]
     public void BuildV3Payload_ScopeWithMultipleCommas_JoinedCorrectly()
     {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var scopes = new[] { "a,b,c", "d,e,f", "g" };
-
-        var payload = di.BuildV3Payload(
-            "linux", "desktop", "cid", "ptt", "user",
-            scopes, 1000L, "tok", "non");
-
-        var parts = payload.Split('|');
-        Assert.Equal("a,b,c,d,e,f,g", parts[5]);
+        var payload = di.BuildV3Payload("linux", "desktop", "cid", "ptt", "user", new[] { "a,b,c", "d,e,f", "g" }, 1000L, "tok", "non");
+        Assert.Equal("a,b,c,d,e,f,g", payload.Split('|')[5]);
     }
-
-    // ─── Helper ─────────────────────────────────────────────────────────────────
 
     private static void Bash(string cmd)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "/bin/bash",
-            Arguments = $"-c \"{cmd}\"",
-            UseShellExecute = false,
-            RedirectStandardOutput = false,
-            RedirectStandardError = false,
-            CreateNoWindow = true
-        };
-        using var p = Process.Start(psi);
-        p?.WaitForExit();
-    }
-
-    private static byte[] FromBase64Url(string input)
-    {
-        var base64 = input.Replace('-', '+').Replace('_', '/');
-        switch (base64.Length % 4)
-        {
-            case 2: base64 += "=="; break;
-            case 3: base64 += "="; break;
-        }
-        return Convert.FromBase64String(base64);
+        var psi = new ProcessStartInfo { FileName = "/bin/bash", Arguments = $"-c \"{cmd}\"", UseShellExecute = false, CreateNoWindow = true };
+        using var p = Process.Start(psi); p?.WaitForExit();
     }
 }

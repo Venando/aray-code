@@ -2,246 +2,103 @@ using Xunit;
 
 namespace OpenClawPTT.Tests;
 
-/// <summary>
-/// QA tests for DeviceIdentity edge cases.
-/// </summary>
 public class DeviceIdentityEdgeCaseTests : IDisposable
 {
     private readonly string _testDir;
-
-    public DeviceIdentityEdgeCaseTests()
-    {
-        _testDir = Path.Combine(Path.GetTempPath(), $"oc_deveid_{Guid.NewGuid():N}");
-    }
-
-    public void Dispose()
-    {
-        try { Directory.Delete(_testDir, recursive: true); } catch { }
-    }
-
+    public DeviceIdentityEdgeCaseTests() { _testDir = Path.Combine(Path.GetTempPath(), $"oc_deveid_{Guid.NewGuid():N}"); }
+    public void Dispose() { try { Directory.Delete(_testDir, recursive: true); } catch { } }
     private DeviceIdentity MakeDi() { Directory.CreateDirectory(_testDir); return new DeviceIdentity(_testDir); }
 
-    // ─── EnsureKeypair idempotency ─────────────────────────────────────────────
-
-    [Fact]
-    public void EnsureKeypair_CreatesKeysIfMissing()
-    {
-        var di = MakeDi();
-        di.EnsureKeypair();
-
+    [Fact] public void EnsureKeypair_CreatesKeysIfMissing() {
+        var di = MakeDi(); di.EnsureKeypair();
         Assert.True(File.Exists(Path.Combine(_testDir, "device.key")));
-        Assert.NotEmpty(di.DeviceId);
-        Assert.NotEmpty(di.PublicKeyBase64);
+        Assert.NotEmpty(di.DeviceId); Assert.NotEmpty(di.PublicKeyBase64);
     }
 
-    [Fact]
-    public void EnsureKeypair_ReusesExistingKey_NoNewKeyGenerated()
-    {
-        var di1 = MakeDi();
-        di1.EnsureKeypair();
-        var pubKey1 = di1.PublicKeyBase64;
-        var id1 = di1.DeviceId;
-        var fileContent = File.ReadAllText(Path.Combine(_testDir, "device.key"));
-
-        // Call EnsureKeypair again on same or new instance
-        var di2 = MakeDi();
-        di2.EnsureKeypair();
-
-        Assert.Equal(pubKey1, di2.PublicKeyBase64);
-        Assert.Equal(id1, di2.DeviceId);
-        Assert.Equal(fileContent, File.ReadAllText(Path.Combine(_testDir, "device.key")));
-    }
-
-    [Fact]
-    public void EnsureKeypair_CanBeCalledMultipleTimes()
-    {
-        var di = MakeDi();
-        di.EnsureKeypair();
-        di.EnsureKeypair(); // should not throw, not regenerate
-        di.EnsureKeypair();
-
-        Assert.NotEmpty(di.DeviceId);
-        Assert.NotEmpty(di.PublicKeyBase64);
-    }
-
-    [Fact]
-    public void EnsureKeypair_DifferentInstances_SameDir_SameIdentity()
-    {
+    [Fact] public void EnsureKeypair_ReusesExistingKey_NoNewKeyGenerated() {
         var di1 = MakeDi(); di1.EnsureKeypair();
+        var k1 = di1.PublicKeyBase64; var id1 = di1.DeviceId;
+        var fc = File.ReadAllText(Path.Combine(_testDir, "device.key"));
         var di2 = MakeDi(); di2.EnsureKeypair();
-        var di3 = MakeDi(); di3.EnsureKeypair();
-
-        Assert.Equal(di1.DeviceId, di2.DeviceId);
-        Assert.Equal(di2.DeviceId, di3.DeviceId);
-        Assert.Equal(di1.PublicKeyBase64, di2.PublicKeyBase64);
-        Assert.Equal(di2.PublicKeyBase64, di3.PublicKeyBase64);
+        Assert.Equal(k1, di2.PublicKeyBase64); Assert.Equal(id1, di2.DeviceId);
+        Assert.Equal(fc, File.ReadAllText(Path.Combine(_testDir, "device.key")));
     }
 
-    // ─── Keys stored in correct directory ──────────────────────────────────────
-
-    [Fact]
-    public void Keys_StoredInDataDir_NotElsewhere()
-    {
-        var di = MakeDi();
-        di.EnsureKeypair();
-
-        var keyFile = Path.Combine(_testDir, "device.key");
-        Assert.True(File.Exists(keyFile));
-
-        // No key files outside _testDir
-        var allFiles = Directory.GetFiles(_testDir, "*.key", SearchOption.AllDirectories);
-        Assert.Single(allFiles);
-        Assert.Equal(keyFile, allFiles[0]);
+    [Fact] public void EnsureKeypair_CanBeCalledMultipleTimes() {
+        var di = MakeDi(); di.EnsureKeypair(); di.EnsureKeypair(); di.EnsureKeypair();
+        Assert.NotEmpty(di.DeviceId); Assert.NotEmpty(di.PublicKeyBase64);
     }
 
-    // ─── Sign consistency ──────────────────────────────────────────────────────
+    [Fact] public void EnsureKeypair_DifferentInstances_SameDir_SameIdentity() {
+        var d1 = MakeDi(); d1.EnsureKeypair(); var d2 = MakeDi(); d2.EnsureKeypair(); var d3 = MakeDi(); d3.EnsureKeypair();
+        Assert.Equal(d1.DeviceId, d2.DeviceId); Assert.Equal(d2.DeviceId, d3.DeviceId);
+        Assert.Equal(d1.PublicKeyBase64, d2.PublicKeyBase64); Assert.Equal(d2.PublicKeyBase64, d3.PublicKeyBase64);
+    }
 
-    [Fact]
-    public void Sign_SamePayload_ProducesSameSignature()
-    {
+    [Fact] public void Keys_StoredInDataDir_NotElsewhere() {
         var di = MakeDi(); di.EnsureKeypair();
-        var payload = "v3|deviceid|clientid|clientmode|role|scope1,scope2|1234567890|token|nonce|platform|family";
-
-        var sig1 = di.Sign(payload);
-        var sig2 = di.Sign(payload);
-        var sig3 = di.Sign(payload);
-
-        Assert.Equal(sig1, sig2);
-        Assert.Equal(sig2, sig3);
+        var kf = Path.Combine(_testDir, "device.key"); Assert.True(File.Exists(kf));
+        Assert.Single(Directory.GetFiles(_testDir, "*.key", SearchOption.AllDirectories), kf);
     }
 
-    [Fact]
-    public void Sign_DifferentPayloads_ProduceDifferentSignatures()
-    {
+    [Fact] public void Sign_SamePayload_ProducesSameSignature() {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var sig1 = di.Sign("payload one");
-        var sig2 = di.Sign("payload two");
-        var sig3 = di.Sign("");
-
-        Assert.NotEqual(sig1, sig2);
-        Assert.NotEqual(sig2, sig3);
-        Assert.NotEqual(sig1, sig3);
+        var p = "v3|deviceid|clientid|clientmode|role|scope1,scope2|1234567890|token|nonce|platform|family";
+        Assert.Equal(di.Sign(p), di.Sign(p));
+        Assert.Equal(di.Sign(p), di.Sign(p));
     }
 
-    [Fact]
-    public void Sign_OutputIsBase64UrlEncoded()
-    {
+    [Fact] public void Sign_DifferentPayloads_ProduceDifferentSignatures() {
         var di = MakeDi(); di.EnsureKeypair();
-        var sig = di.Sign("test");
-
-        // base64url: no +, /, or = padding
-        Assert.DoesNotContain("+", sig);
-        Assert.DoesNotContain("/", sig);
-        Assert.False(sig.EndsWith("="));
+        var s1 = di.Sign("payload one"); var s2 = di.Sign("payload two"); var s3 = di.Sign("");
+        Assert.NotEqual(s1, s2); Assert.NotEqual(s2, s3); Assert.NotEqual(s1, s3);
     }
 
-    [Fact]
-    public void Sign_SignatureIs64Bytes()
-    {
+    [Fact] public void Sign_OutputIsBase64UrlEncoded() {
+        var di = MakeDi(); di.EnsureKeypair(); var s = di.Sign("test");
+        Assert.DoesNotContain("+", s); Assert.DoesNotContain("/", s); Assert.False(s.EndsWith("="));
+    }
+
+    [Fact] public void Sign_SignatureIs64Bytes() {
         var di = MakeDi(); di.EnsureKeypair();
-        var sig = di.Sign("test");
-
-        var decoded = FromBase64Url(sig);
-        Assert.Equal(64, decoded.Length);
+        Assert.Equal(64, DeviceTestHelpers.FromBase64Url(di.Sign("test")).Length);
     }
 
-    private static byte[] FromBase64Url(string input)
-    {
-        var base64 = input.Replace('-', '+').Replace('_', '/');
-        switch (base64.Length % 4)
-        {
-            case 2: base64 += "=="; break;
-            case 3: base64 += "="; break;
-        }
-        return Convert.FromBase64String(base64);
+    [Fact] public void DeviceId_IsLowercaseHex() {
+        var di = MakeDi(); di.EnsureKeypair(); Assert.Matches("^[a-f0-9]{64}$", di.DeviceId);
     }
 
-    // ─── DeviceId format ───────────────────────────────────────────────────────
-
-    [Fact]
-    public void DeviceId_IsLowercaseHex()
-    {
+    [Fact] public void DeviceId_IsSHA256OfPublicKey() {
         var di = MakeDi(); di.EnsureKeypair();
-
-        Assert.Matches("^[a-f0-9]{64}$", di.DeviceId);
+        var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(DeviceTestHelpers.FromBase64Url(di.PublicKeyBase64))).ToLowerInvariant();
+        Assert.Equal(expected, di.DeviceId);
     }
 
-    [Fact]
-    public void DeviceId_IsSHA256OfPublicKey()
-    {
-        var di = MakeDi(); di.EnsureKeypair();
-
-        // Manually verify: decode public key, SHA256 it, compare with DeviceId
-        var pubKeyBytes = FromBase64Url(di.PublicKeyBase64);
-        var expectedId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(pubKeyBytes)).ToLowerInvariant();
-        Assert.Equal(expectedId, di.DeviceId);
-    }
-
-    // ─── Corrupt/missing key file ──────────────────────────────────────────────
-
-    [Fact]
-    public void EnsureKeypair_CorruptKeyFile_ThrowsFormatException()
-    {
-        var di = MakeDi();
-        File.WriteAllText(Path.Combine(_testDir, "device.key"), "not-valid-base64!!!");
-
+    [Fact] public void EnsureKeypair_CorruptKeyFile_ThrowsFormatException() {
+        var di = MakeDi(); File.WriteAllText(Path.Combine(_testDir, "device.key"), "not-valid-base64!!!");
         Assert.Throws<System.FormatException>(() => di.EnsureKeypair());
     }
 
-    [Fact]
-    public void EnsureKeypair_TruncatedKeyFile_Throws()
-    {
+    [Fact] public void EnsureKeypair_TruncatedKeyFile_Throws() {
         var di = MakeDi();
-        // Write a key that's too short (not 32 bytes for Ed25519 seed)
-        var shortKey = Convert.ToBase64String(new byte[16]); // 16 bytes, not 32
-        File.WriteAllText(Path.Combine(_testDir, "device.key"), shortKey);
-
-        // Should throw because Ed25519PrivateKeyParameters expects 32-byte seed
+        File.WriteAllText(Path.Combine(_testDir, "device.key"), Convert.ToBase64String(new byte[16]));
         Assert.ThrowsAny<Exception>(() => di.EnsureKeypair());
     }
 
-    [Fact]
-    public void EnsureKeypair_EmptyKeyFile_Throws()
-    {
-        var di = MakeDi();
-        File.WriteAllText(Path.Combine(_testDir, "device.key"), "");
-
+    [Fact] public void EnsureKeypair_EmptyKeyFile_Throws() {
+        var di = MakeDi(); File.WriteAllText(Path.Combine(_testDir, "device.key"), "");
         Assert.ThrowsAny<Exception>(() => di.EnsureKeypair());
     }
 
-    // ─── BuildV3Payload ─────────────────────────────────────────────────────────
-
-    [Fact]
-    public void BuildV3Payload_FormatsCorrectly()
-    {
+    [Fact] public void BuildV3Payload_FormatsCorrectly() {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var payload = di.BuildV3Payload(
-            platform: "linux",
-            deviceFamily: "desktop",
-            clientId: "client-abc",
-            clientMode: "ptt",
-            role: "user",
-            scopes: new[] { "gateway.connect", "audio.record" },
-            signedAtMs: 1234567890000L,
-            token: "tok",
-            nonce: "non");
-
-        Assert.Equal($"v3|{di.DeviceId}|client-abc|ptt|user|gateway.connect,audio.record|1234567890000|tok|non|linux|desktop", payload);
+        Assert.Equal($"v3|{di.DeviceId}|client-abc|ptt|user|gateway.connect,audio.record|1234567890000|tok|non|linux|desktop",
+            di.BuildV3Payload("linux","desktop","client-abc","ptt","user",new[]{"gateway.connect","audio.record"},1234567890000L,"tok","non"));
     }
 
-    [Fact]
-    public void BuildV3Payload_SingleScope_Works()
-    {
+    [Fact] public void BuildV3Payload_SingleScope_Works() {
         var di = MakeDi(); di.EnsureKeypair();
-
-        var payload = di.BuildV3Payload(
-            "linux", "desktop", "c", "ptt", "user",
-            new[] { "only-one" },
-            1000L, "t", "n");
-
-        Assert.Contains("only-one", payload);
-        Assert.DoesNotContain(",", payload.Split('|')[5]);
+        var p = di.BuildV3Payload("linux","desktop","c","ptt","user",new[]{"only-one"},1000L,"t","n");
+        Assert.Contains("only-one", p); Assert.DoesNotContain(",", p.Split('|')[5]);
     }
 }
