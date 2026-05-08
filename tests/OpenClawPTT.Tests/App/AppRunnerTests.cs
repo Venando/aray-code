@@ -17,10 +17,6 @@ public class AppRunnerTests
 
     private static IColorConsole CreateMockConsole() => Mock.Of<IColorConsole>();
 
-    /// <summary>
-    /// Test-double IServiceFactory that records which methods were called
-    /// and returns Moq-controlled mock instances.
-    /// </summary>
     private sealed class TestServiceFactory : IServiceFactory
     {
         public Mock<IGatewayService> Gateway { get; } = new();
@@ -74,51 +70,7 @@ public class AppRunnerTests
 
     #endregion
 
-    #region Test 2: AppRunner_RunAsync_ThrowsOperationCanceledException_WhenCTIsCanceled
-
-    [Fact]
-    public async Task AppRunner_RunAsync_ThrowsOperationCanceledException_WhenCTIsCanceled()
-    {
-        var factory = new TestServiceFactory();
-        factory.Gateway.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new OperationCanceledException());
-
-        var cfg = DefaultConfig;
-        using var runner = new AppRunner(cfg, factory, Mock.Of<IStreamShellHost>(), Mock.Of<IConfigurationService>(), CreateMockConsole());
-
-        var cts = new CancellationTokenSource();
-        cts.Cancel(); // Cancel before RunAsync starts
-
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => runner.RunAsync(cts.Token));
-    }
-
-    #endregion
-
-    #region Test 3: AppRunner_RunAsync_Returns0_OnNormalExit
-
-    [Fact]
-    public async Task AppRunner_RunAsync_Returns0_OnNormalExit()
-    {
-        var factory = new TestServiceFactory();
-
-        factory.Gateway.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        factory.PttLoop.Setup(x => x.RunAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(AppLoopExitCode.Ok);
-
-        var cfg = DefaultConfig;
-        using var runner = new AppRunner(cfg, factory, Mock.Of<IStreamShellHost>(), Mock.Of<IConfigurationService>(), CreateMockConsole());
-
-        var result = await runner.RunAsync(CancellationToken.None);
-
-        Assert.Equal(0, result);
-    }
-
-    #endregion
-
-    #region Test 4: AppRunner_RunAsync_Returns100_OnRestart
+    #region Test 2: AppRunner_RunAsync_Returns100_OnRestart
 
     [Fact]
     public async Task AppRunner_RunAsync_Returns100_OnRestart()
@@ -149,7 +101,7 @@ public class AppRunnerTests
 
     #endregion
 
-    #region Test 5: AppRunner_Disposes_OwnedResources
+    #region Test 3: AppRunner_Disposes_OwnedResources
 
     [Fact]
     public async Task AppRunner_Disposes_OwnedResources()

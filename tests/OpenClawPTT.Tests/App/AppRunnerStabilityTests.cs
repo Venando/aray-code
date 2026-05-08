@@ -17,18 +17,8 @@ public class AppRunnerStabilityTests
         HoldToTalk = false
     };
 
-    private static AppConfig AltConfig => new()
-    {
-        HotkeyCombination = "Ctrl+Shift+P",
-        HoldToTalk = true
-    };
-
     private static IColorConsole CreateMockConsole() => Mock.Of<IColorConsole>();
 
-    /// <summary>
-    /// Test-double IServiceFactory that records which methods were called
-    /// and returns Moq-controlled mock instances.
-    /// </summary>
     private sealed class TestServiceFactory : IServiceFactory
     {
         public Mock<IGatewayService> Gateway { get; } = new();
@@ -160,13 +150,9 @@ public class AppRunnerStabilityTests
         var cfg = DefaultConfig;
         using var runner = new AppRunner(cfg, factory, Mock.Of<IStreamShellHost>(), Mock.Of<IConfigurationService>(), CreateMockConsole());
 
-        // Should NOT loop forever — must break after MaxRestartCount
         var result = await runner.RunAsync(CancellationToken.None);
 
         Assert.Equal(1, result); // Error — exceeded restart limit
-        // Verify we went through MaxRestartCount iterations
-        // Loop must break (not run forever) and return Error.
-        // The primary assertion (result == 1) already confirms the loop terminated.
     }
 
     #endregion
@@ -239,7 +225,7 @@ public class AppRunnerStabilityTests
         factory.PttLoop.Setup(x => x.RunAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(AppLoopExitCode.Ok);
 
-        var cfg = AltConfig;
+        var cfg = new AppConfig { HotkeyCombination = "Ctrl+Shift+P", HoldToTalk = true };
         using var runner = new AppRunner(cfg, factory, Mock.Of<IStreamShellHost>(), Mock.Of<IConfigurationService>(), CreateMockConsole());
 
         await runner.RunAsync(CancellationToken.None);

@@ -7,6 +7,7 @@ using OpenClawPTT.Services;
 
 namespace OpenClawPTT.Tests.AgentSettings;
 
+[Collection("AgentSettingsRegistry")]
 public class AgentRegistrySettingsTests : IDisposable
 {
     private readonly string _tempDir;
@@ -111,4 +112,9 @@ public class AgentRegistrySettingsTests : IDisposable
             }
         }
     }
+}
+
+[CollectionDefinition("AgentSettingsRegistry", DisableParallelization = true)]
+public class AgentSettingsRegistryCollection
+{
 }
