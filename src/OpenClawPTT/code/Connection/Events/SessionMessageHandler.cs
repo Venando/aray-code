@@ -70,8 +70,16 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
         if (roleEl.GetString() != "assistant") return;
 
         // Check for error messages (stopReason=error, content may be empty)
+        // IMPORTANT: detect fallback BEFORE recording the error. If the gateway
+        // fell back on this same message (provider differs from previous error),
+        // we want to show the fallback notification and skip error state recording
+        // (the fallback response itself will have provider=deepseek etc. here).
         if (messageEl.TryGetProperty("stopReason", out var stopReason) && stopReason.GetString() == "error")
         {
+            // Check if a fallback occurred on this same response before recording error state.
+            // This prevents false error recording when the gateway successfully switched models.
+            DetectFallbackFromMessage(sessionKey, messageEl);
+
             HandleErrorMessage(messageEl, sessionKey);
             return;
         }
