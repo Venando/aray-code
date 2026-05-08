@@ -9,7 +9,7 @@ namespace OpenClawPTT;
 /// the appropriate events through <see cref="IGatewayEventSource"/>.
 ///
 /// Also detects model fallback: when the primary model fails with an error,
-/// this handler calls sessions.preview after the next successful response
+/// this handler calls sessions.describe after the next successful response
 /// to determine if the gateway performed an automatic fallback (modelOverrideSource="auto")
 /// or the user intentionally switched models (modelOverrideSource="user").
 /// Only auto-fallbacks trigger a user-visible notification.
@@ -22,14 +22,14 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
     private readonly IContentExtractor _contentExtractor;
     private readonly IColorConsole _console;
 
-
     // Per-session error tracking for fallback detection.
     // Keyed by session key so multi-agent setups are handled correctly.
-    // After an error, we record the failed provider/model. When a successful
-    // response arrives on the same session, we call sessions.preview to
-    // determine if it was an auto-fallback (user didn't intentionally switch).
+    // After an error, we record the failed provider/model/error message.
+    // When a successful response arrives on the same session, we call
+    // sessions.describe to determine if it was an auto-fallback.
     private string? _lastErrorProvider;
     private string? _lastErrorModel;
+    private string? _lastErrorMessage;
     private string? _lastErrorSessionKey;
     private bool _fallbackNotifiedForRun;
 
@@ -69,7 +69,6 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
     {
         var sessionKey = payload.TryGetProperty("sessionKey", out var skEl)
             ? skEl.GetString() : null;
-
 
         if (!payload.TryGetProperty("message", out var messageEl)) return;
         if (!messageEl.TryGetProperty("role", out var roleEl)) return;
@@ -180,36 +179,40 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
         // Record error state for fallback detection
         _lastErrorProvider = provider;
         _lastErrorModel = model;
+        _lastErrorMessage = errorMessage;
         _lastErrorSessionKey = sessionKey;
         _fallbackNotifiedForRun = false;
     }
 
     /// <summary>
-    /// After a successful response following an error, calls sessions.preview
+    /// After a successful response following an error, calls sessions.describe
     /// to determine if the gateway performed an automatic fallback.
     /// Shows a fallback notification only when modelOverrideSource="auto".
     /// </summary>
     private async Task CheckAndNotifyFallbackAsync(string? sessionKey)
     {
-        // Ignore if already on the same session key (shouldn't happen but guard anyway)
+        // Ignore if session key doesn't match (prevents cross-session contamination)
         if (sessionKey != _lastErrorSessionKey || _fallbackNotifiedForRun)
             return;
 
         try
         {
-            // sessions.preview returns the current model state for the session.
-            // When modelOverrideSource="auto", the gateway automatically switched
-            // models due to a primary model failure.
-            // When modelOverrideSource="user", the user intentionally switched.
-            var result = await _rpc.SendEventAsync("sessions.preview", new Dictionary<string, object?>
+            // sessions.describe returns the SessionEntry for a session.
+            // SessionEntry.modelOverrideSource="auto" means the gateway automatically
+            // switched models (fallback). "user" means user intentionally switched.
+            var result = await _rpc.SendEventAsync("sessions.describe", new Dictionary<string, object?>
             {
                 ["key"] = sessionKey ?? "main"
             }, CancellationToken.None);
 
             if (result.ValueKind == JsonValueKind.Undefined || result.ValueKind == JsonValueKind.Null)
+            {
+                // Response was empty — don't retry forever
+                _fallbackNotifiedForRun = true;
                 return;
+            }
 
-            _console.Log("debug", $"sessions.preview [{sessionKey}]: {result.ToString()[..Math.Min(result.ToString().Length, 600)]}", LogLevel.Debug);
+            _console.Log("debug", $"sessions.describe [{sessionKey}]: {result.ToString()[..Math.Min(result.ToString().Length, 600)]}", LogLevel.Debug);
 
             var overrideSource = result.TryGetProperty("modelOverrideSource", out var src)
                 ? src.GetString() : null;
@@ -221,28 +224,23 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
                 // current (active) provider/model details.
                 var currentProvider = result.TryGetProperty("modelProvider", out var cp) ? cp.GetString() : null;
                 var currentModel = result.TryGetProperty("model", out var cm) ? cm.GetString() : null;
-                var originalProvider = result.TryGetProperty("originalProvider", out var op) ? op.GetString() : null;
-                var originalModel = result.TryGetProperty("originalModel", out var om) ? om.GetString() : null;
 
                 _console.PrintModelFallback(
-                    originalProvider ?? _lastErrorProvider ?? "?",
-                    originalModel ?? _lastErrorModel ?? "?",
+                    _lastErrorProvider ?? "?",
+                    _lastErrorModel ?? "?",
                     currentProvider ?? "?",
                     currentModel ?? "?",
-                    isQuotaError: IsQuotaError(_lastErrorModel ?? ""));
+                    isQuotaError: IsQuotaError(_lastErrorMessage ?? ""));
+            }
+            // else if overrideSource == "user": user intentionally switched — no notification
 
-                _fallbackNotifiedForRun = true;
-            }
-            else if (overrideSource == "user")
-            {
-                // User intentionally switched models — no notification needed
-                _fallbackNotifiedForRun = true;
-            }
-            // else overrideSource is null or unknown — keep state, check again next response
+            _fallbackNotifiedForRun = true;
         }
         catch (Exception ex)
         {
-            _console.Log("debug", $"sessions.preview fallback check: {ex.Message}", LogLevel.Debug);
+            _console.Log("debug", $"sessions.describe fallback check: {ex.Message}", LogLevel.Debug);
+            // Ensure we don't spam retries on persistent failure
+            _fallbackNotifiedForRun = true;
         }
     }
 
