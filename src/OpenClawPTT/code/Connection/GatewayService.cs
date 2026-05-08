@@ -267,19 +267,9 @@ public sealed class GatewayService : IGatewayService
                         ? nameEl.GetString() ?? "unknown"
                         : "unknown";
 
-                    // Check for errors on the provider itself (e.g. HTTP 401 for github-copilot)
-                    // Only show for providers the user actually uses (core AI providers)
-                    if (IsInUseProvider(providerName) &&
-                        providerEntry.TryGetProperty("error", out var errEl) && errEl.ValueKind == JsonValueKind.String)
-                    {
-                        var errStr = errEl.GetString() ?? string.Empty;
-                        if (!string.IsNullOrEmpty(errStr))
-                        {
-                            _console.PrintWarning($"{providerName} API error: {errStr}");
-                        }
-                    }
-
                     // Check usage windows for high utilization
+                    // (Provider-level errors like HTTP 401 are OAuth integration issues,
+                    // not model provider problems — skip them silently)
                     if (providerEntry.TryGetProperty("windows", out var windowsEl) && windowsEl.ValueKind == JsonValueKind.Array)
                     {
                         foreach (var window in windowsEl.EnumerateArray())
@@ -313,18 +303,6 @@ public sealed class GatewayService : IGatewayService
             // usage.status might not be available if scope is insufficient
             _console.Log("debug", $"usage.status RPC: {gex.Message}", LogLevel.Debug);
         }
-    }
-
-    /// <summary>
-    /// Returns true if the provider name is one the user actually uses
-    /// in their agent model configuration. Filters out noise providers
-    /// like github-copilot that the gateway may report but aren't in use.
-    /// </summary>
-    private static bool IsInUseProvider(string providerName)
-    {
-        return providerName is "kimi" or "deepseek" or "minimax"
-            or "anthropic" or "openai" or "openrouter"
-            or "google" or "groq" or "together";
     }
 
     public void Dispose()
