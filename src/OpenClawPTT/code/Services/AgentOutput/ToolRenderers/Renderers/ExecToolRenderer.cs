@@ -20,6 +20,16 @@ public sealed class ExecToolRenderer : ToolRendererBase
         if (string.IsNullOrWhiteSpace(command))
             return;
 
+        // If the command has many lines (e.g., a heredoc with a long script body),
+        // show a compact truncated preview instead of the full parsed rendering.
+        int lineCount = command.Split('\n').Length;
+        const int maxPreviewLines = 6;
+        if (lineCount > maxPreviewLines)
+        {
+            Output.PrintTruncated(command, "  ", rightMarginIndent, ConsoleColor.White, maxRows: maxPreviewLines);
+            return;
+        }
+
         var parsed = TerminalCommandParser.Parse(command);
 
         if (parsed.Count == 0)
