@@ -213,15 +213,9 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
             _process = null;
             _consecutiveRestarts++;
 
-            if (_consecutiveRestarts >= MaxConsecutiveRestarts)
-            {
-                _console.PrintWarning($"Python TTS process exited immediately (code: {exitCode}) after {MaxConsecutiveRestarts} attempts. Giving up.");
-                _startupFailed = true;
-                _consecutiveRestarts = 0;
-                return;
-            }
-
-            throw new InvalidOperationException($"Python process exited immediately with code: {exitCode}");
+            _console.PrintWarning($"Python TTS process exited immediately (code: {exitCode}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
+            _startupFailed = true;
+            return;
         }
 
         // Wait for READY — loop until we find {"type":"ready"} or plain "READY", logging all lines
@@ -250,15 +244,9 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
                 _process = null;
                 _consecutiveRestarts++;
 
-                if (_consecutiveRestarts >= MaxConsecutiveRestarts)
-                {
-                    _console.PrintWarning($"Python TTS startup permanently failed (error: {errMsg}). Giving up after {MaxConsecutiveRestarts} attempts.");
-                    _startupFailed = true;
-                    _consecutiveRestarts = 0;
-                    return;
-                }
-
-                throw new InvalidOperationException($"Python TTS startup failed: {errMsg}");
+                _console.PrintWarning($"Python TTS startup failed (error: {errMsg}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
+                _startupFailed = true;
+                return;
             }
         }
 
@@ -269,15 +257,9 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
             _process = null;
             _consecutiveRestarts++;
 
-            if (_consecutiveRestarts >= MaxConsecutiveRestarts)
-            {
-                _console.PrintWarning($"Python TTS failed to start (expected READY, got: {readyLine ?? "(null)"}). Giving up after {MaxConsecutiveRestarts} attempts.");
-                _startupFailed = true;
-                _consecutiveRestarts = 0;
-                return;
-            }
-
-            throw new InvalidOperationException($"Python TTS failed to start. Expected READY, got: {readyLine}");
+            _console.PrintWarning($"Python TTS failed to start (expected READY, got: {readyLine ?? "(null)"}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
+            _startupFailed = true;
+            return;
         }
 
         // Successfully reached READY — reset restart counter.
