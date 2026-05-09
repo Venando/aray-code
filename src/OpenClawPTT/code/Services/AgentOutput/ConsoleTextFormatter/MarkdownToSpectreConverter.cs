@@ -472,8 +472,7 @@ public static class MarkdownToSpectreConverter
 
         while (pos < plain.Length)
         {
-            // Find how many characters fit on this line (simple character-wrap
-            // since word-wrap can produce inconsistent indentation in tables).
+            // Find the character-wrap boundary first
             int lineWidth = 0;
             int endPos = pos;
 
@@ -488,9 +487,24 @@ public static class MarkdownToSpectreConverter
 
             if (endPos == pos) endPos = pos + 1; // At least one character
 
-            string segment = plain.Substring(pos, endPos - pos);
-            lines.Add(wrapPrefix + segment + wrapSuffix);
-            pos = endPos;
+            // Try to break at a space for word-wrap — search backwards from
+            // the character boundary for the last space.
+            int wordBreak = -1;
+            for (int i = endPos - 1; i > pos; i--)
+            {
+                if (plain[i] == ' ')
+                {
+                    wordBreak = i;
+                    break;
+                }
+            }
+
+            int actualEnd = wordBreak > 0 ? wordBreak : endPos;
+            string segment = plain.Substring(pos, actualEnd - pos);
+            if (segment.Length > 0)
+                lines.Add(wrapPrefix + segment + wrapSuffix);
+
+            pos = wordBreak > 0 ? wordBreak + 1 : endPos;
         }
 
         return lines;
