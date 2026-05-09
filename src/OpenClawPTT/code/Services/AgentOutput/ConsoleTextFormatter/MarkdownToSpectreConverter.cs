@@ -228,14 +228,34 @@ public static class MarkdownToSpectreConverter
         int[] colWidths = CalculateColumnWidths(table);
         colWidths = ShrinkColumnWidths(colWidths, availableWidth);
 
+        // Pre-compute wrapped lines for all rows so we can check line counts
+        // before rendering.
+        var headerLines = RenderContentRowLines(table.FormattedRows[0], colWidths, table.Alignments, isHeader: true);
+
+        var allBodyLines = new List<List<string>>();
+        for (int r = 1; r < table.FormattedRows.Count; r++)
+            allBodyLines.Add(RenderContentRowLines(table.FormattedRows[r], colWidths, table.Alignments, isHeader: false));
+
+        // If any row (header or body) has 3+ physical lines, insert row
+        // separators between body rows for readability.
+        bool useRowSeparators = headerLines.Count >= 3;
+        if (!useRowSeparators)
+            foreach (var row in allBodyLines)
+                if (row.Count >= 3) { useRowSeparators = true; break; }
+
         result.MyAppendLine(RenderBorder(colWidths, '╭', '┬', '╮'));
-        foreach (var line in RenderContentRowLines(table.FormattedRows[0], colWidths, table.Alignments, isHeader: true))
+        foreach (var line in headerLines)
             result.MyAppendLine(line);
         result.MyAppendLine(RenderBorder(colWidths, '├', '┼', '┤'));
 
-        for (int r = 1; r < table.FormattedRows.Count; r++)
-            foreach (var line in RenderContentRowLines(table.FormattedRows[r], colWidths, table.Alignments, isHeader: false))
+        for (int r = 0; r < allBodyLines.Count; r++)
+        {
+            if (useRowSeparators && r > 0)
+                result.MyAppendLine(RenderBorder(colWidths, '├', '┼', '┤'));
+
+            foreach (var line in allBodyLines[r])
                 result.MyAppendLine(line);
+        }
 
         result.MyAppendLine(RenderBorder(colWidths, '╰', '┴', '╯'));
 
