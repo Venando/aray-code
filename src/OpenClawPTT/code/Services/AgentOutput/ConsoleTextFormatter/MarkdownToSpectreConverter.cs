@@ -132,8 +132,8 @@ public static class MarkdownToSpectreConverter
 
                 string spectreTag = level switch
                 {
-                    1 => $"[bold underline]{content}[/]",
-                    2 => $"[bold]{content}[/]",
+                    1 => $"[bold underline default on gray27]{content}[/]",
+                    2 => $"[bold underline]{content}[/]",
                     _ => $"[bold dim]{content}[/]",   // H3–H6
                 };
 
