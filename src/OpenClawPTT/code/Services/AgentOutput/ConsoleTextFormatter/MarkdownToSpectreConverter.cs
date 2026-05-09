@@ -541,13 +541,13 @@ public static class MarkdownToSpectreConverter
 
         // Step 1: Protect inline code (backtick) content so no other pattern
         //         touches it. Code placeholders are safe from all regexes.
-        var codePlaceholders = new List<KeyValuePair<int, string>>();
+        var codePlaceholders = new Dictionary<int, string>();
         int codeIdx = 0;
         text = InlineCode.Replace(text, m =>
         {
             string content = m.Groups[1].Value;
             int idx = codeIdx++;
-            codePlaceholders.Add(new KeyValuePair<int, string>(idx, content));
+            codePlaceholders[idx] = content;
             return CodePlaceholderPrefix + idx + CodePlaceholderSuffix;
         });
 
@@ -556,21 +556,30 @@ public static class MarkdownToSpectreConverter
 
         // Step 3: Apply formatting patterns (bold, italic, etc.) to the
         //         remaining text.
-        text = BoldItalicStars.Replace(text, "[bold italic]$1[/]");
-        text = BoldStars.Replace(text, "[bold]$1[/]");
-        text = BoldUnderscores.Replace(text, "[bold]$1[/]");
-        text = ItalicStars.Replace(text, "[italic]$1[/]");
-        text = ItalicUnderscores.Replace(text, "[italic]$1[/]");
-        text = Strikethrough.Replace(text, "[strikethrough]$1[/]");
+        text = ApplyInlineFormatting(text);
 
         // Step 4: Restore inline code as [bold gray89 on darkblue]content[/].
         for (int i = 0; i < codeIdx; i++)
         {
             text = text.Replace(
                 CodePlaceholderPrefix + i + CodePlaceholderSuffix,
-                "[bold gray89 on darkblue]" + codePlaceholders.First(kvp => kvp.Key == i).Value + "[/]");
+                "[bold gray89 on darkblue]" + codePlaceholders[i] + "[/]");
         }
 
+        return text;
+    }
+
+    /// <summary>
+    /// Applies bold, italic, bold-italic, and strikethrough formatting patterns.
+    /// </summary>
+    private static string ApplyInlineFormatting(string text)
+    {
+        text = BoldItalicStars.Replace(text, "[bold italic]$1[/]");
+        text = BoldStars.Replace(text, "[bold]$1[/]");
+        text = BoldUnderscores.Replace(text, "[bold]$1[/]");
+        text = ItalicStars.Replace(text, "[italic]$1[/]");
+        text = ItalicUnderscores.Replace(text, "[italic]$1[/]");
+        text = Strikethrough.Replace(text, "[strikethrough]$1[/]");
         return text;
     }
 
@@ -620,13 +629,7 @@ public static class MarkdownToSpectreConverter
             string label = m.Groups[1].Value;
             string url = m.Groups[2].Value;
 
-            string formattedLabel = label;
-            formattedLabel = BoldItalicStars.Replace(formattedLabel, "[bold italic]$1[/]");
-            formattedLabel = BoldStars.Replace(formattedLabel, "[bold]$1[/]");
-            formattedLabel = BoldUnderscores.Replace(formattedLabel, "[bold]$1[/]");
-            formattedLabel = ItalicStars.Replace(formattedLabel, "[italic]$1[/]");
-            formattedLabel = ItalicUnderscores.Replace(formattedLabel, "[italic]$1[/]");
-            formattedLabel = Strikethrough.Replace(formattedLabel, "[strikethrough]$1[/]");
+            string formattedLabel = ApplyInlineFormatting(label);
 
             var outerTagMatch = Regex.Match(
                 formattedLabel, @"^\[([a-z0-9 ]+)\](.+)\[/\]$", RegexOptions.Singleline);
