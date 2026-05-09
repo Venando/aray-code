@@ -25,6 +25,8 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
     private ConcurrentDictionary<string, TaskCompletionSource<string>> _pending = new();
     private CancellationTokenSource? _readCts;
     private bool _disposed;
+    private bool _startupFailed;
+    private bool _startupFailedReported;
 
     // Restart tracking: prevents infinite restart loops when the Python process or environment is broken.
     private int _consecutiveRestarts;
@@ -70,6 +72,16 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(PythonTtsProvider));
+
+        if (_startupFailed)
+        {
+            if (!_startupFailedReported)
+            {
+                _startupFailedReported = true;
+                _console.PrintWarning("Python TTS is not available (startup failed). Audio will be skipped for this request.");
+            }
+            throw new InvalidOperationException("Python TTS provider is not available due to a previous startup failure.");
+        }
 
         await _sem.WaitAsync(ct);
         try
@@ -147,15 +159,25 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
         {
             // Process is alive — but if we have been retrying, check the limit now.
             if (_consecutiveRestarts >= MaxConsecutiveRestarts)
-                throw new InvalidOperationException(
+            {
+                _console.PrintWarning(
                     $"Python TTS failed to start after {MaxConsecutiveRestarts} attempts. Giving up.");
+                _startupFailed = true;
+                _consecutiveRestarts = 0;
+                return;
+            }
             return;
         }
 
         // Enforce restart limit on the restart path too.
         if (_consecutiveRestarts >= MaxConsecutiveRestarts)
-            throw new InvalidOperationException(
+        {
+            _console.PrintWarning(
                 $"Python TTS process died and has exceeded the restart limit ({MaxConsecutiveRestarts}). Giving up.");
+            _startupFailed = true;
+            _consecutiveRestarts = 0;
+            return;
+        }
 
         // Kill any zombie process from the previous attempt.
         if (_process != null)
@@ -185,7 +207,22 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
         _process.Start();
 
         if (_process.HasExited)
-            throw new InvalidOperationException($"Python process exited immediately with code: {_process.ExitCode}");
+        {
+            var exitCode = _process.ExitCode;
+            _process.Dispose();
+            _process = null;
+            _consecutiveRestarts++;
+
+            if (_consecutiveRestarts >= MaxConsecutiveRestarts)
+            {
+                _console.PrintWarning($"Python TTS process exited immediately (code: {exitCode}) after {MaxConsecutiveRestarts} attempts. Giving up.");
+                _startupFailed = true;
+                _consecutiveRestarts = 0;
+                return;
+            }
+
+            throw new InvalidOperationException($"Python process exited immediately with code: {exitCode}");
+        }
 
         // Wait for READY — loop until we find {"type":"ready"} or plain "READY", logging all lines
         using var timeoutCts = new CancellationTokenSource(_startupTimeout);
@@ -212,6 +249,15 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
                 _process.Dispose();
                 _process = null;
                 _consecutiveRestarts++;
+
+                if (_consecutiveRestarts >= MaxConsecutiveRestarts)
+                {
+                    _console.PrintWarning($"Python TTS startup permanently failed (error: {errMsg}). Giving up after {MaxConsecutiveRestarts} attempts.");
+                    _startupFailed = true;
+                    _consecutiveRestarts = 0;
+                    return;
+                }
+
                 throw new InvalidOperationException($"Python TTS startup failed: {errMsg}");
             }
         }
@@ -222,6 +268,15 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
             _process.Dispose();
             _process = null;
             _consecutiveRestarts++;
+
+            if (_consecutiveRestarts >= MaxConsecutiveRestarts)
+            {
+                _console.PrintWarning($"Python TTS failed to start (expected READY, got: {readyLine ?? "(null)"}). Giving up after {MaxConsecutiveRestarts} attempts.");
+                _startupFailed = true;
+                _consecutiveRestarts = 0;
+                return;
+            }
+
             throw new InvalidOperationException($"Python TTS failed to start. Expected READY, got: {readyLine}");
         }
 
