@@ -417,24 +417,29 @@ public class MarkdownToSpectreConverterTests
             Assert.Equal(expectedWidth, widths[i]);
         }
 
-        // Also verify: top border has correct structure
-        Assert.Equal('╭', lines[0][0]);
-        Assert.Equal('╮', lines[0][^1]);
-        Assert.Contains("┬", lines[0]);
+        // Also verify: top border has correct structure (strip markup first)
+        string topPlain = Spectre.Console.Markup.Remove(lines[0]);
+        Assert.Equal('╭', topPlain[0]);
+        Assert.Equal('╮', topPlain[^1]);
+        Assert.Contains("┬", topPlain);
         // Bottom border
-        Assert.Equal('╰', lines[^1][0]);
-        Assert.Equal('╯', lines[^1][^1]);
+        string bottomPlain = Spectre.Console.Markup.Remove(lines[^1]);
+        Assert.Equal('╰', bottomPlain[0]);
+        Assert.Equal('╯', bottomPlain[^1]);
         // Header row
-        Assert.StartsWith("│", lines[1]);
-        Assert.EndsWith("│", lines[1]);
+        string headerPlain = Spectre.Console.Markup.Remove(lines[1]);
+        Assert.StartsWith("│", headerPlain);
+        Assert.EndsWith("│", headerPlain);
         // Separator
-        Assert.Equal('├', lines[2][0]);
-        Assert.Equal('┤', lines[2][^1]);
+        string sepPlain = Spectre.Console.Markup.Remove(lines[2]);
+        Assert.Equal('├', sepPlain[0]);
+        Assert.Equal('┤', sepPlain[^1]);
         // Body rows
         for (int r = 3; r < lines.Length - 1; r++)
         {
-            Assert.StartsWith("│", lines[r]);
-            Assert.EndsWith("│", lines[r]);
+            string bodyPlain = Spectre.Console.Markup.Remove(lines[r]);
+            Assert.StartsWith("│", bodyPlain);
+            Assert.EndsWith("│", bodyPlain);
         }
 
         ValidateMarkup(result);

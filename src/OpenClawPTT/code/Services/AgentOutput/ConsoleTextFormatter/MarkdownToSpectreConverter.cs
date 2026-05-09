@@ -407,6 +407,7 @@ public static class MarkdownToSpectreConverter
     private static string RenderBorder(int[] colWidths, char left, char join, char right)
     {
         var sb = new StringBuilder();
+        sb.Append("[blue]");
         sb.Append(left);
 
         for (int c = 0; c < colWidths.Length; c++)
@@ -417,12 +418,10 @@ public static class MarkdownToSpectreConverter
         }
 
         sb.Append(right);
+        sb.Append("[/]");
         return sb.ToString();
     }
 
-    /// <summary>
-    /// Renders a content row with proper padding and alignment.
-    /// </summary>
     /// <summary>
     /// Truncates <paramref name="formattedCell"/> (Spectre markup) so its
     /// visible display width does not exceed <paramref name="maxWidth"/>.
@@ -460,7 +459,7 @@ public static class MarkdownToSpectreConverter
     private static string RenderContentRow(List<string> formattedCells, int[] colWidths, List<TableAlignment> alignments, bool isHeader)
     {
         var sb = new StringBuilder();
-        sb.Append('│');
+        sb.Append("[blue]│[/]");
 
         for (int c = 0; c < colWidths.Length; c++)
         {
@@ -513,7 +512,7 @@ public static class MarkdownToSpectreConverter
             }
 
             sb.Append(' '); // Right padding (always 1)
-            sb.Append('│');
+            sb.Append("[blue]│[/]");
         }
 
         return sb.ToString();
