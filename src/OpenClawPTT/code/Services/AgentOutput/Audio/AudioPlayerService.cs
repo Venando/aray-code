@@ -9,7 +9,7 @@ namespace OpenClawPTT.Services;
 /// <summary>
 /// Service for playing audio bytes using NAudio.
 /// </summary>
-public sealed class AudioPlayerService : IDisposable
+public sealed class AudioPlayerService : IAudioPlayer, IDisposable
 {
     private WaveOutEvent? _waveOut;
     private readonly IColorConsole _console;

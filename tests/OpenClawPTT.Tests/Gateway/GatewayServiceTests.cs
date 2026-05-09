@@ -6,6 +6,16 @@ namespace OpenClawPTT.Tests;
 
 public class GatewayServiceTests
 {
+    private static AgentOutputCoordinator CreateCoordinator(AppConfig cfg)
+    {
+        var console = CreateMockConsole();
+        return new AgentOutputCoordinator(
+            new ReplyStreamCoordinator(cfg, console),
+            new ToolDisplayHandler(cfg.RightMarginIndent, console.GetStreamShellHost()),
+            new ThinkingDisplayHandler(cfg, console.GetStreamShellHost()),
+            audioHandler: null);
+    }
+
     private static IColorConsole CreateMockConsole() => new Mock<IColorConsole>().Object;
 
     private static AppConfig CreateConfig() => new()
@@ -18,7 +28,7 @@ public class GatewayServiceTests
     [Fact]
     public void GatewayService_Constructs_WithoutThrowing()
     {
-        var service = new GatewayService(CreateConfig(), CreateMockConsole());
+        var service = new GatewayService(CreateConfig(), CreateMockConsole(), CreateCoordinator(CreateConfig()));
         Assert.NotNull(service);
         service.Dispose();
     }
@@ -26,7 +36,7 @@ public class GatewayServiceTests
     [Fact]
     public void GatewayService_ImplementsIGatewayService()
     {
-        IGatewayService service = new GatewayService(CreateConfig(), CreateMockConsole());
+        IGatewayService service = new GatewayService(CreateConfig(), CreateMockConsole(), CreateCoordinator(CreateConfig()));
         Assert.IsType<GatewayService>(service);
         service.Dispose();
     }
@@ -34,7 +44,7 @@ public class GatewayServiceTests
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
-        var service = new GatewayService(CreateConfig(), CreateMockConsole());
+        var service = new GatewayService(CreateConfig(), CreateMockConsole(), CreateCoordinator(CreateConfig()));
 
         service.Dispose();
         var exception = Record.Exception(() => service.Dispose());

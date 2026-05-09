@@ -64,7 +64,12 @@ public class GatewayAudioQaTests
             AudioResponseMode = "text-only"
         };
 
-        var service = new GatewayService(cfg, CreateMockConsole());
+        var coordinator = new AgentOutputCoordinator(
+            new ReplyStreamCoordinator(cfg, CreateMockConsole()),
+            new ToolDisplayHandler(cfg.RightMarginIndent, CreateMockConsole().GetStreamShellHost()),
+            new ThinkingDisplayHandler(cfg, CreateMockConsole().GetStreamShellHost()),
+            audioHandler: null);
+        var service = new GatewayService(cfg, CreateMockConsole(), coordinator);
 
         // Recreate should not throw even if not connected
         var newCfg = new AppConfig
@@ -88,7 +93,12 @@ public class GatewayAudioQaTests
             AudioResponseMode = "text-only"
         };
 
-        var service = new GatewayService(cfg, CreateMockConsole());
+        var coordinator = new AgentOutputCoordinator(
+            new ReplyStreamCoordinator(cfg, CreateMockConsole()),
+            new ToolDisplayHandler(cfg.RightMarginIndent, CreateMockConsole().GetStreamShellHost()),
+            new ThinkingDisplayHandler(cfg, CreateMockConsole().GetStreamShellHost()),
+            audioHandler: null);
+        var service = new GatewayService(cfg, CreateMockConsole(), coordinator);
 
         // Subscribe to all events — should not throw
         service.AgentReplyFull += _ => { };
@@ -108,59 +118,33 @@ public class GatewayAudioQaTests
     // ══════════════════════════════════════════════════════════════
 
     [Fact]
-    public void UiEventAdapter_TextOnlyConfig_DoesNotCreateAudioHandler()
-    {
-        var cfg = new AppConfig
-        {
-            AudioResponseMode = "text-only",
-            AgentName = "TestBot"
-        };
-
-        var adapter = new AgentOutputAdapter(cfg, CreateMockConsole());
-
-        // In text-only mode, _audioResponseHandler should be null
-        Assert.Null(adapter.AudioResponseHandler);
-        adapter.Dispose();
-    }
-
-    [Fact]
-    public void UiEventAdapter_AudioConfig_CreatesAudioHandler()
-    {
-        var cfg = new AppConfig
-        {
-            AudioResponseMode = "audio-only",
-            AgentName = "TestBot"
-        };
-
-        var adapter = new AgentOutputAdapter(cfg, CreateMockConsole());
-
-        // In audio mode, _audioResponseHandler should be created (even if TTS fails)
-        Assert.NotNull(adapter.AudioResponseHandler);
-        adapter.Dispose();
-    }
-
-    [Fact]
-    public void UiEventAdapter_Dispose_CanBeCalledMultipleTimes()
+    public void AgentOutputCoordinator_Dispose_CanBeCalledMultipleTimes()
     {
         var cfg = new AppConfig { AudioResponseMode = "text-only", AgentName = "TestBot" };
-        var adapter = new AgentOutputAdapter(cfg, CreateMockConsole());
+        var console = CreateMockConsole();
+        var coordinator = new AgentOutputCoordinator(
+            new ReplyStreamCoordinator(cfg, console),
+            new ToolDisplayHandler(cfg.RightMarginIndent, console.GetStreamShellHost()),
+            new ThinkingDisplayHandler(cfg, console.GetStreamShellHost()),
+            audioHandler: null);
 
-        var ex = Record.Exception(() => { adapter.Dispose(); adapter.Dispose(); });
+        var ex = Record.Exception(() => { coordinator.Dispose(); coordinator.Dispose(); });
         Assert.Null(ex);
     }
 
     [Fact]
-    public void UiEventAdapter_OnAgentReplyAudio_WithNullHandler_DoesNotCrash()
+    public void AgentOutputCoordinator_OnAgentReplyAudio_WithNullHandler_DoesNotCrash()
     {
-        // When AudioResponseMode is text-only, _audioResponseHandler is null.
-        // OnAgentReplyAudio should handle this gracefully (fire-and-forget with null check).
         var cfg = new AppConfig { AudioResponseMode = "text-only", AgentName = "TestBot" };
-        var adapter = new AgentOutputAdapter(cfg, CreateMockConsole());
+        var console = CreateMockConsole();
+        var coordinator = new AgentOutputCoordinator(
+            new ReplyStreamCoordinator(cfg, console),
+            new ToolDisplayHandler(cfg.RightMarginIndent, console.GetStreamShellHost()),
+            new ThinkingDisplayHandler(cfg, console.GetStreamShellHost()),
+            audioHandler: null);
 
-        // This should not throw even though _audioResponseHandler is null
-        adapter.OnAgentReplyAudio("some audio text");
-
-        adapter.Dispose();
+        coordinator.OnAgentReplyAudio("some audio text");
+        coordinator.Dispose();
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -171,7 +155,10 @@ public class GatewayAudioQaTests
     public async Task HandleAudioMarkerAsync_TextOnly_ReturnsCompletedTask()
     {
         var cfg = new AppConfig { AudioResponseMode = "text-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+            summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         // In text-only mode, should return completed task (no-op)
         var task = handler.HandleAudioMarkerAsync("any text");
@@ -184,7 +171,10 @@ public class GatewayAudioQaTests
     public void AudioResponseHandler_Dispose_CalledTwice_Safe()
     {
         var cfg = new AppConfig { AudioResponseMode = "text-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+            summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         var ex = Record.Exception(() => { handler.Dispose(); handler.Dispose(); });
         Assert.Null(ex);
@@ -194,7 +184,10 @@ public class GatewayAudioQaTests
     public void AudioResponseHandler_AfterDispose_HandleAudioMarker_ThrowsObjectDisposed()
     {
         var cfg = new AppConfig { AudioResponseMode = "text-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+            summarizer: null, pttStateMachine: null, ttsProvider: null);
         handler.Dispose();
 
         // Subsequent calls should throw ObjectDisposedException
@@ -206,7 +199,10 @@ public class GatewayAudioQaTests
     public async Task HandleAudioMarkerAsync_EmptyText_ReturnsCompleted()
     {
         var cfg = new AppConfig { AudioResponseMode = "audio-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+            summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         var task = handler.HandleAudioMarkerAsync("");
         Assert.True(task.IsCompleted);
@@ -218,7 +214,10 @@ public class GatewayAudioQaTests
     public async Task HandleAudioMarkerAsync_WhitespaceText_ReturnsCompleted()
     {
         var cfg = new AppConfig { AudioResponseMode = "audio-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+            summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         var task = handler.HandleAudioMarkerAsync("   \t\n  ");
         Assert.True(task.IsCompleted);

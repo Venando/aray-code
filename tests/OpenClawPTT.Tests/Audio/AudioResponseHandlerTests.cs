@@ -17,7 +17,10 @@ public class AudioResponseHandlerTests
     {
         // Arrange: text-only config — AudioResponseHandler should skip audio handling
         var cfg = new AppConfig { AudioResponseMode = "text-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+            var jobRunner = new BackgroundJobRunner(msg => { });
+            var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+                summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         // Act: should not throw (TTS not configured is handled gracefully)
         await handler.HandleAudioMarkerAsync("Hello world");
@@ -31,7 +34,10 @@ public class AudioResponseHandlerTests
     {
         // Arrange: audio-enabled config without real API keys — will fail gracefully
         var cfg = new AppConfig { AudioResponseMode = "audio-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+            var jobRunner = new BackgroundJobRunner(msg => { });
+            var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+                summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         // Act: should not throw (TTS init failure is caught and logged)
         await handler.HandleAudioMarkerAsync("Test audio text");
@@ -44,7 +50,10 @@ public class AudioResponseHandlerTests
     public void AudioResponseHandler_Dispose_DoesNotThrow()
     {
         var cfg = new AppConfig { AudioResponseMode = "text-only" };
-        var handler = new AudioResponseHandler(cfg, CreateMockConsole());
+        var audioPlayer = new AudioPlayerService(CreateMockConsole());
+            var jobRunner = new BackgroundJobRunner(msg => { });
+            var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+                summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         handler.Dispose(); // should not throw
 
