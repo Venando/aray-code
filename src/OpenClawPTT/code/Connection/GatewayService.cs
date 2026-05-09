@@ -15,7 +15,7 @@ public sealed class GatewayService : IGatewayService
     private readonly IPttStateMachine? _pttStateMachine;
     private readonly DeviceIdentity _device;
     private IGatewayClient _gatewayClient;
-    private AgentOutputAdapter? _uiAdapter;
+    private AgentOutputCoordinator _coordinator;
     private ErrorLogStore? _errorLog;
     private bool _disposed;
 
@@ -28,10 +28,11 @@ public sealed class GatewayService : IGatewayService
     public event Action<string, JsonElement>? EventReceived;
     public event Action<string>? AgentReplyAudio;
 
-    public GatewayService(AppConfig config, IColorConsole console, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
+    public GatewayService(AppConfig config, IColorConsole console, AgentOutputCoordinator coordinator, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
     {
         _config = config;
         _console = console;
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         _summarizer = summarizer;
         _pttStateMachine = pttStateMachine;
         _device = new DeviceIdentity(config.DataDir);
@@ -82,7 +83,6 @@ public sealed class GatewayService : IGatewayService
     {
         if (_disposed) throw new ObjectDisposedException(nameof(GatewayService));
 
-        _uiAdapter?.Dispose();
         _gatewayClient.Dispose();
         _gatewayClient = CreateGatewayClient();
     }
@@ -94,7 +94,7 @@ public sealed class GatewayService : IGatewayService
 
     public void DisplayAssistantReply(string body)
     {
-        _uiAdapter?.OnAgentReplyFull(body);
+        _coordinator.OnAgentReplyFull(body);
     }
 
     public void DisplayHistoryEntry(ChatHistoryEntry entry)
@@ -124,7 +124,6 @@ public sealed class GatewayService : IGatewayService
 
     private IGatewayClient CreateGatewayClient()
     {
-        _uiAdapter = new AgentOutputAdapter(_config, _console, _summarizer, _pttStateMachine);
         var client = new GatewayClient(_config, _device, new GatewayEventSource(), _console);
         var events = ((IGatewayClient)client).GetEventSource();
 
@@ -148,19 +147,19 @@ public sealed class GatewayService : IGatewayService
         // ── Always wired (display-mode independent) ──
         events.AgentThinking += thinking =>
         {
-            _uiAdapter!.OnAgentThinking(thinking);
+            _coordinator.OnAgentThinking(thinking);
             AgentThinking?.Invoke(thinking);
         };
 
         events.AgentToolCall += (toolName, arguments) =>
         {
-            _uiAdapter!.OnAgentToolCall(toolName, arguments);
+            _coordinator.OnAgentToolCall(toolName, arguments);
             AgentToolCall?.Invoke(toolName, arguments);
         };
 
         events.AgentReplyAudio += audioText =>
         {
-            _uiAdapter!.OnAgentReplyAudio(audioText);
+            _coordinator.OnAgentReplyAudio(audioText);
             AgentReplyAudio?.Invoke(audioText);
         };
 
@@ -174,19 +173,19 @@ public sealed class GatewayService : IGatewayService
         {
             events.AgentReplyDeltaStart += () =>
             {
-                _uiAdapter!.OnAgentReplyDeltaStart();
+                _coordinator.OnAgentReplyDeltaStart();
                 AgentReplyDeltaStart?.Invoke();
             };
 
             events.AgentReplyDelta += delta =>
             {
-                _uiAdapter!.OnAgentReplyDelta(delta);
+                _coordinator.OnAgentReplyDelta(delta);
                 AgentReplyDelta?.Invoke(delta);
             };
 
             events.AgentReplyDeltaEnd += () =>
             {
-                _uiAdapter!.OnAgentReplyDeltaEnd();
+                _coordinator.OnAgentReplyDeltaEnd();
                 AgentReplyDeltaEnd?.Invoke();
             };
         }
@@ -196,7 +195,7 @@ public sealed class GatewayService : IGatewayService
         {
             events.AgentReplyFull += body =>
             {
-                _uiAdapter!.OnAgentReplyFull(body);
+                _coordinator.OnAgentReplyFull(body);
                 AgentReplyFull?.Invoke(body);
             };
         }
@@ -208,7 +207,7 @@ public sealed class GatewayService : IGatewayService
     {
         if (!_disposed)
         {
-            _uiAdapter?.Dispose();
+            _coordinator.Dispose();
             _gatewayClient.Dispose();
             _disposed = true;
         }

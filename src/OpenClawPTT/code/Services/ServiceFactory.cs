@@ -1,4 +1,5 @@
 using OpenClawPTT.Services;
+using OpenClawPTT.TTS;
 
 namespace OpenClawPTT;
 
@@ -40,7 +41,28 @@ public class ServiceFactory : IServiceFactory
             "AgentSettingsPersistence not initialized. Call InitializeAgentSettingsPersistence first.");
     }
 
-    public virtual IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null) => new GatewayService(cfg, _colorConsole, summarizer, pttStateMachine);
+    public virtual IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
+    {
+        var jobRunner = new BackgroundJobRunner(msg => _colorConsole.Log("jobrunner", msg));
+        var replyCoordinator = new ReplyStreamCoordinator(cfg, _colorConsole);
+        var toolHandler = new ToolDisplayHandler(cfg.RightMarginIndent, _shellHost);
+        var thinkingHandler = new ThinkingDisplayHandler(cfg, _shellHost);
+
+        AudioResponseHandler? audioHandler = null;
+        if (cfg.AudioResponseMode?.ToLowerInvariant() != "text-only")
+        {
+            var audioPlayer = new AudioPlayerService(_colorConsole);
+            var ttsService = new TtsService(cfg, _colorConsole);
+            audioHandler = new AudioResponseHandler(
+                cfg, _colorConsole, jobRunner, audioPlayer,
+                summarizer, pttStateMachine, ttsService.Provider);
+        }
+
+        var coordinator = new AgentOutputCoordinator(
+            replyCoordinator, toolHandler, thinkingHandler, audioHandler);
+
+        return new GatewayService(cfg, _colorConsole, coordinator, summarizer, pttStateMachine);
+    }
 
     public virtual IAudioService CreateAudioService(AppConfig cfg)
     {
