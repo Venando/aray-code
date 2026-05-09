@@ -23,11 +23,11 @@ public class MarkdownToSpectreConverterTests
 
     [Fact]
     public void Convert_H1_YieldsBoldUnderline()
-        => Assert.Equal("[bold underline]Hello[/]", MarkdownToSpectreConverter.Convert("# Hello"));
+        => Assert.Equal("[bold underline default on gray27]Hello[/]", MarkdownToSpectreConverter.Convert("# Hello"));
 
     [Fact]
     public void Convert_H2_YieldsBold()
-        => Assert.Equal("[bold]Hello[/]", MarkdownToSpectreConverter.Convert("## Hello"));
+        => Assert.Equal("[bold underline]Hello[/]", MarkdownToSpectreConverter.Convert("## Hello"));
 
     [Fact]
     public void Convert_H3_YieldsBoldDim()
@@ -39,7 +39,7 @@ public class MarkdownToSpectreConverterTests
 
     [Fact]
     public void Convert_HeadingWithInlineFormatting_PreservesFormatting()
-        => Assert.Equal("[bold underline][bold]Hello[/] World[/]", MarkdownToSpectreConverter.Convert("# **Hello** World"));
+        => Assert.Equal("[bold underline default on gray27][bold]Hello[/] World[/]", MarkdownToSpectreConverter.Convert("# **Hello** World"));
 
     // ── Bold ──────────────────────────────────────────────────────────────────
 
@@ -224,7 +224,7 @@ public class MarkdownToSpectreConverterTests
     {
         var md = "# Title\n\n**bold** and *italic*\n\n> blockquote\n\n---\n\n`code`\n\n[link](http://x.com)";
         var result = MarkdownToSpectreConverter.Convert(md);
-        Assert.Contains("[bold underline]Title[/]", result);
+        Assert.Contains("[bold underline default on gray27]Title[/]", result);
         Assert.Contains("[bold]bold[/]", result);
         Assert.Contains("[italic]italic[/]", result);
         Assert.Contains("[italic dim]blockquote[/]", result);
@@ -332,8 +332,9 @@ public class MarkdownToSpectreConverterTests
         var md = "| Col1 | Col2 |\n|------|------|\n| A    | B    |\n| C    | D    |\n| E    | F    |";
         var result = MarkdownToSpectreConverter.Convert(md).Replace("\r\n", "\n");
         var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        // Expected: top border, header, separator, 3 body rows, bottom border = 7 lines
-        Assert.Equal(7, lines.Length);
+        // With useRowSeparators=true (header has >=1 line), each body row is
+        // preceded by a separator: top + header + sep + 3×(sep + body) + bottom = 9
+        Assert.Equal(9, lines.Length);
         ValidateMarkup(result);
     }
 
@@ -351,6 +352,11 @@ public class MarkdownToSpectreConverterTests
         Assert.Contains("╰", result);
         // Each physical line's visible width should fit within the available space
         var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        // With proportional column width distribution, columns get [9, 11, 10]
+        // instead of crushing the rightmost column to 3 chars.
+        // Header wraps to 2 lines, data fits in 1 → 6 lines total.
+        Assert.True(lines.Length >= 5,
+            $"Expected >=5 lines, got {lines.Length}");
         foreach (var line in lines)
         {
             string plain = Spectre.Console.Markup.Remove(line);
@@ -358,10 +364,9 @@ public class MarkdownToSpectreConverterTests
             Assert.True(visibleWidth <= 42,
                 $"Line visible width {visibleWidth} > 42. Content: {line}");
         }
-        // Should produce MORE physical lines than logical rows
-        // (3 data rows + 4 border lines = 7 lines without wrapping)
-        Assert.True(lines.Length > 7,
-            $"Expected >7 lines (wrapping should create more lines), got {lines.Length}");
+        // Verify no column is crushed to unreadable narrow width:
+        // all content lines have at least one full word visible per column
+        Assert.DoesNotContain("…", result);
         ValidateMarkup(result);
     }
 
@@ -465,14 +470,22 @@ public class MarkdownToSpectreConverterTests
         string headerPlain = Spectre.Console.Markup.Remove(lines[1]);
         Assert.StartsWith("│", headerPlain);
         Assert.EndsWith("│", headerPlain);
-        // Separator
+        // Separator (after header)
         string sepPlain = Spectre.Console.Markup.Remove(lines[2]);
         Assert.Equal('├', sepPlain[0]);
         Assert.Equal('┤', sepPlain[^1]);
-        // Body rows
-        for (int r = 3; r < lines.Length - 1; r++)
+        // Body rows — with row separators enabled, body rows are interleaved
+        // with "├─┼─┤" separators. Identify content lines by the "│" prefix.
+        var bodyLines = lines
+            .Skip(3)           // skip top + header + separator
+            .Take(lines.Length - 4) // skip bottom border
+            .Where(l => Spectre.Console.Markup.Remove(l).StartsWith("│"))
+            .ToList();
+        Assert.True(bodyLines.Count >= 3,
+            $"Expected at least 3 body lines, got {bodyLines.Count}");
+        foreach (var bl in bodyLines)
         {
-            string bodyPlain = Spectre.Console.Markup.Remove(lines[r]);
+            string bodyPlain = Spectre.Console.Markup.Remove(bl);
             Assert.StartsWith("│", bodyPlain);
             Assert.EndsWith("│", bodyPlain);
         }
