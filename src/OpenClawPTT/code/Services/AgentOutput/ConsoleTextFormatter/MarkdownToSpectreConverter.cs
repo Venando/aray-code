@@ -375,8 +375,8 @@ public static class MarkdownToSpectreConverter
 
         // ── Render the table ──
 
-        // Top border: ┌────┬────┐
-        result.MyAppendLine(RenderBorder(colWidths, '┌', '┬', '┐'));
+        // Top border: ╭────┬────╮
+        result.MyAppendLine(RenderBorder(colWidths, '╭', '┬', '╮'));
 
         // Header row: │ bold content │
         var headerFormattedRow = table.FormattedRows[0];
@@ -395,8 +395,8 @@ public static class MarkdownToSpectreConverter
             }
         }
 
-        // Bottom border: └────┴────┘
-        result.MyAppendLine(RenderBorder(colWidths, '└', '┴', '┘'));
+        // Bottom border: ╰────┴────╯
+        result.MyAppendLine(RenderBorder(colWidths, '╰', '┴', '╯'));
 
         return i - 1; // Return the index of the last processed line
     }
