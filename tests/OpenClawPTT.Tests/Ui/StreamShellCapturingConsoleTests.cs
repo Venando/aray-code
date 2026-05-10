@@ -72,6 +72,8 @@ public class StreamShellCapturingConsoleTests
         public event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted;
 #pragma warning restore CS0067
 
+        public StreamShell.IInputHandler InputHandler => null!;
+
         public void AddMessage(string markup) => Messages.Add(markup);
         public void AddCommand(StreamShell.Command command) => Commands.Add(command);
         public System.Threading.Tasks.Task Run(System.Threading.CancellationToken cancellationToken = default) => System.Threading.Tasks.Task.CompletedTask;

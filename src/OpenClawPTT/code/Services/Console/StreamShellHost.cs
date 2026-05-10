@@ -15,6 +15,9 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         _host = new ConsoleAppHost();
     }
 
+    /// <summary>Exposes the input handler for save/load/reset of the input field.</summary>
+    public StreamShell.IInputHandler InputHandler => _host.InputHandler;
+
     public void AddMessage(string markup) => _host.AddMessage(markup);
 
     public void AddCommand(StreamShell.Command command) => _host.AddCommand(command);

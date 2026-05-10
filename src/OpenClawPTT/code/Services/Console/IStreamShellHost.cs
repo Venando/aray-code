@@ -5,6 +5,9 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public interface IStreamShellHost
 {
+    /// <summary>Exposes the input handler for save/load/reset of the input field.</summary>
+    StreamShell.IInputHandler InputHandler { get; }
+
     void AddMessage(string markup);
     void AddCommand(StreamShell.Command command);
     void Clear();

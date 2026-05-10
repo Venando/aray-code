@@ -11,6 +11,11 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
     public readonly List<string> Messages = new();
     public readonly List<StreamShell.Command> Commands = new();
 
+    /// <summary>
+    /// Fake input handler that tracks current input text. Supports save/load of input field state.
+    /// </summary>
+    public StreamShell.IInputHandler InputHandler { get; } = new FakeInputHandler();
+
     public event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted;
 
     public void AddMessage(string markup) => Messages.Add(markup);

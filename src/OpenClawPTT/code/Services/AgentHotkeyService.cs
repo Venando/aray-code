@@ -24,6 +24,9 @@ public sealed class AgentHotkeyService : IDisposable
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     private readonly IPttStateMachine? _pttStateMachine;
 
+    // Maps agent session key → saved input field ID for preserving text across switches
+    private readonly Dictionary<string, string> _savedInputs = new();
+
     public AgentHotkeyService(
         IPttController pttController,
         ITextMessageSender textSender,
@@ -103,11 +106,30 @@ public sealed class AgentHotkeyService : IDisposable
         }
         else
         {
+            // Save current input for the previously active agent before switching
+            var inputHandler = _shellHost.InputHandler;
+            if (activeKey != null && inputHandler != null)
+            {
+                string savedId = inputHandler.SaveInputField();
+                _savedInputs[activeKey] = savedId;
+            }
+
+            // Clear input field so old text doesn't show during history playback
+            if (inputHandler?.CurrentInput.Length > 0)
+                inputHandler?.SetInputFieldContent("");
+
+            // Switch active agent
             AgentRegistry.SetActiveAgent(agent.AgentId);
+
+            // Restore saved input for the target agent (if previously saved)
+            if (inputHandler != null && _savedInputs.TryGetValue(agent.SessionKey, out var restoredId))
+            {
+                inputHandler.LoadInputField(restoredId);
+                _savedInputs.Remove(agent.SessionKey);
+            }
+
             // Fetch and print session history, then agent intro (fire-and-forget)
             if (_gatewayService != null)
-                // Use the shared PrintSessionHistory from AgentSwitchingCommands
-                // followed by agent introduction
                 if (PrintSessionHistoryAsync != null)
                 {
                     _ = PrintSessionHistoryAsync(agent.SessionKey);
@@ -192,6 +214,10 @@ public sealed class AgentHotkeyService : IDisposable
     public void Dispose()
     {
         _agentSettingsPersistence.PersistedSettingsChanged -= OnPersistedSettingsChanged;
+
+        // Clean up any saved input field states
+        _savedInputs.Clear();
+        _shellHost.InputHandler?.RemoveAllSavedInputFields();
 
         if (_hook != null)
         {

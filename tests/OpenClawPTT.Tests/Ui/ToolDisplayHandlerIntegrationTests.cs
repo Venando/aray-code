@@ -31,6 +31,8 @@ public class ToolDisplayHandlerIntegrationTests
         public event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted;
 #pragma warning restore CS0067
 
+        public StreamShell.IInputHandler InputHandler => null!;
+
         public void AddMessage(string markup) => Messages.Add(markup);
         public void AddCommand(StreamShell.Command command) => Commands.Add(command);
         public Task Run(CancellationToken cancellationToken = default) => Task.CompletedTask;
