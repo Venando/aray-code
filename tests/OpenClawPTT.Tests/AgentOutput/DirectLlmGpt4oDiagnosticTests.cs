@@ -67,13 +67,12 @@ public class DirectLlmGpt4oDiagnosticTests
     [Fact]
     public void CharacterWidth_WhiteCircleEmoji()
     {
-        Assert.Equal(2, CharacterWidth.GetDisplayWidth("⚪"[0]));
+        Assert.Equal(2, CharacterWidth.GetDisplayWidth('⚪'));
     }
 
     [Fact]
     public void CharacterWidth_GreenCircleEmoji()
     {
-        // 🟢 is a surrogate pair, GetDisplayWidth(string) iterates chars
         Assert.Equal(2, CharacterWidth.GetDisplayWidth("🟢"));
     }
 
@@ -92,7 +91,31 @@ public class DirectLlmGpt4oDiagnosticTests
     [Fact]
     public void CharacterWidth_BlackCircle()
     {
-        Assert.Equal(2, CharacterWidth.GetDisplayWidth('●'));
+        Assert.Equal(1, CharacterWidth.GetDisplayWidth('●'));
+    }
+
+    [Fact]
+    public void CharacterWidth_Checkmark()
+    {
+        Assert.Equal(1, CharacterWidth.GetDisplayWidth('✓'));
+    }
+
+    [Fact]
+    public void CharacterWidth_Warning()
+    {
+        Assert.Equal(1, CharacterWidth.GetDisplayWidth('⚠'));
+    }
+
+    [Fact]
+    public void CharacterWidth_WhiteCircleSmall()
+    {
+        Assert.Equal(1, CharacterWidth.GetDisplayWidth('○'));
+    }
+
+    [Fact]
+    public void CharacterWidth_Star()
+    {
+        Assert.Equal(1, CharacterWidth.GetDisplayWidth('★'));
     }
 
     [Fact]
@@ -116,6 +139,6 @@ public class DirectLlmGpt4oDiagnosticTests
     {
         string plain = "🟢 Claude Sonnet ●";
         int width = CharacterWidth.GetDisplayWidth(plain);
-        Assert.Equal(19, width); // 🟢=2 + space=1 + Claude=6 + space=1 + Sonnet=6 + space=1 + ●=2 = 19
+        Assert.Equal(18, width); // 🟢=2 + space=1 + Claude=6 + space=1 + Sonnet=6 + space=1 + ●=1 = 18
     }
 }
