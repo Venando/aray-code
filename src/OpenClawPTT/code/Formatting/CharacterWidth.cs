@@ -68,6 +68,36 @@ public static class CharacterWidth
         // Angle brackets (fullwidth form)
         if (code == 0x2329 || code == 0x232A) return 2;
 
+        // Geometric Shapes (●, ○, etc.)
+        if (code >= 0x25A0 && code <= 0x25FF) return 2;
+
+        // Miscellaneous Symbols (⚪, ★, etc.)
+        if (code >= 0x2600 && code <= 0x26FF) return 2;
+
+        // Dingbats
+        if (code >= 0x2700 && code <= 0x27BF) return 2;
+
+        // Miscellaneous Symbols and Pictographs (🟢, 🔴, etc.)
+        if (code >= 0x1F300 && code <= 0x1F5FF) return 2;
+
+        // Emoticons
+        if (code >= 0x1F600 && code <= 0x1F64F) return 2;
+
+        // Transport and Map Symbols
+        if (code >= 0x1F680 && code <= 0x1F6FF) return 2;
+
+        // Geometric Shapes Extended (🟡, 🟢, etc.)
+        if (code >= 0x1F780 && code <= 0x1F7FF) return 2;
+
+        // Supplemental Symbols and Pictographs
+        if (code >= 0x1F900 && code <= 0x1F9FF) return 2;
+
+        // Symbols and Pictographs Extended-A
+        if (code >= 0x1FA00 && code <= 0x1FA6F) return 2;
+
+        // Chess Symbols, Symbols and Pictographs Extended-B
+        if (code >= 0x1FA70 && code <= 0x1FAFF) return 2;
+
         return 1;
     }
 
