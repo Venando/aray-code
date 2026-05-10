@@ -79,8 +79,7 @@ public sealed class ReplyStreamCoordinator : IDisposable
     /// <summary>Called for a full (non-streaming) reply. Creates a formatter, processes the body, then finishes.</summary>
     public void OnFullReply(string body)
     {
-        int consoleWidth;
-        try { consoleWidth = Console.WindowWidth; } catch { consoleWidth = 80; }
+        int consoleWidth = ConsoleHelper.GetWindowWidth();
         int availableWidth = consoleWidth - _prefixLength - _config.ReservedRightMargin;
         if (availableWidth <= 0) availableWidth = consoleWidth / 2;
 

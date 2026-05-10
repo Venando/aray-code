@@ -53,10 +53,9 @@ public sealed class AppBootstrapper : IDisposable
             var cfg = await _configService.LoadOrSetupAsync(_shellHost, ct: _cts.Token);
 
             // Compute final right-edge margin once: max(config indent, 10% of console width)
-            int consoleWidth;
-            try { consoleWidth = Console.WindowWidth > 0 ? Console.WindowWidth : 80; }
-            catch { consoleWidth = 80; }
-            cfg.ReservedRightMargin = Math.Max(cfg.RightMarginIndent, (int)(consoleWidth * 0.1));
+            cfg.ReservedRightMargin = Math.Max(
+                cfg.RightMarginIndent,
+                (int)(ConsoleHelper.GetWindowWidth() * 0.1));
 
             // Apply StreamShell settings and console properties from loaded AppConfig
             _shellHost.SetRightMarginIndent(cfg.ReservedRightMargin);

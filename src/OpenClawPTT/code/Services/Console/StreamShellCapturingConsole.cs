@@ -60,12 +60,5 @@ public sealed class StreamShellCapturingConsole : IFormattedOutput
 
     public void WriteLine() => _buffer.Append('\n');
 
-    public int WindowWidth
-    {
-        get
-        {
-            try { return Console.WindowWidth; }
-            catch { return 80; }
-        }
-    }
+    public int WindowWidth => ConsoleHelper.GetWindowWidth();
 }
