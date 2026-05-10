@@ -456,7 +456,7 @@ internal static class SpectreTableRenderer
             }
             string segment = plain.Substring(pos, actualEnd - pos);
             if (segment.Length > 0)
-                lines.Add(wrapPrefix + segment + wrapSuffix);
+                lines.Add(wrapPrefix + SpectreInlineRenderer.EscapeBrackets(segment) + wrapSuffix);
 
             // If we found a word break before the end, skip the space
             pos = actualEnd < endPos ? actualEnd + 1 : endPos;
