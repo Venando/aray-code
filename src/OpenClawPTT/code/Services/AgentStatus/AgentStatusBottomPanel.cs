@@ -76,7 +76,9 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
     private static string BuildSubagentGroupLine(IGrouping<string, AgentStatusSnapshot> group, List<AgentStatusSnapshot> mainAgents)
     {
         var parent = mainAgents.FirstOrDefault(m => m.SessionKey == group.Key);
-        var (parentEmoji, _, _) = GetAgentDisplayInfo(parent);
+        var (parentEmoji, parentColor, _, parentShow) = GetAgentDisplayInfo(parent);
+        if (!parentShow)
+            return string.Empty;
 
         var sb = new StringBuilder();
         sb.Append(parentEmoji);
@@ -104,17 +106,23 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
             return string.Empty;
 
         var sb = new StringBuilder();
-        for (int i = 0; i < mainAgents.Count; i++)
+        bool first = true;
+        foreach (var agent in mainAgents)
         {
-            if (i > 0)
+            var (emoji, color, name, show) = GetAgentDisplayInfo(agent);
+            if (!show)
+                continue;
+
+            if (!first)
                 sb.Append(" [grey]│[/] ");
+            first = false;
 
-            var agent = mainAgents[i];
-            var (emoji, color, name) = GetAgentDisplayInfo(agent);
             var statusEmoji = agent.GetStatusEmoji();
-
             sb.Append($"[{color}]{emoji} {name}[/] {statusEmoji}");
         }
+
+        if (first) // nothing visible
+            return string.Empty;
 
         return CenterMarkup(sb.ToString());
     }
@@ -160,10 +168,10 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
     // Agent display info (emoji, color, name) — pulls from AgentRegistry when available
     // ─────────────────────────────────────────────────────────────────
 
-    private static (string emoji, string color, string name) GetAgentDisplayInfo(AgentStatusSnapshot? snapshot)
+    private static (string emoji, string color, string name, bool showInStatus) GetAgentDisplayInfo(AgentStatusSnapshot? snapshot)
     {
         if (snapshot == null)
-            return ("🤖", "grey", "Agent");
+            return ("🤖", "grey", "Agent", true);
 
         // Try to match via AgentRegistry
         var registryAgent = AgentRegistry.Agents.FirstOrDefault(a => a.SessionKey == snapshot.SessionKey);
@@ -171,13 +179,14 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
         {
             var emoji = AgentSettingsPersistenceLegacy.GetPersistedEmoji(registryAgent.AgentId) ?? "🤖";
             var color = AgentSettingsPersistenceLegacy.GetPersistedColor(registryAgent.AgentId) ?? "grey";
+            var show = AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(registryAgent.AgentId);
             var name = EscapeMarkup(registryAgent.Name);
-            return (emoji, color, name);
+            return (emoji, color, name, show);
         }
 
         // Fallback: use snapshot data
         var fallbackName = EscapeMarkup(ShortenMainAgentName(snapshot.DisplayName));
-        return ("🤖", "grey", fallbackName);
+        return ("🤖", "grey", fallbackName, true);
     }
 
     // ─────────────────────────────────────────────────────────────────

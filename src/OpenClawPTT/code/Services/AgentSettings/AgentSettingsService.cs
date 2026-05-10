@@ -99,6 +99,16 @@ public sealed class AgentSettingsService
     public void SetColor(string agentId, string? color)
         => SetField(agentId, s => s.Color = color);
 
+    public bool GetShowInStatusPanel(string agentId)
+    {
+        var entry = _settings.FirstOrDefault(s =>
+            s.AgentId.Equals(agentId, System.StringComparison.OrdinalIgnoreCase));
+        return entry?.ShowInStatusPanel ?? true;
+    }
+
+    public void SetShowInStatusPanel(string agentId, bool show)
+        => SetField(agentId, s => s.ShowInStatusPanel = show);
+
     private void SetField(string agentId, System.Action<AgentPersistedSettings> setter)
     {
         var entry = _settings.FirstOrDefault(s =>

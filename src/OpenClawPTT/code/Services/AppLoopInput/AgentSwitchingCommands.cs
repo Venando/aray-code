@@ -70,7 +70,9 @@ public sealed class AgentSwitchingCommands
             if (entry.Color == null)
                 colorValueDisplay += " [grey](default)[/]";
 
-            _host.AddMessage($"  {marker} {emojiDisplay} [bold]{nameDisplay}[/] [grey]({Markup.Escape(entry.Agent.AgentId)})[/] — hotkey: {hotkeyDisplay}, emoji: {Markup.Escape(emojiDisplay)}, color: {colorValueDisplay}");
+            var showStatus = entry.ShowInStatusPanel ? "" : " [grey](hidden)[/]";
+
+            _host.AddMessage($"  {marker} {emojiDisplay} [bold]{nameDisplay}[/] [grey]({Markup.Escape(entry.Agent.AgentId)})[/] — hotkey: {hotkeyDisplay}, emoji: {Markup.Escape(emojiDisplay)}, color: {colorValueDisplay}{showStatus}");
         }
         _host.AddMessage("[grey]  Use /crew config for interactive setup[/]");
         return Task.CompletedTask;

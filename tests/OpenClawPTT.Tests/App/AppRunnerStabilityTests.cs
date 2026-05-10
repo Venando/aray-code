@@ -64,7 +64,7 @@ public class AppRunnerStabilityTests
     {
         var mock = new Mock<IAgentSettingsPersistence>();
         mock.Setup(x => x.AllAgentsWithHotkeys).Returns(new List<(AgentInfo Agent, string? Hotkey)>().AsReadOnly());
-        mock.Setup(x => x.AllAgentSettings).Returns(new List<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color)>().AsReadOnly());
+        mock.Setup(x => x.AllAgentSettings).Returns(new List<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color, bool ShowInStatusPanel)>().AsReadOnly());
         return mock.Object;
     }
 

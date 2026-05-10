@@ -54,8 +54,14 @@ public static class AgentSettingsPersistenceLegacy
     /// <summary>All agents with their effective hotkey (override or null).</summary>
     public static IReadOnlyList<(AgentInfo Agent, string? Hotkey)> AllAgentsWithHotkeys => GetInstance().AllAgentsWithHotkeys;
 
-    /// <summary>All agents with their effective hotkey, emoji, and color.</summary>
-    public static IReadOnlyList<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color)> AllAgentSettings => GetInstance().AllAgentSettings;
+    /// <summary>Get per-agent ShowInStatusPanel flag. Returns true if not explicitly set.</summary>
+    public static bool GetPersistedShowInStatusPanel(string agentId) => GetInstance().GetPersistedShowInStatusPanel(agentId);
+
+    /// <summary>Set or clear per-agent ShowInStatusPanel flag.</summary>
+    public static void SetPersistedShowInStatusPanel(string agentId, bool show) => GetInstance().SetPersistedShowInStatusPanel(agentId, show);
+
+    /// <summary>All agents with their effective hotkey, emoji, color, and ShowInStatusPanel.</summary>
+    public static IReadOnlyList<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color, bool ShowInStatusPanel)> AllAgentSettings => GetInstance().AllAgentSettings;
 
     /// <summary>Merge persisted settings from agents.json into the registry.</summary>
     public static void MergePersistedSettings(AgentsConfig persisted) => GetInstance().MergePersistedSettings(persisted);
