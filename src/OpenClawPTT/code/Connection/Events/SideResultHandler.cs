@@ -1,5 +1,4 @@
 using System.Text.Json;
-using OpenClawPTT.Formatting;
 using OpenClawPTT.Services;
 
 namespace OpenClawPTT;
@@ -121,7 +120,7 @@ public class SideResultHandler : IEventHandler<SideResultEvent>
                 continue;
             }
 
-            var wrapped = TextWidth.WrapToVisualWidth(trimmed, maxWidth);
+            var wrapped = CharacterWidth.WrapToWidth(trimmed, maxWidth);
             foreach (var w in wrapped)
                 yield return w;
         }

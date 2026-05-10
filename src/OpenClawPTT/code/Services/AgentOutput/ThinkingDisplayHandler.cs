@@ -73,11 +73,11 @@ public sealed class ThinkingDisplayHandler
             int consoleWidth = ConsoleMetrics.GetWindowWidth();
 
             // Estimate prefix visual width (~5 chars for "  💭 ", variable for rest)
-            int prefixWidth = TextWidth.GetVisualWidth("  💭 Thinking ");
+            int prefixWidth = CharacterWidth.GetDisplayWidth("  💭 Thinking ");
             int maxLineWidth = Math.Min(79, consoleWidth - prefixWidth - _config.ReservedRightMargin);
             if (maxLineWidth < 20) maxLineWidth = 79; // fallback
 
-            var wrappedLines = TextWidth.WrapToVisualWidth(thinking, maxLineWidth);
+            var wrappedLines = CharacterWidth.WrapToWidth(thinking, maxLineWidth);
 
             var displayLines = wrappedLines.Take(_config.ThinkingPreviewLines).ToList();
             bool hasMore = wrappedLines.Count > _config.ThinkingPreviewLines;
