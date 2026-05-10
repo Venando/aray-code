@@ -346,7 +346,7 @@ internal static class SpectreTableRenderer
     /// If the cell has mixed/complex formatting, prefix/suffix remain empty
     /// and wrapping falls back to plain text.
     /// </summary>
-    private static void ExtractUniformMarkup(string formattedCell, out string prefix, out string suffix)
+    internal static void ExtractUniformMarkup(string formattedCell, out string prefix, out string suffix)
     {
         prefix = "";
         suffix = "";
@@ -354,9 +354,15 @@ internal static class SpectreTableRenderer
         if (string.IsNullOrEmpty(formattedCell)) return;
 
         // Find consecutive opening Spectre tags at the start: [tag1][tag2]...
+        // Break on escaped brackets ("[[") — they are literal "[" characters,
+        // not markup tags.
         int prefixEnd = 0;
         while (prefixEnd < formattedCell.Length && formattedCell[prefixEnd] == '[')
         {
+            // Escaped bracket "[[" — this is literal text, not a tag
+            if (prefixEnd + 1 < formattedCell.Length && formattedCell[prefixEnd + 1] == '[')
+                break;
+
             int closeIdx = formattedCell.IndexOf(']', prefixEnd + 1);
             if (closeIdx < 0) break;
             prefixEnd = closeIdx + 1;
@@ -374,17 +380,24 @@ internal static class SpectreTableRenderer
                 break;
         }
 
-        if (prefixEnd == 0 || suffixStart == formattedCell.Length)
-            return; // No uniform wrapping markup
+        if (prefixEnd == 0 || suffixStart == formattedCell.Length || prefixEnd >= suffixStart)
+            return; // No uniform wrapping markup or prefix overlaps suffix
 
-        string innerContent = formattedCell.Substring(prefixEnd, suffixStart - prefixEnd);
-        string innerPlain = Markup.Remove(innerContent);
-        string fullPlain = Markup.Remove(formattedCell);
-
-        if (innerPlain == fullPlain)
+        try
         {
-            prefix = formattedCell.Substring(0, prefixEnd);
-            suffix = formattedCell.Substring(suffixStart);
+            string innerContent = formattedCell.Substring(prefixEnd, suffixStart - prefixEnd);
+            string innerPlain = Markup.Remove(innerContent);
+            string fullPlain = Markup.Remove(formattedCell);
+
+            if (innerPlain == fullPlain)
+            {
+                prefix = formattedCell.Substring(0, prefixEnd);
+                suffix = formattedCell.Substring(suffixStart);
+            }
+        }
+        catch
+        {
+            // Malformed markup — fall back to no prefix/suffix rather than crash
         }
     }
 
