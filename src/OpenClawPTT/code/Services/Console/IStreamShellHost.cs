@@ -17,4 +17,10 @@ public interface IStreamShellHost
 
     /// <summary>Sets the right margin indent (in characters) on the underlying StreamShell settings.</summary>
     void SetRightMarginIndent(int margin);
+
+    /// <summary>Sets the input prompt prefix (e.g. " > ") on the underlying StreamShell settings.</summary>
+    void SetInputPrefix(string prefix);
+
+    /// <summary>Sets the continuation prefix for wrapped input lines on the underlying StreamShell settings.</summary>
+    void SetContinuationPrefix(string prefix);
 }

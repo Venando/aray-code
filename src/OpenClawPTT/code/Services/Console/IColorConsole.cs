@@ -25,6 +25,9 @@ public interface IColorConsole
     /// <summary>Display user's own text message.</summary>
     void PrintUserMessage(string text);
 
+    /// <summary>Spectre markup prefix for user messages (e.g. " [green] You:[/] ").</summary>
+    string UserMessagePrefix { get; set; }
+
     void PrintFormatted(string prefix, string text);
 
     /// <summary>Display user's message with pre-formatted markup.</summary>

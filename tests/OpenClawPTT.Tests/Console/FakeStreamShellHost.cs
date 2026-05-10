@@ -28,6 +28,8 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
 
     public void Stop() { /* no-op */ }
     public void SetRightMarginIndent(int margin) { /* no-op */ }
+    public void SetInputPrefix(string prefix) { /* no-op */ }
+    public void SetContinuationPrefix(string prefix) { /* no-op */ }
 
     public void Dispose() { /* no-op */ }
 

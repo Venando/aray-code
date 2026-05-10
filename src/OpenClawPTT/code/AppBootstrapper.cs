@@ -1,3 +1,4 @@
+using Spectre.Console;
 using OpenClawPTT.Services;
 
 namespace OpenClawPTT;
@@ -51,8 +52,11 @@ public sealed class AppBootstrapper : IDisposable
 
             var cfg = await _configService.LoadOrSetupAsync(_shellHost, ct: _cts.Token);
 
-            // Apply right margin indent from AppConfig to StreamShell settings
+            // Apply StreamShell settings from loaded AppConfig
             _shellHost.SetRightMarginIndent(cfg.RightMarginIndent);
+            _shellHost.SetInputPrefix(" > ");
+            _shellHost.SetContinuationPrefix(new string(' ', Markup.Remove(cfg.UserMessagePrefix).Length));
+            _console.UserMessagePrefix = cfg.UserMessagePrefix;
 
             // Load persistent agent settings from agents.json and initialize DI
             var agentSettings = new AgentSettingsService(cfg.DataDir, _console);

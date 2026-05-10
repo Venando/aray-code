@@ -16,6 +16,9 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public LogLevel LogLevel { get; set; } = LogLevel.Error;
 
+    /// <inheritdoc />
+    public string UserMessagePrefix { get; set; } = " [green] You:[/] ";
+
     /// <summary>
     /// Creates a new ColorConsole instance with the specified StreamShell host.
     /// Log level defaults to Error (only errors shown). Update <see cref="LogLevel"/> at runtime.
@@ -109,7 +112,7 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public void PrintMarkupedUserMessage(string text)
     {
-        ShellMsg($"[green]  You:[/] {text}");
+        ShellMsg($"{UserMessagePrefix}{text}");
     }
 
     // ── Status Messages ────────────────────────────────────────

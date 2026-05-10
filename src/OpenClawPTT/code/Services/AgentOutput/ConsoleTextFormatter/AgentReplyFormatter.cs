@@ -45,12 +45,24 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
         _wordWrap = new WordWrapEngine(GetAvailableWidth());
     }
 
+    /// <summary>
+    /// Calculates available text width: console width minus prefix width minus the right-edge margin.
+    /// The right-edge margin reserves at least <see cref="_rightMarginIndent"/> characters,
+    /// but scales up to 10% of console width on wider terminals for visual comfort.
+    /// Falls back to half the console width when the nominal width is unusably small.
+    /// </summary>
     private int GetAvailableWidth()
     {
-        int effectiveRightMargin = Math.Max(_rightMarginIndent, (int)(_consoleWidth * 0.1));
-        int available = _prefixAlreadyPrinted
-            ? _consoleWidth - _newlinePrefixLenght.Length - effectiveRightMargin
-            : _consoleWidth - _prefix.Length - effectiveRightMargin;
+        // Reserve the larger of the configured indent or 10% of console width
+        // as the minimum right-edge margin — prevents text running to the very edge.
+        int reservedRightMargin = Math.Max(_rightMarginIndent, (int)(_consoleWidth * 0.1));
+
+        // After the first line, the prefix is replaced by an equal-width spacer.
+        int usedPrefixWidth = _prefixAlreadyPrinted
+            ? _newlinePrefixLenght.Length
+            : _prefix.Length;
+
+        int available = _consoleWidth - usedPrefixWidth - reservedRightMargin;
         return available > 0 ? available : _consoleWidth / 2;
     }
 
