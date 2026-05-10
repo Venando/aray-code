@@ -98,8 +98,11 @@ public sealed class StreamShellInputHandler : IDisposable
         foreach (var name in OpenClawCommands.Names)
         {
             var cmdName = name; // Capture for closure
-            _host.AddCommand(new Command(name, Markup.Escape(OpenClawCommands.Descriptions[name]),
-                (args, named) => OpenClawCommandForwarder(cmdName, args, named)));
+            var description = Markup.Escape(OpenClawCommands.Descriptions[name]);
+            var suggestions = OpenClawCommandSuggestions.Get(name);
+            _host.AddCommand(new Command(name, description,
+                (args, named) => OpenClawCommandForwarder(cmdName, args, named),
+                suggestions));
         }
 
         _host.UserInputSubmitted += OnUserInput;
