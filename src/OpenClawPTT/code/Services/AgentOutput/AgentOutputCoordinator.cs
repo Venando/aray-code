@@ -10,6 +10,7 @@ public sealed class AgentOutputCoordinator : IDisposable
     private readonly ReplyStreamCoordinator _replyCoordinator;
     private readonly ToolDisplayHandler _toolDisplayHandler;
     private readonly ThinkingDisplayHandler _thinkingDisplay;
+    private readonly object _audioLock = new();
     private AudioResponseHandler? _audioHandler;
     private bool _disposed;
 
@@ -51,8 +52,13 @@ public sealed class AgentOutputCoordinator : IDisposable
     public void OnAgentReplyFull(string body)
     {
         _replyCoordinator.OnFullReply(body);
-        if (_audioHandler != null && !string.IsNullOrWhiteSpace(body))
-            _ = _audioHandler.HandleAudioMarkerAsync(body);
+        AudioResponseHandler? handler;
+        lock (_audioLock)
+        {
+            handler = _audioHandler;
+        }
+        if (handler != null && !string.IsNullOrWhiteSpace(body))
+            _ = handler.HandleAudioMarkerAsync(body);
     }
 
     public void OnAgentThinking(string thinking)
@@ -68,8 +74,13 @@ public sealed class AgentOutputCoordinator : IDisposable
     public void OnAgentReplyDeltaEnd()
     {
         _replyCoordinator.OnDeltaEnd();
-        if (_audioHandler != null && !string.IsNullOrWhiteSpace(_replyCoordinator.AccumulatedText))
-            _ = _audioHandler.HandleAudioMarkerAsync(_replyCoordinator.AccumulatedText);
+        AudioResponseHandler? handler;
+        lock (_audioLock)
+        {
+            handler = _audioHandler;
+        }
+        if (handler != null && !string.IsNullOrWhiteSpace(_replyCoordinator.AccumulatedText))
+            _ = handler.HandleAudioMarkerAsync(_replyCoordinator.AccumulatedText);
     }
 
     /// <summary>
@@ -79,9 +90,12 @@ public sealed class AgentOutputCoordinator : IDisposable
     /// </summary>
     public void SetAudioHandler(AudioResponseHandler? handler)
     {
-        if (_audioHandler == handler) return;
-        _audioHandler?.Dispose();
-        _audioHandler = handler;
+        lock (_audioLock)
+        {
+            if (_audioHandler == handler) return;
+            _audioHandler?.Dispose();
+            _audioHandler = handler;
+        }
     }
 
     public void OnAgentReplyAudio(string audioText)
@@ -93,7 +107,10 @@ public sealed class AgentOutputCoordinator : IDisposable
     {
         if (!_disposed)
         {
-            _audioHandler?.Dispose();
+            lock (_audioLock)
+            {
+                _audioHandler?.Dispose();
+            }
             _replyCoordinator.Dispose();
             _disposed = true;
         }
