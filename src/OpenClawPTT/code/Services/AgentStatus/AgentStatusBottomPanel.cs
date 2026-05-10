@@ -14,10 +14,10 @@ namespace OpenClawPTT.Services;
 public sealed class AgentStatusBottomPanel : IBottomPanel
 {
     // ── Toggleables (change these to test different layouts) ────────────────
-    private const bool ShowAgentNames = false;
+    private const bool ShowAgentNames = true;
     private const bool UseDynamicHeight = false;
-    private const int FixedLineCountValue = 3;   // used when UseDynamicHeight == false
-    private const int MaxLineCount = 4;           // upper bound for array sizing
+    private const int FixedLineCountValue = 1;   // used when UseDynamicHeight == false
+    private const int MaxLineCount = 1;           // upper bound for array sizing
     // ────────────────────────────────────────────────────────────────────────
 
     private readonly IAgentStatusTracker _tracker;
@@ -78,7 +78,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
             _sb.Clear();
             _lines[rowIndex++] = BuildMainAgentsLine(mainAgents, _sb);
 
-            if (activeSubs.Count > 0)
+            if (false) //if (activeSubs.Count > 0)
             {
                 _sb.Clear();
                 _lines[rowIndex++] = BuildFlatSubagentLine(activeSubs, _sb);
@@ -92,7 +92,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
         _isDirty = false;
         _cachedLineCount = lineCount;
 
-        return _lines;
+        var lines = _lines.Where(line => line != null).ToArray();
+        return lines;
     }
 
     private int ComputeLineCount()
@@ -126,7 +127,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
                 continue;
 
             if (!first)
-                sb.Append(" [grey]│[/] ");
+                sb.Append(" [white bold]│[/] ");
+
             first = false;
 
             var statusEmoji = agent.GetStatusEmoji();
@@ -146,6 +148,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
             }
 
             sb.Append(statusEmoji);
+            //sb.Append(' ');
         }
 
         return first ? string.Empty : sb.ToString();

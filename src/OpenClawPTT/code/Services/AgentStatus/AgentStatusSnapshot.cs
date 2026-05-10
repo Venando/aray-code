@@ -244,7 +244,7 @@ public sealed record AgentStatusSnapshot
     public string GetStatusEmoji()
     {
         // ── Aborted — highest priority, applies to both agent types ───────────
-        if (IsAborted) return "🔴";
+        if (IsAborted) return "⏳";
 
         // ── Tool mid-execution ────────────────────────────────────────────────
         if (IsUsingTool) return "🔄";
@@ -275,8 +275,8 @@ public sealed record AgentStatusSnapshot
         if (IsRunning) return "🟢";
 
         // status == "done": distinguish a clean finish from idle.
-        if (Status?.Equals("done", StringComparison.OrdinalIgnoreCase) == true)
-            return EndedAt.HasValue ? "✅" : "⚪";
+        // if (Status?.Equals("done", StringComparison.OrdinalIgnoreCase) == true)
+        //     return EndedAt.HasValue ? "✅" : "⚪";
 
         // Unknown / initial state.
         return "🟢";
