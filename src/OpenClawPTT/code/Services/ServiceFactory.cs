@@ -49,23 +49,16 @@ public class ServiceFactory : IServiceFactory
         var toolHandler = new ToolDisplayHandler(cfg.RightMarginIndent, _shellHost);
         var thinkingHandler = new ThinkingDisplayHandler(cfg, _shellHost);
 
+        // Create audio handler only when a pre-initialized TTS provider is supplied.
+        // When ttsProvider is null (parallel init), the audio handler is wired later
+        // via GatewayService.SetTtsProvider() after background initialization completes.
         AudioResponseHandler? audioHandler = null;
-        ITextToSpeech? ttsProviderLocal = ttsProvider;
-        if (cfg.AudioResponseMode?.ToLowerInvariant() != "text-only")
+        if (ttsProvider != null && cfg.AudioResponseMode?.ToLowerInvariant() != "text-only")
         {
-            if (ttsProviderLocal == null)
-            {
-                var ttsService = new TtsService(cfg, _colorConsole);
-                ttsProviderLocal = ttsService.Provider;
-            }
-
-            if (ttsProviderLocal != null)
-            {
-                var audioPlayer = new AudioPlayerService(_colorConsole);
-                audioHandler = new AudioResponseHandler(
-                    cfg, _colorConsole, jobRunner, audioPlayer,
-                    summarizer, pttStateMachine, ttsProviderLocal);
-            }
+            var audioPlayer = new AudioPlayerService(_colorConsole);
+            audioHandler = new AudioResponseHandler(
+                cfg, _colorConsole, jobRunner, audioPlayer,
+                summarizer, pttStateMachine, ttsProvider);
         }
 
         var coordinator = new AgentOutputCoordinator(

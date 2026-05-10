@@ -119,9 +119,26 @@ public sealed class PythonEnvironment
             string relativePath = resourceName.Substring(resourcePrefix.Length);
             string outputPath = Path.Combine(s_scriptFolder, relativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-            using var stream = asm.GetManifestResourceStream(resourceName)!;
-            using var file = File.Create(outputPath);
-            stream.CopyTo(file);
+
+            // Skip extraction if the file already exists — avoids IOException when a
+            // previous Python process still holds a lock on the file (e.g. zombie process
+            // from a crashed app instance left in Task Manager).
+            if (File.Exists(outputPath))
+                continue;
+
+            try
+            {
+                using var stream = asm.GetManifestResourceStream(resourceName)!;
+                using var file = File.Create(outputPath);
+                stream.CopyTo(file);
+            }
+            catch (IOException)
+            {
+                // File is locked by another process (zombie Python from a previous run).
+                // The script content is already extracted and readable — the running
+                // process can still use the locked file via Read sharing. Skip overwrite.
+                continue;
+            }
         }
 
         s_extracted = true;
