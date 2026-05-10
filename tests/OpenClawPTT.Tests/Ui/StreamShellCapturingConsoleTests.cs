@@ -82,6 +82,7 @@ public class StreamShellCapturingConsoleTests
         public void SetRightMarginIndent(int margin) { }
         public void SetInputPrefix(string prefix) { }
         public void SetContinuationPrefix(string prefix) { }
+        public void SetDefaultPanel(StreamShell.IBottomPanel panel) { }
         public void Dispose() { }
     }
 }
