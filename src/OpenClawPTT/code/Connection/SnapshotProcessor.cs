@@ -1,22 +1,26 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using OpenClawPTT.Services;
 
 namespace OpenClawPTT;
 
 /// <summary>
-/// Processes gateway snapshot data to update agent registry.
+/// Processes gateway snapshot data to update agent registry and status tracker.
 /// </summary>
 public sealed class SnapshotProcessor : ISnapshotProcessor
 {
     private readonly ILogger _logger;
+    private readonly IAgentStatusTracker? _agentStatusTracker;
 
     /// <summary>
     /// Creates a new SnapshotProcessor.
     /// </summary>
     /// <param name="logger">The logger for diagnostic output.</param>
-    public SnapshotProcessor(ILogger logger)
+    /// <param name="agentStatusTracker">Optional tracker to seed with snapshot agents.</param>
+    public SnapshotProcessor(ILogger logger, IAgentStatusTracker? agentStatusTracker = null)
     {
         _logger = logger;
+        _agentStatusTracker = agentStatusTracker;
     }
 
     /// <inheritdoc />
@@ -49,6 +53,14 @@ public sealed class SnapshotProcessor : ISnapshotProcessor
                     Name = name,
                     IsDefault = isDefault,
                     SessionKey = sessionKey
+                });
+
+                // Seed the status tracker so the bottom panel shows agents immediately
+                _agentStatusTracker?.Update(new AgentStatusSnapshot
+                {
+                    SessionKey = sessionKey,
+                    DisplayName = name,
+                    Status = "idle"
                 });
             }
 

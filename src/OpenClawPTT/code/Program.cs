@@ -15,18 +15,24 @@ internal static class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         var shellHost = new StreamShellHost();
 
+        // Create agent status tracker and bottom panel
+        var agentStatusTracker = new AgentStatusTracker();
+
         // Use TestModeServiceFactory when test mode is enabled
         ServiceFactory factory;
         if (testModeEnabled)
         {
-            factory = new TestModeServiceFactory(configService, shellHost, testScenario);
+            factory = new TestModeServiceFactory(configService, shellHost, testScenario, agentStatusTracker);
         }
         else
         {
-            factory = new ServiceFactory(configService, shellHost);
+            factory = new ServiceFactory(configService, shellHost, agentStatusTracker);
         }
 
         var colorConsole = factory.CreateColorConsole();
+
+        var agentStatusPanel = new AgentStatusBottomPanel(agentStatusTracker, colorConsole);
+        shellHost.SetDefaultPanel(agentStatusPanel);
 
         var bootstrapper = new AppBootstrapper(configService, factory, shellHost, colorConsole, null, testModeEnabled);
         var exitCode = await bootstrapper.RunAsync(cts.Token);

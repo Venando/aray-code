@@ -25,6 +25,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
     private readonly IColorConsole _console;
     private readonly IEventDispatcher _dispatcher;
     private readonly IBackgroundJobRunner _jobRunner;
+    private readonly IAgentStatusTracker _agentStatusTracker;
 
     public IMessageFraming GetFraming() => _framing;
 
@@ -37,7 +38,8 @@ public class GatewayMessager : IDisposable, IRpcCaller
         IContentExtractor? contentExtractor = null,
         IColorConsole? console = null,
         IEventDispatcher? dispatcher = null,
-        IBackgroundJobRunner? jobRunner = null)
+        IBackgroundJobRunner? jobRunner = null,
+        IAgentStatusTracker? agentStatusTracker = null)
     {
         _ws = ws;
         _cfg = cfg;
@@ -49,6 +51,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
         _console = console ?? new ColorConsole(new StreamShellHost());
         _dispatcher = dispatcher ?? new EventDispatcher(_console);
         _jobRunner = jobRunner ?? new BackgroundJobRunner(msg => _console.Log("jobrunner", msg));
+        _agentStatusTracker = agentStatusTracker ?? new AgentStatusTracker();
 
         // Register default handlers
         _dispatcher.RegisterHandler<SessionMessageEvent>(
@@ -179,6 +182,22 @@ public class GatewayMessager : IDisposable, IRpcCaller
         var payload = root.TryGetProperty("payload", out var p) ? p.Clone() : default;
 
         _console.Log("debug", $"Event name={name}", LogLevel.Debug);
+
+        // ── Extract agent/subagent status from ALL payloads BEFORE filtering ──
+        var snapshot = AgentStatusExtractor.Extract(_console, payload);
+        if (snapshot != null)
+        {
+            _agentStatusTracker.Update(snapshot);
+        }
+        
+        // Also handle explicit subagent creation events that may not carry a nested session
+        // if (name.Contains("subagent", StringComparison.OrdinalIgnoreCase) ||
+        //     name.Contains("spawn", StringComparison.OrdinalIgnoreCase))
+        // {
+        //     var createSnapshot = AgentStatusExtractor.Extract(_console, payload);
+        //     if (createSnapshot != null)
+        //         _agentStatusTracker.Update(createSnapshot);
+        // }
 
         // Debug: log all events for error/fallback detection
         var isNoteworthy = IsNoteworthyEvent(name);

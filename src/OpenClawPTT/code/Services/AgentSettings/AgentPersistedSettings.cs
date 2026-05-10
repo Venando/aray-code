@@ -13,4 +13,6 @@ public sealed class AgentPersistedSettings
     public string? Emoji { get; set; }
     /// <summary>Color override for agent name display. Null means use default.</summary>
     public string? Color { get; set; }
+    /// <summary>Whether this agent appears in the status bottom panel. Defaults to true.</summary>
+    public bool ShowInStatusPanel { get; set; } = true;
 }

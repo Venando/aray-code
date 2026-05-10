@@ -16,6 +16,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     private readonly DeviceIdentity _deviceIdentity;
     private readonly Func<IClientWebSocket> _socketFactory;
     private readonly IColorConsole _console;
+    private readonly IAgentStatusTracker? _agentStatusTracker;
 
     private IClientWebSocket _ws = null!;
     private CancellationTokenSource? _tickCts;
@@ -31,16 +32,17 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     private readonly IBackgroundJobRunner _jobRunner;
 
     public GatewayConnectionLifecycle(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource events, IColorConsole console,
-        Func<IClientWebSocket>? socketFactory = null, ISnapshotProcessor? snapshotProcessor = null)
+        Func<IClientWebSocket>? socketFactory = null, ISnapshotProcessor? snapshotProcessor = null, IAgentStatusTracker? agentStatusTracker = null)
     {
         _cfg = cfg;
         _deviceIdentity = dev;
         _events = events;
         _console = console ?? throw new ArgumentNullException(nameof(console));
         _socketFactory = socketFactory ?? (() => new ClientWebSocketAdapter());
-        _snapshotProcessor = snapshotProcessor ?? new SnapshotProcessor(new ConsoleLogger(console));
+        _snapshotProcessor = snapshotProcessor ?? new SnapshotProcessor(new ConsoleLogger(console), agentStatusTracker);
         _jobRunner = new BackgroundJobRunner(msg => _console.Log("jobrunner", msg));
         _gatewayReconnector = new GatewayReconnector(cfg, console, this, _disposeCts.Token);
+        _agentStatusTracker = agentStatusTracker;
     }
 
     // ─── ISender ──────────────────────────────────────────────────────
@@ -94,7 +96,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         try
         {
             _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
-            _gatewayMessager = new GatewayMessager(_ws, _events, _cfg, ct => _ = HandleDisconnectionAsync(ct), console: _console, jobRunner: _jobRunner);
+            _gatewayMessager = new GatewayMessager(_ws, _events, _cfg, ct => _ = HandleDisconnectionAsync(ct), console: _console, jobRunner: _jobRunner, agentStatusTracker: _agentStatusTracker);
 
             await ConnectWebSocketAsync(linkedCt);
             _recvTask = Task.Run(() => _gatewayMessager.ReceiveLoop(linkedCt), linkedCt);

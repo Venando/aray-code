@@ -26,11 +26,17 @@ public interface IAgentSettingsPersistence
     /// <summary>Get per-agent color override, or null for default.</summary>
     string? GetPersistedColor(string agentId);
 
+    /// <summary>Get per-agent ShowInStatusPanel flag. Returns true if not explicitly set.</summary>
+    bool GetPersistedShowInStatusPanel(string agentId);
+
+    /// <summary>Set or clear per-agent ShowInStatusPanel flag. Fires PersistedSettingsChanged.</summary>
+    void SetPersistedShowInStatusPanel(string agentId, bool show);
+
     /// <summary>All agents with their effective hotkey (override or null).</summary>
     IReadOnlyList<(AgentInfo Agent, string? Hotkey)> AllAgentsWithHotkeys { get; }
 
-    /// <summary>All agents with their effective hotkey, emoji, and color.</summary>
-    IReadOnlyList<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color)> AllAgentSettings { get; }
+    /// <summary>All agents with their effective hotkey, emoji, color, and ShowInStatusPanel.</summary>
+    IReadOnlyList<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color, bool ShowInStatusPanel)> AllAgentSettings { get; }
 
     /// <summary>True if at least one agent has any persisted setting (hotkey, emoji, or color).</summary>
     bool HasAnyPersistedSettings { get; }

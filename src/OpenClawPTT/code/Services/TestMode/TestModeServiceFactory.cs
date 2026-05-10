@@ -17,8 +17,8 @@ public sealed class TestModeServiceFactory : ServiceFactory
     /// <param name="configService">The configuration service.</param>
     /// <param name="shellHost">The stream shell host.</param>
     /// <param name="scenario">The test scenario to use.</param>
-    public TestModeServiceFactory(IConfigurationService configService, IStreamShellHost shellHost, string scenario)
-        : base(configService, shellHost)
+    public TestModeServiceFactory(IConfigurationService configService, IStreamShellHost shellHost, string scenario, IAgentStatusTracker? agentStatusTracker = null)
+        : base(configService, shellHost, agentStatusTracker)
     {
         _scenario = scenario;
         _colorConsole = new ColorConsole(shellHost);

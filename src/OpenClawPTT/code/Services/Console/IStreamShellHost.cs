@@ -31,4 +31,7 @@ public interface IStreamShellHost
 
     /// <summary>Sets the continuation prefix for wrapped input lines on the underlying StreamShell settings.</summary>
     void SetContinuationPrefix(string prefix);
+
+    /// <summary>Sets the default bottom panel (shown when no command is active).</summary>
+    void SetDefaultPanel(StreamShell.IBottomPanel panel);
 }

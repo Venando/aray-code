@@ -11,14 +11,16 @@ public class ServiceFactory : IServiceFactory
     private readonly IConfigurationService _configService;
     private readonly IStreamShellHost _shellHost;
     private readonly IColorConsole _colorConsole;
+    private readonly IAgentStatusTracker? _agentStatusTracker;
     private AgentSettingsService? _agentSettingsService;
     private IAgentSettingsPersistence? _agentSettingsPersistence;
 
-    public ServiceFactory(IConfigurationService configService, IStreamShellHost shellHost)
+    public ServiceFactory(IConfigurationService configService, IStreamShellHost shellHost, IAgentStatusTracker? agentStatusTracker = null)
     {
         _configService = configService;
         _shellHost = shellHost;
         _colorConsole = new ColorConsole(shellHost);
+        _agentStatusTracker = agentStatusTracker;
     }
 
     public IColorConsole ColorConsole => _colorConsole;
@@ -58,7 +60,7 @@ public class ServiceFactory : IServiceFactory
             replyCoordinator, toolHandler, thinkingHandler, audioHandler);
 
         return new GatewayService(cfg, _colorConsole, coordinator, summarizer, pttStateMachine,
-            ttsProviderTask: ttsProviderTask);
+            agentStatusTracker: _agentStatusTracker, ttsProviderTask: ttsProviderTask);
     }
 
     public virtual IAudioService CreateAudioService(AppConfig cfg)

@@ -21,20 +21,22 @@ public sealed class GatewayClient : IGatewayClient
     private readonly IGatewayEventSource _eventSource;
     private readonly Func<IGatewayConnectionLifecycle>? _lifecycleFactory;
     private readonly IColorConsole _console;
+    private readonly IAgentStatusTracker? _agentStatusTracker;
 
     private IGatewayConnectionLifecycle? _lifecycle;
 
     private bool _isDisposed;
 
     public GatewayClient(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource eventSource, IColorConsole console,
-        Func<IGatewayConnectionLifecycle>? lifecycleFactory = null)
+        Func<IGatewayConnectionLifecycle>? lifecycleFactory = null, IAgentStatusTracker? agentStatusTracker = null)
     {
         _cfg = cfg;
         _dev = dev;
         _eventSource = eventSource;
         _console = console;
-        _lifecycleFactory = lifecycleFactory ?? (() => new GatewayConnectionLifecycle(_cfg, _dev, _eventSource, console));
+        _lifecycleFactory = lifecycleFactory ?? (() => new GatewayConnectionLifecycle(_cfg, _dev, _eventSource, console, agentStatusTracker: agentStatusTracker));
         _lifecycle = _lifecycleFactory();
+        _agentStatusTracker = agentStatusTracker;
     }
 
     // ─── IGatewayClient properties ──────────────────────────────────

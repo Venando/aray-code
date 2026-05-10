@@ -40,6 +40,7 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
     public void SetRightMarginIndent(int margin) { /* no-op */ }
     public void SetInputPrefix(string prefix) { /* no-op */ }
     public void SetContinuationPrefix(string prefix) { /* no-op */ }
+    public void SetDefaultPanel(IBottomPanel panel) { /* no-op */ }
 
     public void Dispose() { /* no-op */ }
 

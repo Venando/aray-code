@@ -87,7 +87,34 @@ public sealed class AgentSettingsPersistence : IAgentSettingsPersistence
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color)> AllAgentSettings
+    public bool GetPersistedShowInStatusPanel(string agentId)
+    {
+        lock (_lock)
+        {
+            return _agentSettings.TryGetValue(agentId, out var s) ? s.ShowInStatusPanel : true;
+        }
+    }
+
+    /// <inheritdoc />
+    public void SetPersistedShowInStatusPanel(string agentId, bool show)
+    {
+        lock (_lock)
+        {
+            if (!_agentSettings.TryGetValue(agentId, out var s))
+            {
+                s = new AgentPersistedSettings { AgentId = agentId };
+                _agentSettings[agentId] = s;
+            }
+            s.ShowInStatusPanel = show;
+
+            _settingsService.SetShowInStatusPanel(agentId, show);
+            _settingsService.Save();
+        }
+        PersistedSettingsChanged?.Invoke();
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<(AgentInfo Agent, string? Hotkey, string? Emoji, string? Color, bool ShowInStatusPanel)> AllAgentSettings
     {
         get
         {
@@ -96,7 +123,7 @@ public sealed class AgentSettingsPersistence : IAgentSettingsPersistence
                 return AgentRegistry.Agents.Select(a =>
                 {
                     _agentSettings.TryGetValue(a.AgentId, out var s);
-                    return (a, s?.HotkeyCombination, s?.Emoji, s?.Color);
+                    return (a, s?.HotkeyCombination, s?.Emoji, s?.Color, s?.ShowInStatusPanel ?? true);
                 }).ToList().AsReadOnly();
             }
         }

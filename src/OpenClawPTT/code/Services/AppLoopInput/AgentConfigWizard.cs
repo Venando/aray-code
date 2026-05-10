@@ -30,6 +30,7 @@ public sealed class AgentConfigWizard
         Hotkey,
         Emoji,
         Color,
+        ShowInStatusPanel,
         Done
     }
 
@@ -188,6 +189,9 @@ public sealed class AgentConfigWizard
             case Step.Color:
                 var agentColor = _agent != null ? _persistence.GetPersistedColor(_agent.AgentId) : null;
                 return ("Set color (Spectre.Console color name or #hex, e.g. cyan2, springgreen4, #ff6600 — -- to clear).\n       See https://spectreconsole.net/console/reference/color-reference for color names", agentColor);
+            case Step.ShowInStatusPanel:
+                var show = _agent != null ? _persistence.GetPersistedShowInStatusPanel(_agent.AgentId) : true;
+                return ("Show in status panel? (yes/no — -- to clear/reset to yes)", show ? "yes" : "no");
             default:
                 return (step.ToString(), null);
         }
@@ -216,6 +220,13 @@ public sealed class AgentConfigWizard
             case Step.Color:
                 // Accept any string — Spectre will validate at render time
                 return true;
+            case Step.ShowInStatusPanel:
+                var ok = rawInput.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                      || rawInput.Equals("no", StringComparison.OrdinalIgnoreCase)
+                      || rawInput.Equals("y", StringComparison.OrdinalIgnoreCase)
+                      || rawInput.Equals("n", StringComparison.OrdinalIgnoreCase);
+                if (!ok) errorHint = "Enter yes, no, y, or n";
+                return ok;
             default:
                 return true;
         }
@@ -236,6 +247,10 @@ public sealed class AgentConfigWizard
                 break;
             case Step.Color:
                 _persistence.SetPersistedColor(_agent.AgentId, value);
+                break;
+            case Step.ShowInStatusPanel:
+                var show = value == null || value.Equals("yes", StringComparison.OrdinalIgnoreCase) || value.Equals("y", StringComparison.OrdinalIgnoreCase);
+                _persistence.SetPersistedShowInStatusPanel(_agent.AgentId, show);
                 break;
         }
     }
