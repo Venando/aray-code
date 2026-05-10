@@ -163,7 +163,8 @@ public sealed class StreamShellInputHandler : IDisposable
         _pttStateMachine.LastInputWasVoice = false;
         _pttStateMachine.LastTargetAgent = null;
 
-        _messageComposer.TryToComposeMessage(e.TextWithAttachmentsExpanded, e.Attachments, out string? composedMessage);
+        string composedMessage = e.TextWithAttachmentsExpanded; 
+        //_messageComposer.TryToComposeMessage(e.TextWithAttachmentsExpanded, e.Attachments, out string? composedMessage);
 
         // Use non-blocking send via fire-and-forget since StreamShell fires events synchronously.
         // Exceptions are caught and surfaced inside SendWithAttachmentsAsync.
