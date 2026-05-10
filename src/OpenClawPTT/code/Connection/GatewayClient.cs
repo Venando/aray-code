@@ -223,6 +223,12 @@ public sealed class GatewayClient : IGatewayClient
                     break;
                 }
 
+                var snapshot = AgentStatusExtractor.Extract(_console, messagesEl[i]);
+                if (snapshot != null)
+                {
+                    _agentStatusTracker?.Update(snapshot);
+                }
+
                 if (!UserMessageHelper.TryGetChatHistoryEntry(messagesEl[i], out var entry))
                 {
                     continue;
