@@ -57,6 +57,8 @@ public class GatewayMessager : IDisposable, IRpcCaller
             new GatewayConnectionHandler(_console, _onDisconnection));
         _dispatcher.RegisterHandler<ModelFallbackEvent>(
             new ModelFallbackHandler(_console));
+        _dispatcher.RegisterHandler<SideResultEvent>(
+            new SideResultHandler(_console));
         _dispatcher.RegisterHandler<GatewayEvent>(
             new GatewayEventHandler(_console));
     }
@@ -191,6 +193,15 @@ public class GatewayMessager : IDisposable, IRpcCaller
         // resolve one-shot waiter via MessageFraming (skip if _framing not yet initialized)
         if (_framing != null)
             _framing.ResolveEventWaiter(name, payload);
+
+        // Route chat.side_result events before the session key filter.
+        // Side results carry a sessionKey pointing at the query target (not the active session),
+        // so the filter below would incorrectly drop them.
+        if (name == "chat.side_result")
+        {
+            _dispatcher.DispatchAndForget(new SideResultEvent(payload));
+            return;
+        }
 
         // Filter messages not belonging to the active agent session
         if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("sessionKey", out JsonElement sessionKeyEl))

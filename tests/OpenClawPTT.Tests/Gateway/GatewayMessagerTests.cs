@@ -84,6 +84,7 @@ public class GatewayMessagerTests : IDisposable
         // Verify default handlers are still registered
         mockDispatcher.Verify(x => x.RegisterHandler(It.IsAny<IEventHandler<SessionMessageEvent>>()), Times.Once);
         mockDispatcher.Verify(x => x.RegisterHandler(It.IsAny<IEventHandler<GatewayDisconnectedEvent>>()), Times.Once);
+        mockDispatcher.Verify(x => x.RegisterHandler(It.IsAny<IEventHandler<SideResultEvent>>()), Times.Once);
 
         messager.Dispose();
     }
@@ -250,6 +251,64 @@ public class GatewayMessagerTests : IDisposable
 
         Assert.NotNull(dispatchedEvent);
         Assert.Equal("unknown.event", dispatchedEvent!.Name);
+        messager.Dispose();
+    }
+
+    // ─── SideResult / btw event tests ───────────────────────────
+
+    [Fact]
+    public void ProcessFrame_ChatSideResult_DispatchesSideResultEvent()
+    {
+        var mockDispatcher = new Mock<IEventDispatcher>();
+        SideResultEvent? dispatchedEvent = null;
+        mockDispatcher.Setup(x => x.DispatchAndForget(It.IsAny<SideResultEvent>()))
+            .Callback<SideResultEvent>(e => dispatchedEvent = e);
+
+        var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
+            null, () => _realFraming, null, null, mockDispatcher.Object);
+
+        var json = @"{""type"":""event"",""event"":""chat.side_result"",""payload"":{""kind"":""btw"",""question"":""yo"",""text"":""response"",""isError"":false}}";
+        messager.TestProcessFrame(json);
+
+        Assert.NotNull(dispatchedEvent);
+        messager.Dispose();
+    }
+
+    [Fact]
+    public void ProcessFrame_ChatSideResultWithSessionKey_DispatchesSideResultEvent()
+    {
+        var mockDispatcher = new Mock<IEventDispatcher>();
+        SideResultEvent? dispatchedEvent = null;
+        mockDispatcher.Setup(x => x.DispatchAndForget(It.IsAny<SideResultEvent>()))
+            .Callback<SideResultEvent>(e => dispatchedEvent = e);
+
+        var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
+            null, () => _realFraming, null, null, mockDispatcher.Object);
+
+        // sessionKey in payload points to btw target session, NOT the active session.
+        // This must NOT be filtered out.
+        var json = @"{""type"":""event"",""event"":""chat.side_result"",""payload"":{""kind"":""btw"",""sessionKey"":""agent:anime:main"",""question"":""yo"",""text"":""response"",""isError"":false}}";
+        messager.TestProcessFrame(json);
+
+        Assert.NotNull(dispatchedEvent);
+        messager.Dispose();
+    }
+
+    [Fact]
+    public void ProcessFrame_ChatSideResult_DoesNotDispatchSessionMessageEvent()
+    {
+        var mockDispatcher = new Mock<IEventDispatcher>();
+        SessionMessageEvent? sessionEvent = null;
+        mockDispatcher.Setup(x => x.DispatchAndForget(It.IsAny<SessionMessageEvent>()))
+            .Callback<SessionMessageEvent>(e => sessionEvent = e);
+
+        var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
+            null, () => _realFraming, null, null, mockDispatcher.Object);
+
+        var json = @"{""type"":""event"",""event"":""chat.side_result"",""payload"":{""kind"":""btw"",""question"":""yo"",""text"":""response"",""isError"":false}}";
+        messager.TestProcessFrame(json);
+
+        Assert.Null(sessionEvent);
         messager.Dispose();
     }
 
