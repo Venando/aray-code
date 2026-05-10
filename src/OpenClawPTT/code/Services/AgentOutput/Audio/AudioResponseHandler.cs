@@ -200,6 +200,7 @@ public sealed class AudioResponseHandler : IDisposable
         if (!_disposed)
         {
             _audioPlayer.Dispose();
+            (_jobRunner as IDisposable)?.Dispose();
             _disposed = true;
         }
     }
