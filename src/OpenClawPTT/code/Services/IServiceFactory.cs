@@ -1,4 +1,5 @@
 using OpenClawPTT.Services;
+using OpenClawPTT.TTS;
 
 namespace OpenClawPTT;
 
@@ -19,7 +20,8 @@ public interface IServiceFactory
     /// </summary>
     IAgentSettingsPersistence GetAgentSettingsPersistence();
 
-    IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null);
+    IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
+        IPttStateMachine? pttStateMachine = null, ITextToSpeech? ttsProvider = null);
     IAudioService CreateAudioService(AppConfig cfg);
     IPttController CreatePttController(AppConfig cfg, IAudioService audioService, IHotkeyHookFactory? hotkeyHookFactory = null);
     IInputHandler CreateInputHandler(ITextMessageSender textSender);

@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services.Diagnostics;
+using OpenClawPTT.TTS;
 
 namespace OpenClawPTT.Services;
 
@@ -44,6 +45,24 @@ public sealed class GatewayService : IGatewayService
     public void SetErrorLogStore(ErrorLogStore store)
     {
         _errorLog = store;
+    }
+
+    /// <summary>
+    /// Sets or replaces the TTS provider after construction.
+    /// Used when TTS initializes asynchronously in parallel with gateway connect.
+    /// Creates the necessary audio handler and wires it into the output coordinator.
+    /// </summary>
+    public void SetTtsProvider(ITextToSpeech ttsProvider)
+    {
+        if (ttsProvider == null) throw new ArgumentNullException(nameof(ttsProvider));
+
+        var jobRunner = new BackgroundJobRunner(msg => _console.Log("jobrunner", msg));
+        var audioPlayer = new AudioPlayerService(_console);
+        var audioHandler = new AudioResponseHandler(
+            _config, _console, jobRunner, audioPlayer,
+            _summarizer, _pttStateMachine, ttsProvider);
+
+        _coordinator.SetAudioHandler(audioHandler);
     }
 
     public async Task ConnectAsync(CancellationToken ct)

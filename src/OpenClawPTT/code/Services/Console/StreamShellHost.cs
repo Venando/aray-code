@@ -36,6 +36,13 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         Spectre.Console.AnsiConsole.Clear();
     }
 
+    /// <summary>Sets the top separator line (between message feed and input block).</summary>
+    public void SetTopSeparator(string? leftText = null, string? rightText = null,
+        char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null)
+    {
+        _host.SetTopSeparator(leftText, rightText, repeatedCharacter, repeatedCharMarkup);
+    }
+
     public void Stop() => _host.Stop();
 
     public void Dispose() => _host.Dispose();

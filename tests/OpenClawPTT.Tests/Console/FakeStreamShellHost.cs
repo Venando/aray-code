@@ -26,6 +26,9 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
 
     public void Clear() { Messages.Clear(); }
 
+    public void SetTopSeparator(string? leftText = null, string? rightText = null,
+        char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null) { /* no-op */ }
+
     public void Stop() { /* no-op */ }
 
     public void Dispose() { /* no-op */ }

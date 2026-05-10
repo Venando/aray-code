@@ -41,7 +41,8 @@ public class ServiceFactory : IServiceFactory
             "AgentSettingsPersistence not initialized. Call InitializeAgentSettingsPersistence first.");
     }
 
-    public virtual IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
+    public virtual IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
+        IPttStateMachine? pttStateMachine = null, ITextToSpeech? ttsProvider = null)
     {
         var jobRunner = new BackgroundJobRunner(msg => _colorConsole.Log("jobrunner", msg));
         var replyCoordinator = new ReplyStreamCoordinator(cfg, _colorConsole);
@@ -49,13 +50,22 @@ public class ServiceFactory : IServiceFactory
         var thinkingHandler = new ThinkingDisplayHandler(cfg, _shellHost);
 
         AudioResponseHandler? audioHandler = null;
+        ITextToSpeech? ttsProviderLocal = ttsProvider;
         if (cfg.AudioResponseMode?.ToLowerInvariant() != "text-only")
         {
-            var audioPlayer = new AudioPlayerService(_colorConsole);
-            var ttsService = new TtsService(cfg, _colorConsole);
-            audioHandler = new AudioResponseHandler(
-                cfg, _colorConsole, jobRunner, audioPlayer,
-                summarizer, pttStateMachine, ttsService.Provider);
+            if (ttsProviderLocal == null)
+            {
+                var ttsService = new TtsService(cfg, _colorConsole);
+                ttsProviderLocal = ttsService.Provider;
+            }
+
+            if (ttsProviderLocal != null)
+            {
+                var audioPlayer = new AudioPlayerService(_colorConsole);
+                audioHandler = new AudioResponseHandler(
+                    cfg, _colorConsole, jobRunner, audioPlayer,
+                    summarizer, pttStateMachine, ttsProviderLocal);
+            }
         }
 
         var coordinator = new AgentOutputCoordinator(

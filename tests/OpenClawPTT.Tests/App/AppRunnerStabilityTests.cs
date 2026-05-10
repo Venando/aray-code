@@ -3,6 +3,7 @@ namespace OpenClawPTT.Tests;
 using Moq;
 using OpenClawPTT;
 using OpenClawPTT.Services;
+using OpenClawPTT.TTS;
 using System;
 using System.IO;
 using System.Net.WebSockets;
@@ -31,7 +32,8 @@ public class AppRunnerStabilityTests
         public AppConfig? LastGatewayConfig { get; private set; }
         public int CreateGatewayServiceCallCount { get; private set; }
 
-        public IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
+        public IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
+            IPttStateMachine? pttStateMachine = null, ITextToSpeech? ttsProvider = null)
         {
             LastGatewayConfig = cfg;
             CreateGatewayServiceCallCount++;
