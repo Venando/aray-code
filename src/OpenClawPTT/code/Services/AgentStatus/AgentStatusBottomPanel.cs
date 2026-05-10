@@ -166,10 +166,16 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
                 // Build status line
                 bool first = true;
+                int count = 0;
+
                 foreach (var (snapshot, registryAgent) in visible)
                 {
                     if (!first)
+                    {
                         _builder.Append(" [white bold]│[/] ");
+                        count += 3;
+                    }
+
                     first = false;
 
                     var emoji = Markup.Escape(
@@ -179,6 +185,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
                     _builder.Append(emoji);
                     _builder.Append(' ');
+                    count += CharacterWidth.GetDisplayWidth(emoji) + 1;
 
                     var rawName = registryAgent.Name ?? string.Empty;
                     var truncatedName = rawName.Length > MaxAgentNameLength
@@ -192,9 +199,20 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     _builder.Append(displayName);
                     _builder.Append("[/]");
                     _builder.Append(' ');
+                    count += displayName.Length + 1;
 
                     var statusEmoji = Markup.Escape(snapshot.GetStatusEmoji());
                     _builder.Append(statusEmoji);
+                    count += CharacterWidth.GetDisplayWidth(statusEmoji);
+                    
+                }
+
+                if (!first)
+                {
+                    var width = ConsoleMetrics.GetWindowWidth();
+                    var insertAmmount = width - count - 1;
+                    for (int i = 0; i < insertAmmount; i++)
+                        _builder.Insert(0, ' ');
                 }
 
                 _lines[0] = !first

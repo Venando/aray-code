@@ -129,7 +129,7 @@ public sealed class StatusService : IStatusService, IDisposable
 
         _sb.Clear();
 
-        _sb.Append("───────");
+        _sb.Append("──────────────── ");
 
         // Agent icon emoji + name
         AppendAgentEmojiAndName(mainAgent);
@@ -154,6 +154,8 @@ public sealed class StatusService : IStatusService, IDisposable
 
         // Token usage: percentage (current/max)
         AppendTokenUsage(mainAgent);
+
+        _sb.Append(' ');
 
         return _sb.ToString();
     }
