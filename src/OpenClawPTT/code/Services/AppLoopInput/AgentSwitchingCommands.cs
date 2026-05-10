@@ -206,6 +206,11 @@ public sealed class AgentSwitchingCommands
                 }
                 _host.AddMessage("");
             }
+            catch(Exception ex)
+            {
+                _console.PrintError($"History playback failed: {ex.Message}, StackTrace: " + ex.StackTrace);
+                _host.AddMessage("");
+            }
             finally
             {
                 _pttStateMachine.DuringReplay = false;
