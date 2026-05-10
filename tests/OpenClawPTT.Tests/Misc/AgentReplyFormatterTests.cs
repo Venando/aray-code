@@ -27,7 +27,7 @@ public class AgentReplyFormatterTests
     [Fact]
     public void ProcessDelta_EmptyString_DoesNotThrow()
     {
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
         formatter.ProcessDelta("");
         formatter.Finish();
     }
@@ -35,7 +35,7 @@ public class AgentReplyFormatterTests
     [Fact]
     public void ProcessDelta_MultiLineText_WrapsCorrectly()
     {
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
         formatter.ProcessDelta("line1\nline2");
         formatter.Finish();
     }
@@ -43,7 +43,7 @@ public class AgentReplyFormatterTests
     [Fact]
     public void Finish_DoesNotThrow()
     {
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
         formatter.ProcessDelta("Some text");
         formatter.Finish();
     }
@@ -51,7 +51,7 @@ public class AgentReplyFormatterTests
     [Fact]
     public void Finish_WithNoContent_DoesNotThrow()
     {
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: new StringWriterTextOutput());
         formatter.Finish();
     }
 
@@ -59,7 +59,7 @@ public class AgentReplyFormatterTests
     public void ProcessDelta_SingleWord_OutputsText()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("hello");
         formatter.Finish();
         Assert.Equal("hello", output.Result.Trim());
@@ -69,7 +69,7 @@ public class AgentReplyFormatterTests
     public void ProcessDelta_MultipleIncrementalChunks_AccumulatesAndFinishes()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("Hello ");
         formatter.ProcessDelta("World");
         formatter.Finish();
@@ -80,7 +80,7 @@ public class AgentReplyFormatterTests
     public void ProcessDelta_WithITextOutput_BuildsCorrectOutput()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 5, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 5, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("This is a test");
         formatter.Finish();
         Assert.NotEmpty(output.Result);
@@ -93,7 +93,7 @@ public class AgentReplyFormatterTests
     {
         var output = new StringWriterTextOutput();
         // Wide console
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("Hello World");
         formatter.Finish();
         Assert.Contains("Hello World", output.Result);
@@ -104,7 +104,7 @@ public class AgentReplyFormatterTests
     {
         var output = new StringWriterTextOutput();
         // Very narrow console to force wrapping
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("This is a long word that should wrap");
         formatter.Finish();
         // Should contain newlines due to wrapping
@@ -115,7 +115,7 @@ public class AgentReplyFormatterTests
     public void ProcessDelta_Finish_EndsWithNewline()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("test");
         formatter.Finish();
         Assert.EndsWith(Environment.NewLine, output.Result);
@@ -135,7 +135,7 @@ public class AgentReplyFormatterTests
     public void Constructor_3ParamWithExplicitWidth_Works()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 5, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 5, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("test");
         formatter.Finish();
         Assert.Contains("test", output.Result);
@@ -146,7 +146,7 @@ public class AgentReplyFormatterTests
     {
         // Width 0 should be normalised to 80 (safe fallback).
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 5, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 5, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("hello");
         formatter.Finish();
         Assert.Contains("hello", output.Result); // must not crash and must produce output
@@ -157,7 +157,7 @@ public class AgentReplyFormatterTests
     {
         // Very large width should not cause overflow or crash.
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 5, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 5, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("hello world");
         formatter.Finish();
         Assert.Contains("hello world", output.Result);
@@ -168,7 +168,7 @@ public class AgentReplyFormatterTests
     {
         // Null prefix should not crash; newlineSuffix will also be null-length.
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: null!, rightMarginIndent: 5, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: null!, reservedRightMargin: 5, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("hello");
         formatter.Finish();
         Assert.Contains("hello", output.Result);
@@ -180,7 +180,7 @@ public class AgentReplyFormatterTests
     {
         // Incremental chunks with specific margin config; no crash expected.
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 5, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 5, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessDelta("chunk1 ");
         formatter.ProcessDelta("chunk2");
         formatter.Finish();
@@ -194,7 +194,7 @@ public class AgentReplyFormatterTests
     public void ProcessMarkupDelta_SimpleMarkup_OutputsWrappedText()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[bold]Hello World[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -206,7 +206,7 @@ public class AgentReplyFormatterTests
     public void ProcessMarkupDelta_EmptyString_DoesNotThrow()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         var ex = Record.Exception(() => formatter.ProcessMarkupDelta(""));
         Assert.Null(ex);
         formatter.Finish();
@@ -216,7 +216,7 @@ public class AgentReplyFormatterTests
     public void ProcessMarkupDelta_TagCharactersInsideText_ParsesCorrectly()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[green]a [b] c[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n").Trim();
@@ -230,7 +230,7 @@ public class AgentReplyFormatterTests
     {
         var output = new StringWriterTextOutput();
         // Narrow width (20) to force wrapping
-        var formatter = new AgentReplyFormatter(prefix: "  ", rightMarginIndent: 10, prefixAlreadyPrinted: false, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "  ", reservedRightMargin: 10, prefixAlreadyPrinted: false, output: output);
         formatter.ProcessMarkupDelta("[red]" + new string('x', 80) + "[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -245,7 +245,7 @@ public class AgentReplyFormatterTests
     public void ProcessMarkupDelta_NestedMarkupTags_HandledCorrectly()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[bold][green]hello[/][/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n").Trim();
@@ -257,7 +257,7 @@ public class AgentReplyFormatterTests
     public void ProcessMarkupDelta_NewlinesInsideMarkup_Respected()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[grey]line1\nline2[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n").Trim();
@@ -270,7 +270,7 @@ public class AgentReplyFormatterTests
     public void ProcessMarkupDelta_TextWithOpeningBracket_DoesNotConfuseParser()
     {
         var output = new StringWriterTextOutput();
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[yellow]3 > [5] is true[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n").Trim();
@@ -287,7 +287,7 @@ public class AgentReplyFormatterTests
         // [white]1[/][gray]2[/] has only 2 visible characters ("1" and "2").
         // Tags have zero visible width. Everything should fit on one line.
         var output = new StringWriterTextOutput { WindowWidth = 10 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[white]1[/][gray]2[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -303,7 +303,7 @@ public class AgentReplyFormatterTests
         // WriteNewLine() re-emits open tags and Finish() calls FlushWordBuffer
         // for the trailing [/]. Both paths must not duplicate the [/] closing tag.
         var output = new StringWriterTextOutput { WindowWidth = 30 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[dim]" + new string('x', 35) + "[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -322,7 +322,7 @@ public class AgentReplyFormatterTests
         // The test verifies that the formatter does not produce [dim][dim] or
         // [/][/] doubled tags which are the specific regression being tracked.
         var output = new StringWriterTextOutput { WindowWidth = 120 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 10, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 10, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[dim]const items = [[x]][/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -337,7 +337,7 @@ public class AgentReplyFormatterTests
     {
         // Simulates a fenced code block line converted via MarkdownToSpectreConverter.
         var output = new StringWriterTextOutput { WindowWidth = 40 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[dim]" + new string('x', 35) + "[/]");
         formatter.Finish();
         var msg = output.Result.Replace("\r\n", "\n");
@@ -352,7 +352,7 @@ public class AgentReplyFormatterTests
         // Explicit [/] close must pop "dim" from the stack so wrapping
         // after the close doesn't emit [/][/] (doubled close tags).
         var output = new StringWriterTextOutput { WindowWidth = 45 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         string markup = "[dim]" + new string('x', 25) + "[/] " + new string('x', 20);
         formatter.ProcessMarkupDelta(markup);
         formatter.Finish();
@@ -378,7 +378,7 @@ items.map(i => console.log(i));
 ```";
         var spectreMarkup = MarkdownToSpectreConverter.Convert(markdown);
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -408,7 +408,7 @@ items.map(i => console.log(i));
         // specifically, even though the overall markup is otherwise invalid.
         // We use a targeted assertion for the doubled-close-tag regression.
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[dim]const items = [\"a\", \"b\", \"c\"];[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -430,7 +430,7 @@ items.map(i => console.log(i));
 [dim]const items = 42;[/]
 [dim]items.map(i => console.log(i));[/]";
         var output = new StringWriterTextOutput { WindowWidth = 40 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(converterOutput);
         formatter.Finish();
         ValidateMarkup(output);
@@ -457,7 +457,7 @@ items.map(i => console.log(i));
         // Spectre decoration (bold). This test verifies that the formatter
         // does NOT produce [/][/] doubled close tags as a result.
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(markup);
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -477,7 +477,7 @@ items.map(i => console.log(i));
         // Single-letter tokens like [b] are valid Spectre tags (bold).
         // Ensure the formatter doesn't produce [/][/] doubled close tags.
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(markup);
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -494,7 +494,7 @@ items.map(i => console.log(i));
         // [text] is not a valid Spectre style, so the formatter output
         // will still be invalid. We verify no [/][/] doubled close tags.
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta("[grey]some [text] here[/]");
         formatter.Finish();
         var result = output.Result.Replace("\r\n", "\n");
@@ -509,7 +509,7 @@ items.map(i => console.log(i));
     {
         var spectreMarkup = "[bold underline]Heading[/]";
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         ValidateMarkup(output);
@@ -520,7 +520,7 @@ items.map(i => console.log(i));
     {
         var spectreMarkup = "Some [bold]bold[/] and [italic]italic[/] and [bold italic]both[/] text with [strikethrough]strikethrough[/] and [bold yellow]inline code[/].";
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         ValidateMarkup(output);
@@ -531,7 +531,7 @@ items.map(i => console.log(i));
     {
         var spectreMarkup = "[link=https://example.com]Link[/]";
         var output = new StringWriterTextOutput { WindowWidth = 80 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         ValidateMarkup(output);
@@ -542,7 +542,7 @@ items.map(i => console.log(i));
     {
         var spectreMarkup = "This [bold yellow]sentence[/] has [bold]everything[/]: [italic]italics[/] [strikethrough]strikethrough[/] [bold yellow]code[/] [link=https://openclaw.ai]links[/] [bold italic]bold italic[/] more [bold yellow][[code]][/] with [bold yellow][[brackets]][/] and [bold yellow][[\"arrays\"]][/] and[bold]Check[/]";
         var output = new StringWriterTextOutput { WindowWidth = 70 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         ValidateMarkup(output);
@@ -553,7 +553,7 @@ items.map(i => console.log(i));
     {
         var spectreMarkup = "[lime on #1a3a1a] text [/]";
         var output = new StringWriterTextOutput { WindowWidth = 70 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         ValidateMarkup(output);
@@ -564,7 +564,7 @@ items.map(i => console.log(i));
     {
         var spectreMarkup = "[bold gray89 on darkblue]a[/] and [bold gray89 on darkblue]b[/]";
         var output = new StringWriterTextOutput { WindowWidth = 70 };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         ValidateMarkup(output);
@@ -583,7 +583,7 @@ items.map(i => console.log(i));
     {
         var spectreMarkup = Enumerable.Repeat("[bold yellow strikethrough]some text line[/]", repeats).Aggregate((old, next) => old + next);
         var output = new StringWriterTextOutput { WindowWidth = widowWidth };
-        var formatter = new AgentReplyFormatter(prefix: "", rightMarginIndent: 5, prefixAlreadyPrinted: true, output: output);
+        var formatter = new AgentReplyFormatter(prefix: "", reservedRightMargin: 5, prefixAlreadyPrinted: true, output: output);
         formatter.ProcessMarkupDelta(spectreMarkup);
         formatter.Finish();
         ValidateMarkup(output);

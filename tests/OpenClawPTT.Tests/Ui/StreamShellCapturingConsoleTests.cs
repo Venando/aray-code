@@ -81,6 +81,9 @@ public class StreamShellCapturingConsoleTests
         public void SetTopSeparator(string? leftText = null, string? rightText = null,
             char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null) { }
         public void Stop() { }
+        public void SetRightMarginIndent(int margin) { }
+        public void SetInputPrefix(string prefix) { }
+        public void SetContinuationPrefix(string prefix) { }
         public void Dispose() { }
     }
 }

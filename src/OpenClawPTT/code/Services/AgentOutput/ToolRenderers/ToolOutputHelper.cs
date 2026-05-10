@@ -21,11 +21,11 @@ public sealed class ToolOutputHelper : IToolOutput
     /// Creates a ToolOutputHelper.
     /// </summary>
     /// <param name="shellHost">StreamShell host for markup output.</param>
-    /// <param name="rightMarginIndent">Right margin indent for word wrap (default 10).</param>
-    public ToolOutputHelper(IStreamShellHost shellHost, int rightMarginIndent = 10)
+    /// <param name="reservedRightMargin">Pre-computed right-edge margin in characters (default 10).</param>
+    public ToolOutputHelper(IStreamShellHost shellHost, int reservedRightMargin = 10)
     {
         _streamShellCapturingConsole = new StreamShellCapturingConsole(shellHost);
-        _agentReplayFormatter = new AgentReplyFormatter("", rightMarginIndent, prefixAlreadyPrinted: false, output: _streamShellCapturingConsole);
+        _agentReplayFormatter = new AgentReplyFormatter("", reservedRightMargin, prefixAlreadyPrinted: false, output: _streamShellCapturingConsole);
 
     }
 

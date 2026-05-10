@@ -147,7 +147,7 @@ public sealed class GatewayService : IGatewayService
         // Render tool calls via ToolDisplayHandler if any
         if (entry.ToolCalls.Count > 0)
         {
-            var toolHandler = new ToolDisplayHandler(_config.RightMarginIndent, _console.GetStreamShellHost());
+            var toolHandler = new ToolDisplayHandler(_config.ReservedRightMargin, _console.GetStreamShellHost());
             foreach (var toolCall in entry.ToolCalls)
             {
                 if (!string.IsNullOrEmpty(toolCall.ToolName))

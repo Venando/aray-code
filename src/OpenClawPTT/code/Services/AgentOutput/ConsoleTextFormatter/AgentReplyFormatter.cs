@@ -8,7 +8,7 @@ namespace OpenClawPTT;
 /// </summary>
 public sealed class AgentReplyFormatter : IAgentReplyFormatter
 {
-    private readonly int _rightMarginIndent;
+    private readonly int _reservedRightMargin;
     private readonly IFormattedOutput _output;
     private readonly TagStack _openMarkupTags = new();
 
@@ -22,16 +22,17 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
     /// Convenience constructor using default right-margin indent (10).
     /// </summary>
     public AgentReplyFormatter(string prefix, bool prefixAlreadyPrinted, IFormattedOutput output)
-        : this(prefix, rightMarginIndent: 10, prefixAlreadyPrinted, output)
+        : this(prefix, reservedRightMargin: 10, prefixAlreadyPrinted, output)
     {
     }
 
     /// <summary>
     /// Constructor with explicit word-wrap parameters.
+    /// <param name="reservedRightMargin">Final right-edge margin in characters (already includes any console-width scaling).</param>
     /// </summary>
-    public AgentReplyFormatter(string prefix, int rightMarginIndent, bool prefixAlreadyPrinted, IFormattedOutput output)
+    public AgentReplyFormatter(string prefix, int reservedRightMargin, bool prefixAlreadyPrinted, IFormattedOutput output)
     {
-        _rightMarginIndent = rightMarginIndent;
+        _reservedRightMargin = reservedRightMargin;
         _output = output;
         Init(prefix, prefixAlreadyPrinted);
     }
@@ -45,12 +46,18 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
         _wordWrap = new WordWrapEngine(GetAvailableWidth());
     }
 
+    /// <summary>
+    /// Calculates available text width: console width minus prefix width minus the pre-computed
+    /// right-edge margin (<see cref="_reservedRightMargin"/>).
+    /// Falls back to half the console width when the nominal width is unusably small.
+    /// </summary>
     private int GetAvailableWidth()
     {
-        int effectiveRightMargin = Math.Max(_rightMarginIndent, (int)(_consoleWidth * 0.1));
-        int available = _prefixAlreadyPrinted
-            ? _consoleWidth - _newlinePrefixLenght.Length - effectiveRightMargin
-            : _consoleWidth - _prefix.Length - effectiveRightMargin;
+        int usedPrefixWidth = _prefixAlreadyPrinted
+            ? _newlinePrefixLenght.Length
+            : _prefix.Length;
+
+        int available = _consoleWidth - usedPrefixWidth - _reservedRightMargin;
         return available > 0 ? available : _consoleWidth / 2;
     }
 

@@ -133,14 +133,14 @@ public sealed class ReplyStreamCoordinator : IDisposable
             {
                 _capturingConsole = new StreamShellCapturingConsole(shellHost);
                 _formatter = new AgentReplyFormatter(
-                    _currentPrefix, _config.RightMarginIndent,
+                    _currentPrefix, _config.ReservedRightMargin,
                     prefixAlreadyPrinted: true, output: _capturingConsole);
             }
             else
             {
                 _capturingConsole = null;
                 _formatter = new AgentReplyFormatter(
-                    _currentPrefix, _config.RightMarginIndent,
+                    _currentPrefix, _config.ReservedRightMargin,
                     prefixAlreadyPrinted: true, output: null!);
             }
         }

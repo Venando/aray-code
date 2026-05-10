@@ -16,6 +16,12 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public LogLevel LogLevel { get; set; } = LogLevel.Error;
 
+    /// <inheritdoc />
+    public string UserMessagePrefix { get; set; } = " [green] You:[/] ";
+
+    /// <inheritdoc />
+    public int ReservedRightMargin { get; set; } = 10;
+
     /// <summary>
     /// Creates a new ColorConsole instance with the specified StreamShell host.
     /// Log level defaults to Error (only errors shown). Update <see cref="LogLevel"/> at runtime.
@@ -25,12 +31,33 @@ public sealed class ColorConsole : IColorConsole
         _shellHost = shellHost ?? throw new ArgumentNullException(nameof(shellHost));
     }
 
+    /// <inheritdoc />
+    public void ApplyConsoleConfig(AppConfig config)
+    {
+        if (config == null) throw new ArgumentNullException(nameof(config));
+
+        // Compute final right-edge margin: max(config indent, 10% of console width)
+        ReservedRightMargin = Math.Max(
+            config.RightMarginIndent,
+            (int)(ConsoleMetrics.GetWindowWidth() * 0.1));
+
+        UserMessagePrefix = config.UserMessagePrefix;
+
+        // Apply StreamShell settings
+        _shellHost.SetRightMarginIndent(ReservedRightMargin);
+
+        // Match input prefix visual width to user message prefix (keep StreamShell default markup)
+        int prefixWidth = Markup.Remove(config.UserMessagePrefix).Length;
+        _shellHost.SetInputPrefix($"[bold SkyBlue1]{new string(' ', Math.Max(0, prefixWidth - 2))}> [/]");
+        _shellHost.SetContinuationPrefix(new string(' ', prefixWidth));
+    }
+
     private AgentReplyFormatter GetOrCreateUserMessageFormatter()
     {
         if (_userMessageFormatter == null)
         {
             _userMessageCapturingConsole = new StreamShellCapturingConsole(_shellHost);
-            _userMessageFormatter = new AgentReplyFormatter("", 10, prefixAlreadyPrinted: false, output: _userMessageCapturingConsole);
+            _userMessageFormatter = new AgentReplyFormatter("", ReservedRightMargin, prefixAlreadyPrinted: false, output: _userMessageCapturingConsole);
         }
         return _userMessageFormatter;
     }
@@ -109,7 +136,7 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public void PrintMarkupedUserMessage(string text)
     {
-        ShellMsg($"[green]  You:[/] {text}");
+        ShellMsg($"{UserMessagePrefix}{text}");
     }
 
     // ── Status Messages ────────────────────────────────────────

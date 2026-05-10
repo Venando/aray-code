@@ -25,6 +25,12 @@ public interface IColorConsole
     /// <summary>Display user's own text message.</summary>
     void PrintUserMessage(string text);
 
+    /// <summary>Spectre markup prefix for user messages (e.g. " [green] You:[/] ").</summary>
+    string UserMessagePrefix { get; set; }
+
+    /// <summary>Pre-computed right-edge margin in characters (max of config indent and 10% console width).</summary>
+    int ReservedRightMargin { get; set; }
+
     void PrintFormatted(string prefix, string text);
 
     /// <summary>Display user's message with pre-formatted markup.</summary>
@@ -76,6 +82,11 @@ public interface IColorConsole
     void PrintModelFailed(string errorMessage);
     
     // ── Logging ────────────────────────────────────────────────
+
+    /// <summary>Applies terminal display configuration from an AppConfig.
+    /// Computes the right-edge margin, sets up input prompt prefixes, and updates
+    /// console properties to match the loaded configuration.</summary>
+    void ApplyConsoleConfig(AppConfig config);
 
     /// <summary>Gets or sets the current log level threshold. Messages below this level are suppressed.</summary>
     LogLevel LogLevel { get; set; }

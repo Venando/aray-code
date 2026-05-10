@@ -60,6 +60,12 @@ public sealed class AppConfig
     // Text formatting
     public int RightMarginIndent { get; set; } = 5; // Minimum right margin indent in characters
     public bool EnableWordWrap { get; set; } = true; // Enable word wrapping and margin indent
+    public string UserMessagePrefix { get; set; } = " [green] You:[/] ";
+
+    /// <summary>The right-edge margin reserved for display, computed once after loading config.
+    /// Equals max(RightMarginIndent, 10% of console width).</summary>
+    [JsonIgnore]
+    public int ReservedRightMargin { get; set; }
 
     // Visual feedback settings
     public VisualMode VisualMode { get; set; } = VisualMode.SolidDot;
@@ -165,6 +171,7 @@ public sealed class AppConfig
         ["ReconnectDelaySeconds"] = "Gateway reconnection delay in seconds",
         ["RightMarginIndent"] = "Right margin indent for word-wrap in characters",
         ["EnableWordWrap"] = "Enable word-wrap and right margin",
+        ["UserMessagePrefix"] = "Prefix for user's own messages (Spectre markup, e.g. ' [green] You:[/] ')",
         ["VisualMode"] = "Recording indicator visual style: Dot, SolidDot, Bar",
         ["VisualFeedbackEnabled"] = "Show visual recording indicator",
         ["VisualFeedbackPosition"] = "Indicator position: TopRight, TopLeft, BottomRight, BottomLeft",
