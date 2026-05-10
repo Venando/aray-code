@@ -25,6 +25,8 @@ public class ServiceFactory : IServiceFactory
 
     public IColorConsole ColorConsole => _colorConsole;
 
+    public IAgentStatusTracker? AgentStatusTracker => _agentStatusTracker;
+
     /// <summary>
     /// Initialize the agent settings persistence with the settings service.
     /// Called by AppBootstrapper after loading the config.

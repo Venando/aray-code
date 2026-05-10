@@ -36,6 +36,10 @@ public class AppRunner : IDisposable
         _console = console;
         _errorLog = new ErrorLogStore(cfg.DataDir);
         _statusService = new StatusService(shellHost);
+
+        // Wire agent status tracker if the factory provides one
+        if (_factory.AgentStatusTracker != null)
+            _statusService.SetAgentStatusTracker(_factory.AgentStatusTracker);
     }
 
     /// <summary>

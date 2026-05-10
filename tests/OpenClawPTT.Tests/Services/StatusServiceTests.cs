@@ -1,4 +1,5 @@
 using Xunit;
+using Moq;
 using OpenClawPTT.Services;
 
 namespace OpenClawPTT.Tests;
@@ -78,5 +79,348 @@ public class StatusServiceTests
     public void Constructor_ThrowsOnNullHost()
     {
         Assert.Throws<ArgumentNullException>(() => new StatusService(null!));
+    }
+
+    // ── Agent status left-side tests ─────────────────────────────────────────
+
+    [Fact]
+    public void LeftText_Empty_WhenNoTrackerProvided()
+    {
+        var host = new FakeStreamShellHost();
+        var service = new StatusService(host);
+
+        service.SetGatewayStatus("Connected", StatusColor.Green);
+
+        Assert.Equal(string.Empty, host.LastSeparatorLeftText);
+    }
+
+    [Fact]
+    public void LeftText_ShowsAgentInfo_WhenTrackerHasAgent()
+    {
+        var host = new FakeStreamShellHost();
+        var tracker = new FakeAgentStatusTracker();
+        using var service = new StatusService(host, tracker);
+
+        // Register the agent in the global registry
+        var agent = new AgentInfo
+        {
+            AgentId = "test-agent",
+            Name = "Spelly",
+            IsDefault = true,
+            SessionKey = "agent:test-agent:main"
+        };
+        AgentRegistry.SetAgents(new[] { agent });
+
+        // Seed the tracker with a snapshot
+        var snapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test-agent:main",
+            DisplayName = "Spelly",
+            Status = "running",
+            Model = "deepseek/deepseek-v4-flash",
+            ThinkingDefault = "high",
+            ContextTokens = 200_000,
+            TotalTokens = 12_000,
+            InputTokens = 12_000
+        };
+        tracker.AddSnapshot(snapshot);
+
+        // Manually trigger changed event
+        tracker.FireChanged();
+
+        Assert.NotNull(host.LastSeparatorLeftText);
+        Assert.Contains("Spelly", host.LastSeparatorLeftText);
+        Assert.Contains("🟢", host.LastSeparatorLeftText);
+        Assert.Contains("deepseek-v4-flash", host.LastSeparatorLeftText);
+        Assert.Contains("high", host.LastSeparatorLeftText);
+        Assert.Contains("6.0%", host.LastSeparatorLeftText);
+        Assert.Contains("12k", host.LastSeparatorLeftText);
+        Assert.Contains("200k", host.LastSeparatorLeftText);
+    }
+
+    [Fact]
+    public void LeftText_ShowsCorrectPercentage_ForVariousTokenSizes()
+    {
+        var host = new FakeStreamShellHost();
+        var tracker = new FakeAgentStatusTracker();
+        using var service = new StatusService(host, tracker);
+
+        var agent = new AgentInfo
+        {
+            AgentId = "test-agent",
+            Name = "K2.6",
+            IsDefault = true,
+            SessionKey = "agent:test-agent:main"
+        };
+        AgentRegistry.SetAgents(new[] { agent });
+
+        var snapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test-agent:main",
+            DisplayName = "K2.6",
+            Status = "done",
+            Model = "kimi/kimi-k2.6",
+            ContextTokens = 1_000_000,
+            TotalTokens = 264_000,
+        };
+        tracker.AddSnapshot(snapshot);
+        tracker.FireChanged();
+
+        Assert.NotNull(host.LastSeparatorLeftText);
+        Assert.Contains("K2.6", host.LastSeparatorLeftText);
+        // 264k/1M = 26.4%, >= 10% so rounds to F0 → 26%
+        Assert.Contains("26%", host.LastSeparatorLeftText);
+        Assert.Contains("264k", host.LastSeparatorLeftText);
+        Assert.Contains("1.0M", host.LastSeparatorLeftText);
+    }
+
+    [Fact]
+    public void LeftText_Updates_WhenTrackerFiresChanged()
+    {
+        var host = new FakeStreamShellHost();
+        var tracker = new FakeAgentStatusTracker();
+        using var service = new StatusService(host, tracker);
+
+        // First update — snapshot with Running
+        var agent = new AgentInfo
+        {
+            AgentId = "test-agent",
+            Name = "Spelly",
+            IsDefault = true,
+            SessionKey = "agent:test-agent:main"
+        };
+        AgentRegistry.SetAgents(new[] { agent });
+
+        var runningSnapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test-agent:main",
+            DisplayName = "Spelly",
+            Status = "running",
+            Model = "deepseek/deepseek-v4-flash"
+        };
+        tracker.AddSnapshot(runningSnapshot);
+        tracker.FireChanged();
+        Assert.Contains("🟢", host.LastSeparatorLeftText);
+
+        // Second update — tool-use state (stopReason == "toolUse" → 🔄)
+        var toolSnapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test-agent:main",
+            DisplayName = "Spelly",
+            Status = "running",
+            StopReason = "toolUse",
+            Model = "deepseek/deepseek-v4-flash"
+        };
+        tracker.AddSnapshot(toolSnapshot);
+        tracker.FireChanged();
+        Assert.Contains("🔄", host.LastSeparatorLeftText);
+    }
+
+    [Fact]
+    public void LeftText_Empty_WhenTrackerHasNoAgent()
+    {
+        var host = new FakeStreamShellHost();
+        var tracker = new FakeAgentStatusTracker();
+        using var service = new StatusService(host, tracker);
+
+        // Tracker has no agents
+        tracker.FireChanged();
+
+        Assert.Equal(string.Empty, host.LastSeparatorLeftText);
+    }
+
+    [Fact]
+    public void LeftText_OmitsTokenInfo_WhenContextTokensIsNull()
+    {
+        var host = new FakeStreamShellHost();
+        var tracker = new FakeAgentStatusTracker();
+        using var service = new StatusService(host, tracker);
+
+        var agent = new AgentInfo
+        {
+            AgentId = "test-agent",
+            Name = "Spelly",
+            IsDefault = true,
+            SessionKey = "agent:test-agent:main"
+        };
+        AgentRegistry.SetAgents(new[] { agent });
+
+        var snapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test-agent:main",
+            DisplayName = "Spelly",
+            Status = "running",
+            Model = "deepseek/deepseek-v4-flash",
+            ContextTokens = null,
+            TotalTokens = 12_000,
+        };
+        tracker.AddSnapshot(snapshot);
+        tracker.FireChanged();
+
+        Assert.NotNull(host.LastSeparatorLeftText);
+        Assert.DoesNotContain("%", host.LastSeparatorLeftText);
+        Assert.DoesNotContain("12k", host.LastSeparatorLeftText);
+    }
+
+    [Fact]
+    public void ConcurrentStatusUpdates_WithTracker_NoCrash()
+    {
+        var host = new FakeStreamShellHost();
+        var tracker = new FakeAgentStatusTracker();
+        using var service = new StatusService(host, tracker);
+
+        var agent = new AgentInfo
+        {
+            AgentId = "test-agent",
+            Name = "Spelly",
+            IsDefault = true,
+            SessionKey = "agent:test-agent:main"
+        };
+        AgentRegistry.SetAgents(new[] { agent });
+
+        var snapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test-agent:main",
+            DisplayName = "Spelly",
+            Status = "running",
+            Model = "deepseek/deepseek-v4-flash"
+        };
+        tracker.AddSnapshot(snapshot);
+
+        var t1 = Task.Run(() => {
+            for (int i = 0; i < 50; i++)
+                service.SetGatewayStatus("GW" + i, StatusColor.Green);
+        });
+        var t2 = Task.Run(() => {
+            for (int i = 0; i < 50; i++)
+                tracker.FireChanged();
+        });
+
+        var ex = Record.Exception(() => Task.WaitAll(t1, t2));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void ShortenModelName_StripsDuplicateProviderPrefix()
+    {
+        // Access via reflection since these are private static methods
+        var type = typeof(StatusService);
+        var method = type.GetMethod("ShortenModelName",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+
+        Assert.Equal("deepseek-v4-flash",
+            method.Invoke(null, new object[] { "deepseek/deepseek-v4-flash" }));
+        Assert.Equal("kimi-k2.6",
+            method.Invoke(null, new object[] { "kimi/kimi-k2.6" }));
+        // gpt-4 doesn't start with "openai", and model is <= 30 chars, so kept as-is
+        Assert.Equal("openai/gpt-4",
+            method.Invoke(null, new object[] { "openai/gpt-4" }));
+    }
+
+    [Fact]
+    public void FormatTokenCount_FormatsCorrectly()
+    {
+        var type = typeof(StatusService);
+        var method = type.GetMethod("FormatTokenCount",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+
+        Assert.Equal("12k", method.Invoke(null, new object[] { 12_000L }));
+        Assert.Equal("264k", method.Invoke(null, new object[] { 264_000L }));
+        Assert.Equal("1k", method.Invoke(null, new object[] { 1_000L }));
+        Assert.Equal("1.0M", method.Invoke(null, new object[] { 1_000_000L }));
+        Assert.Equal("500", method.Invoke(null, new object[] { 500L }));
+    }
+
+    [Fact]
+    public void Dispose_UnsubscribesFromTrackerEvents()
+    {
+        var host = new FakeStreamShellHost();
+        var tracker = new FakeAgentStatusTracker();
+        var service = new StatusService(host, tracker);
+
+        var agent = new AgentInfo
+        {
+            AgentId = "test-agent",
+            Name = "Spelly",
+            IsDefault = true,
+            SessionKey = "agent:test-agent:main"
+        };
+        AgentRegistry.SetAgents(new[] { agent });
+        var snapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test-agent:main",
+            DisplayName = "Spelly",
+            Status = "running",
+        };
+        tracker.AddSnapshot(snapshot);
+
+        service.Dispose();
+
+        // After dispose, tracker events should not cause crashes
+        var ex = Record.Exception(() => tracker.FireChanged());
+        Assert.Null(ex);
+    }
+}
+
+// ── Test helpers ─────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Fake implementation of IAgentStatusTracker for testing.
+/// Maintains a simple in-memory store of snapshots and fires Changed on demand.
+/// </summary>
+public sealed class FakeAgentStatusTracker : IAgentStatusTracker
+{
+    private readonly Dictionary<string, AgentStatusSnapshot> _snapshots = new();
+
+    public event Action? Changed;
+
+    public IReadOnlyList<AgentStatusSnapshot> All => _snapshots.Values.ToList().AsReadOnly();
+
+    public void Update(AgentStatusSnapshot snapshot)
+    {
+        _snapshots[snapshot.SessionKey] = snapshot;
+    }
+
+    public void Remove(string sessionKey)
+    {
+        _snapshots.Remove(sessionKey);
+    }
+
+    public AgentStatusSnapshot? Get(string sessionKey)
+    {
+        return _snapshots.TryGetValue(sessionKey, out var s) ? s : null;
+    }
+
+    public AgentStatusSnapshot? GetMainAgent()
+    {
+        return _snapshots.Values.FirstOrDefault(s => !s.IsSubagent);
+    }
+
+    public IReadOnlyList<AgentStatusSnapshot> GetSubagents(string parentSessionKey)
+    {
+        return _snapshots.Values
+            .Where(s => s.ParentSessionKey == parentSessionKey)
+            .ToList().AsReadOnly();
+    }
+
+    /// <summary>Add or update a snapshot without firing Changed.</summary>
+    public void AddSnapshot(AgentStatusSnapshot snapshot)
+    {
+        _snapshots[snapshot.SessionKey] = snapshot;
+    }
+
+    /// <summary>Manually fire the Changed event (simulating a tracker notification).</summary>
+    public void FireChanged()
+    {
+        try
+        {
+            Changed?.Invoke();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore disposed subscriptions
+        }
     }
 }

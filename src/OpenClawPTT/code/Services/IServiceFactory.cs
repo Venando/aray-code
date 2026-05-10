@@ -20,6 +20,9 @@ public interface IServiceFactory
     /// </summary>
     IAgentSettingsPersistence GetAgentSettingsPersistence();
 
+    /// <summary>Optional agent status tracker, if provided by the factory.</summary>
+    IAgentStatusTracker? AgentStatusTracker { get; }
+
     IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
         IPttStateMachine? pttStateMachine = null, Task<ITextToSpeech?>? ttsProviderTask = null);
     IAudioService CreateAudioService(AppConfig cfg);

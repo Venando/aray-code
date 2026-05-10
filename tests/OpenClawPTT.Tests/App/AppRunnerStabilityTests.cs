@@ -22,6 +22,8 @@ public class AppRunnerStabilityTests
 
     private sealed class TestServiceFactory : IServiceFactory
     {
+        public IAgentStatusTracker? AgentStatusTracker => null;
+
         public Mock<IGatewayService> Gateway { get; } = new();
         public Mock<IAudioService> Audio { get; } = new();
         public Mock<IPttController> PttController { get; } = new();
