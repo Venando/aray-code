@@ -66,40 +66,44 @@ public sealed class StreamShellInputHandler : IDisposable
     /// <summary>Register all commands and the UserInputSubmitted handler.</summary>
     public async Task RegisterAsync()
     {
-        // Application commands
-        _host.AddCommand(new Command("quit", "Exit the application", QuitHandler));
-        _host.AddCommand(new Command("reconfigure", "Run reconfiguration wizard", ReconfigureHandler));
-        _host.AddCommand(new Command("crew", "List available agents. \"/crew config\" to config", CrewHandler));
-        _host.AddCommand(new Command("chat", "<name|id> Switch active agent by name or ID", ChatHandler));
+        // Native PTT commands — descriptions get [underline] markup automatically
+        AddNativeCommand("quit", "Exit the application", QuitHandler);
+        AddNativeCommand("reconfigure", "Run reconfiguration wizard", ReconfigureHandler);
+        AddNativeCommand("crew", "List available agents. \u201c/crew config\u201d to config", CrewHandler);
+        AddNativeCommand("chat", "\u003cname|id\u003e Switch active agent by name or ID", ChatHandler);
 
         // Direct LLM command (bypasses agent)
-        _host.AddCommand(new Command("llm", "<message> Send message directly to configured LLM", LlmHandler));
+        AddNativeCommand("llm", "\u003cmessage\u003e Send message directly to configured LLM", LlmHandler);
 
         // TTS summary test command
-        _host.AddCommand(new Command("tts-test", "Test TTS summarization pipeline with sample file", LlmTestSummaryHandler));
+        AddNativeCommand("tts-test", "Test TTS summarization pipeline with sample file", LlmTestSummaryHandler);
 
         // Screen management
-        _host.AddCommand(new Command("clean", "Clear the terminal screen",
-            (args, named) => { _host.Clear(); return Task.CompletedTask; }));
+        AddNativeCommand("clean", "Clear the terminal screen",
+            (args, named) => { _host.Clear(); return Task.CompletedTask; });
 
         // Diagnostics commands
-        _host.AddCommand(new Command("history", "[[N]] Load N session history entries",
-            (args, named) => _agentSwitching.HandleHistory(args)));
-        _host.AddCommand(new Command("errors", "[N] Show recent gateway errors",
-            (args, named) => _agentSwitching.HandleErrorsCommand(args)));
-        _host.AddCommand(new Command("reconnect", "Reconnect to the gateway",
-            (args, named) => _agentSwitching.HandleReconnectCommand(args)));
+        AddNativeCommand("history", "[[N]] Load N session history entries",
+            (args, named) => _agentSwitching.HandleHistory(args));
+        AddNativeCommand("errors", "[N] Show recent gateway errors",
+            (args, named) => _agentSwitching.HandleErrorsCommand(args));
+        AddNativeCommand("reconnect", "Reconnect to the gateway",
+            (args, named) => _agentSwitching.HandleReconnectCommand(args));
 
         // AppConfig command to get/set any config value (named 'appconfig' to avoid
         // conflict with OpenClaw's built-in /config command).
-        _host.AddCommand(new Command("appconfig", Markup.Escape("<key> [value] Get or set app config value"), ConfigHandler));
+        var appConfigSuggestions = OpenClawCommandSuggestions.GetAppConfigSuggestions();
+        AddNativeCommand("appconfig", "\u003ckey\u003e [value] Get or set app config value", ConfigHandler, appConfigSuggestions);
 
         // OpenClaw tool commands (for StreamShell hint support)
         foreach (var name in OpenClawCommands.Names)
         {
             var cmdName = name; // Capture for closure
-            _host.AddCommand(new Command(name, Markup.Escape(OpenClawCommands.Descriptions[name]),
-                (args, named) => OpenClawCommandForwarder(cmdName, args, named)));
+            var description = Markup.Escape(OpenClawCommands.Descriptions[name]);
+            var suggestions = OpenClawCommandSuggestions.Get(name);
+            _host.AddCommand(new Command(name, description,
+                (args, named) => OpenClawCommandForwarder(cmdName, args, named),
+                suggestions));
         }
 
         _host.UserInputSubmitted += OnUserInput;
@@ -108,6 +112,18 @@ public sealed class StreamShellInputHandler : IDisposable
         var sessionKey = AgentRegistry.ActiveSessionKey;
         if (sessionKey != null)
             await _agentSwitching.PrintSessionHistory(sessionKey);
+    }
+
+    /// <summary>
+    /// Registers a native PTT command with its description wrapped in [underline] markup.
+    /// Centralized so all native commands get consistent formatting without repeating the markup.
+    /// </summary>
+    private void AddNativeCommand(string name, string description,
+        Func<string[], Dictionary<string, string>, Task> handler,
+        string[]? suggestions = null)
+    {
+        var underlined = $"[underline]{Markup.Escape(description)}[/]";
+        _host.AddCommand(new Command(name, underlined, handler, suggestions));
     }
 
     /// <summary>Exposes session history printing for wiring with AgentHotkeyService.</summary>
@@ -158,6 +174,15 @@ public sealed class StreamShellInputHandler : IDisposable
         // Commands are auto-executed by StreamShell — skip
         if (e.InputType == StreamShell.InputType.Command)
             return;
+
+        // Reject plain-text messages that start with "/" — they look like commands
+        // but weren't recognized by StreamShell. Don't send them to the gateway.
+        if (e.RawOutput.StartsWith("/", StringComparison.Ordinal))
+        {
+            var commandName = e.RawOutput.Split(' ')[0];
+            _host.AddMessage($"[red]  Unknown command: {commandName}[/]");
+            return;
+        }
 
         // Mark as typed input (not voice) — clear agent so SISO won't match a different agent
         _pttStateMachine.LastInputWasVoice = false;

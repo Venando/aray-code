@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace OpenClawPTT.Services;
 
@@ -14,6 +15,7 @@ public interface IConfigStorage
 
 /// <summary>
 /// Default implementation that persists config to disk as JSON.
+/// Preserves unrecognized fields and skips default-valued properties.
 /// </summary>
 public sealed class FileConfigStorage : IConfigStorage
 {
@@ -64,7 +66,54 @@ public sealed class FileConfigStorage : IConfigStorage
     {
         var path = ConfigPath(cfg);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(cfg, JsonOpts));
+
+        // Load existing JSON to preserve unrecognized fields
+        JsonNode? node = null;
+        if (File.Exists(path))
+        {
+            var existingJson = File.ReadAllText(path);
+            try
+            {
+                node = JsonNode.Parse(existingJson);
+            }
+            catch (JsonException)
+            {
+                node = null;
+            }
+        }
+
+        node ??= new JsonObject();
+
+        // Fresh defaults for comparison
+        var defaults = new AppConfig();
+
+        // Reflect over all public instance properties
+        var props = typeof(AppConfig).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Where(p => p.CanRead && p.GetMethod?.IsPublic == true);
+
+        foreach (var prop in props)
+        {
+            var currentValue = prop.GetValue(cfg);
+            var defaultValue = prop.GetValue(defaults);
+
+            // Compare via JSON serialization to handle enums, strings, etc. uniformly
+            var currentJson = JsonSerializer.SerializeToNode(currentValue, JsonOpts);
+            var defaultJson = JsonSerializer.SerializeToNode(defaultValue, JsonOpts);
+
+            if (JsonNode.DeepEquals(currentJson, defaultJson))
+            {
+                // Remove if present so defaults don't clutter the file
+                if (node is JsonObject obj)
+                    obj.Remove(prop.Name);
+            }
+            else
+            {
+                // Update or add the property
+                node[prop.Name] = currentJson;
+            }
+        }
+
+        File.WriteAllText(path, node.ToJsonString(JsonOpts));
     }
 
     private static string ConfigPath(AppConfig cfg)
