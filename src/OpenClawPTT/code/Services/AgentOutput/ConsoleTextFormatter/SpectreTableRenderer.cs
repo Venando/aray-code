@@ -357,6 +357,7 @@ internal static class SpectreTableRenderer
         // Break on escaped brackets ("[[") — they are literal "[" characters,
         // not markup tags.
         int prefixEnd = 0;
+        int prefixTagCount = 0;
         while (prefixEnd < formattedCell.Length && formattedCell[prefixEnd] == '[')
         {
             // Escaped bracket "[[" — this is literal text, not a tag
@@ -366,16 +367,24 @@ internal static class SpectreTableRenderer
             int closeIdx = formattedCell.IndexOf(']', prefixEnd + 1);
             if (closeIdx < 0) break;
             prefixEnd = closeIdx + 1;
+            prefixTagCount++;
         }
 
-        // Find consecutive [/] at the end
+        // Find consecutive [/] at the end, but only consume up to the number
+        // of opening tags found at the start. Inner tags (e.g. from inline code
+        // like [bold gray89 on darkblue]) also add [/] closers — we must not
+        // consume those because they don't match a prefix tag.
         int suffixStart = formattedCell.Length;
-        while (suffixStart >= 3)
+        int suffixTagCount = 0;
+        while (suffixStart >= 3 && suffixTagCount < prefixTagCount)
         {
             if (formattedCell[suffixStart - 1] == ']' &&
                 formattedCell[suffixStart - 3] == '[' &&
                 formattedCell[suffixStart - 2] == '/')
+            {
                 suffixStart -= 3;
+                suffixTagCount++;
+            }
             else
                 break;
         }
