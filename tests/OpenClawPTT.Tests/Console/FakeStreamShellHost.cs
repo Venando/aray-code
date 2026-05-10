@@ -26,8 +26,15 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
 
     public void Clear() { Messages.Clear(); }
 
+    public string? LastSeparatorLeftText { get; private set; }
+    public string? LastSeparatorRightText { get; private set; }
+
     public void SetTopSeparator(string? leftText = null, string? rightText = null,
-        char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null) { /* no-op */ }
+        char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null)
+    {
+        LastSeparatorLeftText = leftText;
+        LastSeparatorRightText = rightText;
+    }
 
     public void Stop() { /* no-op */ }
     public void SetRightMarginIndent(int margin) { /* no-op */ }

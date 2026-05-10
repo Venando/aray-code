@@ -115,6 +115,97 @@ public class AgentOutputCoordinatorTests
     }
 
     [Fact]
+    public void SetAudioHandler_WhenCalled_ReplacesHandler()
+    {
+        var coordinator = CreateCoordinator();
+        var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(
+            new AppConfig { AudioResponseMode = "text-only" },
+            new Mock<IColorConsole>().Object,
+            jobRunner,
+            audioPlayer,
+            null, null, null);
+
+        coordinator.SetAudioHandler(handler);
+
+        var ex = Record.Exception(() => coordinator.OnAgentReplyFull("test text"));
+        Assert.Null(ex);
+
+        coordinator.Dispose();
+        handler.Dispose();
+        audioPlayer.Dispose();
+    }
+
+    [Fact]
+    public void SetAudioHandler_CanSetNull_AfterNonNull()
+    {
+        var coordinator = CreateCoordinator();
+        var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(
+            new AppConfig { AudioResponseMode = "text-only" },
+            new Mock<IColorConsole>().Object,
+            jobRunner,
+            audioPlayer,
+            null, null, null);
+
+        coordinator.SetAudioHandler(handler);
+        coordinator.SetAudioHandler(null);
+
+        var ex = Record.Exception(() => coordinator.OnAgentReplyFull("test"));
+        Assert.Null(ex);
+
+        coordinator.Dispose();
+        audioPlayer.Dispose();
+    }
+
+    [Fact]
+    public void SetAudioHandler_SameHandler_NoOp()
+    {
+        var coordinator = CreateCoordinator();
+        var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(
+            new AppConfig { AudioResponseMode = "text-only" },
+            new Mock<IColorConsole>().Object,
+            jobRunner,
+            audioPlayer,
+            null, null, null);
+
+        coordinator.SetAudioHandler(handler);
+        coordinator.SetAudioHandler(handler);
+
+        var ex = Record.Exception(() => coordinator.OnAgentReplyFull("test"));
+        Assert.Null(ex);
+
+        coordinator.Dispose();
+        handler.Dispose();
+        audioPlayer.Dispose();
+    }
+
+    [Fact]
+    public void Dispose_DisposesSetAudioHandler()
+    {
+        var coordinator = CreateCoordinator();
+        var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(
+            new AppConfig { AudioResponseMode = "text-only" },
+            new Mock<IColorConsole>().Object,
+            jobRunner,
+            audioPlayer,
+            null, null, null);
+
+        coordinator.SetAudioHandler(handler);
+        coordinator.Dispose();
+
+        // Handler should be disposed after coordinator dispose
+        var ex = Assert.Throws<ObjectDisposedException>(() => handler.HandleAudioMarkerAsync("text").Wait());
+        Assert.Equal(nameof(AudioResponseHandler), ex.ObjectName);
+    }
+
+    [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
         var coordinator = CreateCoordinator();
