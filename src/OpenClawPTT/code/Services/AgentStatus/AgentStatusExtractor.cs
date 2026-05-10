@@ -195,15 +195,28 @@ public static class AgentStatusExtractor
     /// </summary>
     private static AgentStatusSnapshot Merge(AgentStatusSnapshot existing, AgentStatusSnapshot incoming)
     {
-        // Merge child sessions as a union.
-        var mergedChildren = existing.ChildSessions.Count == 0
-            ? incoming.ChildSessions
-            : incoming.ChildSessions.Count == 0
+        // Merge child sessions as a union. Preserve the existing reference
+        // when the union doesn't add anything new — this avoids spurious
+        // reference changes that fool record equality in AgentStatusTracker.
+        IReadOnlyList<string> mergedChildren;
+        if (existing.ChildSessions.Count == 0)
+        {
+            mergedChildren = incoming.ChildSessions;
+        }
+        else if (incoming.ChildSessions.Count == 0)
+        {
+            mergedChildren = existing.ChildSessions;
+        }
+        else
+        {
+            var union = existing.ChildSessions
+                .Union(incoming.ChildSessions, StringComparer.Ordinal)
+                .ToList();
+            mergedChildren = union.Count == existing.ChildSessions.Count
+                && existing.ChildSessions.SequenceEqual(union, StringComparer.Ordinal)
                 ? existing.ChildSessions
-                : existing.ChildSessions
-                    .Union(incoming.ChildSessions, StringComparer.Ordinal)
-                    .ToList()
-                    .AsReadOnly();
+                : union.AsReadOnly();
+        }
 
         return existing with
         {

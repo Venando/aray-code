@@ -18,8 +18,11 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
     private const int LineCountValue = 7;
     private readonly IAgentStatusTracker _tracker;
     private bool _isDirty;
-    private IColorConsole _colorConsole;
-    private string[] _lines;
+    private readonly IColorConsole _colorConsole;
+    private readonly string[] _lines;
+    private int _lastConsoleWidth = -1;
+    private int _lastDisplayFingerprint;
+    private readonly StringBuilder _sb = new(256);
 
     public AgentStatusBottomPanel(IAgentStatusTracker tracker, IColorConsole colorConsole)
     {
@@ -27,9 +30,19 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
         _colorConsole = colorConsole;
         _tracker.Changed += OnTrackerChanged;
         _lines = new string[LineCountValue];
+        // Prime the fingerprint so the first tracker event doesn't double-render.
+        _lastDisplayFingerprint = ComputeDisplayFingerprint();
     }
 
-    private void OnTrackerChanged() => _isDirty = true;
+    private void OnTrackerChanged()
+    {
+        var fingerprint = ComputeDisplayFingerprint();
+        if (fingerprint != _lastDisplayFingerprint)
+        {
+            _lastDisplayFingerprint = fingerprint;
+            _isDirty = true;
+        }
+    }
 
     public int LineCount => LineCountValue;
     public bool IsDirty => _isDirty;
@@ -37,6 +50,15 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
 
     public IReadOnlyList<string> GetLines(string currentInput)
     {
+        int currentWidth;
+        try { currentWidth = ConsoleMetrics.GetWindowWidth(); }
+        catch { currentWidth = _lastConsoleWidth; }
+
+        if (!_isDirty && currentWidth == _lastConsoleWidth)
+            return _lines;
+
+        _lastConsoleWidth = currentWidth;
+
         var all = _tracker.All;
         var mainAgents = all.Where(s => !s.IsSubagent && AgentRegistry.Agents.Any(a => a.SessionKey == s.SessionKey)).ToList();
         // Show ALL subagents (active + recently finished), filtering only those
@@ -51,16 +73,19 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
 
         int rowIndex = 0;
 
-        AddRow(ref rowIndex, BuildCenteredMainAgentsLine(mainAgents));
+        _sb.Clear();
+        AddRow(ref rowIndex, BuildCenteredMainAgentsLine(mainAgents, _sb));
         AddRow(ref rowIndex, "");
 
         for (int i = 0; i < subagentGroups.Count; i++)
         {
-            AddRow(ref rowIndex, BuildSubagentGroupLine(subagentGroups[i], mainAgents));
+            _sb.Clear();
+            AddRow(ref rowIndex, BuildSubagentGroupLine(subagentGroups[i], mainAgents, _sb));
             AddRow(ref rowIndex, "");
         }
 
         ClearRows(rowIndex);
+        _isDirty = false;
 
         return _lines;
     }
@@ -81,23 +106,23 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
     // Format: "🎩: ⏳ │ ⏳ │ 🟢"
     // ─────────────────────────────────────────────────────────────────
 
-    private static string BuildSubagentGroupLine(IGrouping<string, AgentStatusSnapshot> group, List<AgentStatusSnapshot> mainAgents)
+    private static string BuildSubagentGroupLine(IGrouping<string, AgentStatusSnapshot> group, List<AgentStatusSnapshot> mainAgents, StringBuilder sb)
     {
         var parent = mainAgents.FirstOrDefault(m => m.SessionKey == group.Key);
-        var (parentEmoji, parentColor, _, parentShow) = GetAgentDisplayInfo(parent);
+        var (parentEmoji, _, _, parentShow) = GetAgentDisplayInfo(parent);
         if (!parentShow)
             return string.Empty;
 
-        var sb = new StringBuilder();
         sb.Append(parentEmoji);
         sb.Append(": ");
 
-        var subs = group.ToList();
-        for (int i = 0; i < subs.Count; i++)
+        bool first = true;
+        foreach (var sub in group)
         {
-            if (i > 0)
+            if (!first)
                 sb.Append(" │ ");
-            sb.Append(subs[i].GetStatusEmoji());
+            first = false;
+            sb.Append(sub.GetStatusEmoji());
         }
 
         return CenterMarkup(sb.ToString());
@@ -108,16 +133,15 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
     // Format: "🎩 🟢 │ 🦊 🟢 │ 🤖 ⚪"
     // ─────────────────────────────────────────────────────────────────
 
-    private static string BuildCenteredMainAgentsLine(List<AgentStatusSnapshot> mainAgents)
+    private static string BuildCenteredMainAgentsLine(List<AgentStatusSnapshot> mainAgents, StringBuilder sb)
     {
         if (mainAgents.Count == 0)
             return string.Empty;
 
-        var sb = new StringBuilder();
         bool first = true;
         foreach (var agent in mainAgents)
         {
-            var (emoji, color, name, show) = GetAgentDisplayInfo(agent);
+            var (emoji, _, _, show) = GetAgentDisplayInfo(agent);
             if (!show)
                 continue;
 
@@ -126,13 +150,43 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
             first = false;
 
             var statusEmoji = agent.GetStatusEmoji();
-            sb.Append($"{emoji} {statusEmoji}");
+            sb.Append(emoji);
+            sb.Append(' ');
+            sb.Append(statusEmoji);
         }
 
         if (first) // nothing visible
             return string.Empty;
 
         return CenterMarkup(sb.ToString());
+    }
+
+    private int ComputeDisplayFingerprint()
+    {
+        var hash = new HashCode();
+        foreach (var s in _tracker.All)
+        {
+            hash.Add(s.SessionKey);
+            hash.Add(s.IsSubagent);
+            hash.Add(s.ParentSessionKey);
+            hash.Add(s.Status);
+            hash.Add(s.StopReason);
+            hash.Add(s.SubagentRunState);
+            hash.Add(s.HasActiveSubagentRun);
+            hash.Add(s.Phase);
+            hash.Add(s.EndedAt);
+            hash.Add(s.AbortedLastRun);
+            hash.Add(s.ChildSessions.Count);
+            foreach (var c in s.ChildSessions) hash.Add(c);
+
+            var registryAgent = AgentRegistry.Agents.FirstOrDefault(a => a.SessionKey == s.SessionKey);
+            if (registryAgent != null)
+            {
+                hash.Add(AgentSettingsPersistenceLegacy.GetPersistedEmoji(registryAgent.AgentId));
+                hash.Add(AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(registryAgent.AgentId));
+            }
+        }
+        return hash.ToHashCode();
     }
 
     // ─────────────────────────────────────────────────────────────────

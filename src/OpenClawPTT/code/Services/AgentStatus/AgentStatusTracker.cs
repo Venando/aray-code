@@ -15,6 +15,9 @@ public sealed class AgentStatusTracker : IAgentStatusTracker
 {
     private readonly Dictionary<string, AgentStatusSnapshot> _snapshots = new();
     private readonly object _lock = new();
+    private readonly List<AgentStatusSnapshot> _allCacheList = new();
+    private System.Collections.ObjectModel.ReadOnlyCollection<AgentStatusSnapshot>? _allCacheReadOnly;
+    private bool _allCacheDirty = true;
 
     public event Action? Changed;
 
@@ -40,6 +43,7 @@ public sealed class AgentStatusTracker : IAgentStatusTracker
                       && (existing is null || !existing.Equals(merged));
 
             _snapshots[snapshot.SessionKey] = merged;
+            if (changed) _allCacheDirty = true;
         }
 
         if (changed)
@@ -52,6 +56,7 @@ public sealed class AgentStatusTracker : IAgentStatusTracker
         lock (_lock)
         {
             removed = _snapshots.Remove(sessionKey);
+            if (removed) _allCacheDirty = true;
         }
         if (removed)
             Changed?.Invoke();
@@ -71,7 +76,14 @@ public sealed class AgentStatusTracker : IAgentStatusTracker
         {
             lock (_lock)
             {
-                return _snapshots.Values.ToList().AsReadOnly();
+                if (_allCacheDirty)
+                {
+                    _allCacheList.Clear();
+                    _allCacheList.AddRange(_snapshots.Values);
+                    _allCacheReadOnly = _allCacheList.AsReadOnly();
+                    _allCacheDirty = false;
+                }
+                return _allCacheReadOnly!;
             }
         }
     }
