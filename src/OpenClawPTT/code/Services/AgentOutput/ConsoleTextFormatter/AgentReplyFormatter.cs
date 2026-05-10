@@ -5,6 +5,8 @@ namespace OpenClawPTT;
 /// <summary>
 /// Formats streaming agent replies with word wrap and right margin indent.
 /// Maintains state across delta chunks within a single reply.
+/// All width calculations use <see cref="CharacterWidth.GetDisplayWidth(char)"/>
+/// to correctly handle CJK / fullwidth characters (visual width 2).
 /// </summary>
 public sealed class AgentReplyFormatter : IAgentReplyFormatter
 {
@@ -47,15 +49,15 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
     }
 
     /// <summary>
-    /// Calculates available text width: console width minus prefix width minus the pre-computed
+    /// Calculates available text width: console width minus prefix visual width minus the pre-computed
     /// right-edge margin (<see cref="_reservedRightMargin"/>).
     /// Falls back to half the console width when the nominal width is unusably small.
     /// </summary>
     private int GetAvailableWidth()
     {
         int usedPrefixWidth = _prefixAlreadyPrinted
-            ? _newlinePrefixLenght.Length
-            : _prefix.Length;
+            ? CharacterWidth.GetDisplayWidth(_newlinePrefixLenght)
+            : CharacterWidth.GetDisplayWidth(_prefix);
 
         int available = _consoleWidth - usedPrefixWidth - _reservedRightMargin;
         return available > 0 ? available : _consoleWidth / 2;
@@ -69,47 +71,61 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
 
     /// <summary>
     /// Process a plain-text delta chunk and write formatted output with word-wrap.
+    /// Uses <see cref="CharacterWidth.GetDisplayWidth(char)"/> to correctly account
+    /// for CJK / fullwidth characters.
     /// </summary>
     public void ProcessDelta(string delta)
     {
         foreach (char c in delta)
         {
+            int cw = CharacterWidth.GetDisplayWidth(c);
+
             if (c == '\n')
             {
                 // Skip leading newlines - prevents blank row before agent name
                 if (_wordWrap.CurrentLineLength == 0 && _wordWrap.IsBufferEmpty)
                     continue;
-                FlushAndWrite(_wordWrap.BufferLength);
+                FlushAndWrite(_wordWrap.GetBufferVisualWidth());
                 WriteNewLine();
                 continue;
             }
 
             if (char.IsWhiteSpace(c))
             {
-                FlushAndWrite(_wordWrap.BufferLength);
-                if (_wordWrap.CurrentLineLength + 1 <= _wordWrap.AvailableWidth)
+                FlushAndWrite(_wordWrap.GetBufferVisualWidth());
+                if (_wordWrap.CurrentLineLength + cw <= _wordWrap.AvailableWidth)
                 {
                     _output.Write(c.ToString());
-                    _wordWrap.RecordWritten(1);
+                    _wordWrap.RecordWritten(cw);
                 }
                 else
                 {
                     WriteNewLine();
                     _output.Write(c.ToString());
-                    _wordWrap.RecordWritten(1);
+                    _wordWrap.RecordWritten(cw);
                 }
             }
             else
             {
                 _wordWrap.AppendChar(c);
-                if (_wordWrap.BufferLength > _wordWrap.AvailableWidth)
+                int bufVisualWidth = _wordWrap.GetBufferVisualWidth();
+                if (_wordWrap.CurrentLineLength + bufVisualWidth > _wordWrap.AvailableWidth)
                 {
-                    int charsThatFit = _wordWrap.AvailableWidth - _wordWrap.CurrentLineLength;
-                    if (charsThatFit > 0)
+                    int remaining = _wordWrap.AvailableWidth - _wordWrap.CurrentLineLength;
+
+                    // Try to find a whitespace boundary for a clean word break
+                    int wsIndex = _wordWrap.FindLastWhitespace();
+                    if (wsIndex > 0)
                     {
-                        _output.Write(_wordWrap.FlushChars(charsThatFit));
-                        _wordWrap.RecordWritten(charsThatFit);
+                        // Emit everything up to and including the whitespace
+                        string beforeWs = _wordWrap.FlushChars(wsIndex + 1);
+                        int beforeWsWidth = CharacterWidth.GetDisplayWidth(beforeWs);
+                        _output.Write(beforeWs);
+                        _wordWrap.RecordWritten(beforeWsWidth);
                     }
+
+                    // If anything remains in the buffer (the word that overflowed),
+                    // move it to the next line
                     if (_wordWrap.BufferLength > 0)
                     {
                         WriteNewLine();
@@ -122,11 +138,13 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
     /// <summary>
     /// Process a pre-formatted markup string where [tag]…[/tag] sequences
     /// have zero visible width. Preserves markup tags in output.
+    /// Uses <see cref="CharacterWidth.GetDisplayWidth(char)"/> for visual width tracking.
     /// </summary>
     public void ProcessMarkupDelta(string markup)
     {
         bool insideTag = false;
-        int visibleWordLen = 0;
+        int visibleWordWidth = 0;
+        int nonTagCharsSinceLastWhitespace = 0;
 
         for (int i = 0; i < markup.Length; i++)
         {
@@ -134,15 +152,18 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
 
             if (!insideTag && c == '[')
             {
-                FlushAndWrite(visibleWordLen);
-                visibleWordLen = 0;
+                FlushAndWrite(visibleWordWidth);
+                visibleWordWidth = 0;
+                nonTagCharsSinceLastWhitespace = 0;
 
                 // Spectre uses [[ to represent a literal '['
                 if (i + 1 < markup.Length && markup[i + 1] == '[')
                 {
                     _wordWrap.AppendString("[[");
                     i++;
-                    visibleWordLen++;
+                    int d1 = CharacterWidth.GetDisplayWidth('[');
+                    visibleWordWidth += d1 + CharacterWidth.GetDisplayWidth('[');
+                    nonTagCharsSinceLastWhitespace += 2;
                     continue;
                 }
 
@@ -167,7 +188,8 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
                 {
                     _wordWrap.RemoveFromBuffer(_wordWrap.BufferLength - openPos);
                     _wordWrap.AppendString($"[[{tagContent}]]");
-                    visibleWordLen += tagContent.Length + 4;
+                    visibleWordWidth += CharacterWidth.GetDisplayWidth(tagContent) + 4;
+                    nonTagCharsSinceLastWhitespace += tagContent.Length + 4;
                     continue;
                 }
 
@@ -195,70 +217,103 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
             {
                 _wordWrap.AppendString("]]");
                 i++;
-                visibleWordLen++;
+                visibleWordWidth += CharacterWidth.GetDisplayWidth(']') + CharacterWidth.GetDisplayWidth(']');
+                nonTagCharsSinceLastWhitespace += 2;
                 continue;
             }
+
+            int cw = CharacterWidth.GetDisplayWidth(c);
 
             if (c == '\n')
             {
                 // Skip leading newlines - prevents blank row before agent name
                 if (_wordWrap.CurrentLineLength == 0 && _wordWrap.IsBufferEmpty)
                     continue;
-                FlushAndWrite(visibleWordLen);
-                visibleWordLen = 0;
+                FlushAndWrite(visibleWordWidth);
+                visibleWordWidth = 0;
+                nonTagCharsSinceLastWhitespace = 0;
                 WriteNewLine();
                 continue;
             }
 
             if (char.IsWhiteSpace(c))
             {
-                FlushAndWrite(visibleWordLen);
-                visibleWordLen = 0;
-                if (_wordWrap.CurrentLineLength + 1 <= _wordWrap.AvailableWidth)
+                FlushAndWrite(visibleWordWidth);
+                visibleWordWidth = 0;
+                nonTagCharsSinceLastWhitespace = 0;
+                if (_wordWrap.CurrentLineLength + cw <= _wordWrap.AvailableWidth)
                 {
                     _output.Write(c.ToString());
-                    _wordWrap.RecordWritten(1);
+                    _wordWrap.RecordWritten(cw);
                 }
                 else
                 {
                     WriteNewLine();
                     _output.Write(c.ToString());
-                    _wordWrap.RecordWritten(1);
+                    _wordWrap.RecordWritten(cw);
                 }
                 continue;
             }
 
             _wordWrap.AppendChar(c);
-            visibleWordLen++;
+            visibleWordWidth += cw;
+            nonTagCharsSinceLastWhitespace++;
 
-            if (_wordWrap.WouldOverflow(visibleWordLen))
+            if (_wordWrap.WouldOverflow(visibleWordWidth))
             {
                 int remaining = _wordWrap.AvailableWidth - _wordWrap.CurrentLineLength;
-                int charsToEmit = Math.Min(remaining, _wordWrap.BufferLength);
 
-                if (charsToEmit > 0)
+                // Try to find a whitespace boundary for a clean word break
+                int wsIndex = _wordWrap.FindLastWhitespace();
+                if (wsIndex > 0)
                 {
-                    _output.Write(_wordWrap.FlushChars(charsToEmit));
-                    visibleWordLen = Math.Max(0, visibleWordLen - remaining);
+                    // Emit everything up to and including the whitespace
+                    string beforeWs = _wordWrap.FlushChars(wsIndex + 1);
+                    int beforeWsWidth = CharacterWidth.GetDisplayWidth(beforeWs);
+                    _output.Write(beforeWs);
+                    visibleWordWidth = Math.Max(0, visibleWordWidth - beforeWsWidth);
+                    _wordWrap.RecordWritten(beforeWsWidth);
+                    nonTagCharsSinceLastWhitespace = 0;
                 }
 
+                // If there's still content that doesn't fit, try to fit part of it
                 if (_wordWrap.BufferLength > 0)
                 {
-                    string remainingBuf = _wordWrap.PeekBuffer();
-                    int tagLen = remainingBuf.Length - visibleWordLen;
+                    remaining = _wordWrap.AvailableWidth - _wordWrap.CurrentLineLength;
 
-                    if (tagLen > 0 && remaining <= 0)
+                    // Emit whatever fits visually on the current line
+                    if (remaining > 0)
                     {
-                        _output.Write(remainingBuf.Substring(0, tagLen));
-                        _wordWrap.RemoveFromBuffer(tagLen);
+                        string remainingFit = _wordWrap.FlushCharsByVisualWidth(remaining);
+                        if (remainingFit.Length > 0)
+                        {
+                            int remainingFitWidth = CharacterWidth.GetDisplayWidth(remainingFit);
+                            _output.Write(remainingFit);
+                            visibleWordWidth = Math.Max(0, visibleWordWidth - remainingFitWidth);
+                            _wordWrap.RecordWritten(remainingFitWidth);
+                            nonTagCharsSinceLastWhitespace = 0;
+                        }
                     }
 
-                    WriteNewLine();
+                    if (_wordWrap.BufferLength > 0)
+                    {
+                        string remainingBuf = _wordWrap.PeekBuffer();
+                        int tagLen = remainingBuf.Length - visibleWordWidth;
+
+                        if (tagLen > 0 && _wordWrap.CurrentLineLength <= 0)
+                        {
+                            _output.Write(remainingBuf.Substring(0, tagLen));
+                            _wordWrap.RemoveFromBuffer(tagLen);
+                            nonTagCharsSinceLastWhitespace = 0;
+                        }
+
+                        WriteNewLine();
+                    }
                 }
             }
         }
 
-        FlushAndWrite(visibleWordLen);
+        FlushAndWrite(visibleWordWidth);
     }
 
     private void UpdateTagStack(string tagContent)
@@ -280,7 +335,7 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
 
     public void Finish()
     {
-        FlushAndWrite(_wordWrap.BufferLength);
+        FlushAndWrite(_wordWrap.GetBufferVisualWidth());
 
         foreach (string _ in _openMarkupTags.AsEnumerable())
         {
@@ -290,23 +345,23 @@ public sealed class AgentReplyFormatter : IAgentReplyFormatter
         _output.WriteLine();
     }
 
-    private void FlushAndWrite(int visibleLength)
+    private void FlushAndWrite(int visibleWidth)
     {
         if (_wordWrap.IsBufferEmpty) return;
 
         string content = _wordWrap.Flush();
 
-        if (_wordWrap.CurrentLineLength + visibleLength <= _wordWrap.AvailableWidth)
+        if (_wordWrap.CurrentLineLength + visibleWidth <= _wordWrap.AvailableWidth)
         {
             _output.Write(content);
-            _wordWrap.RecordWritten(visibleLength);
+            _wordWrap.RecordWritten(visibleWidth);
         }
         else
         {
             if (_wordWrap.CurrentLineLength > 0)
                 WriteNewLine();
             _output.Write(content);
-            _wordWrap.RecordWritten(visibleLength);
+            _wordWrap.RecordWritten(visibleWidth);
         }
     }
 
