@@ -105,7 +105,13 @@ public sealed class StatusService : IStatusService, IDisposable
         if (_agentTracker == null)
             return string.Empty;
 
-        var mainAgent = _agentTracker.GetMainAgent();
+        // Use AgentRegistry to find the currently active agent's session key
+        // rather than GetMainAgent() which just returns the first non-subagent.
+        var activeSessionKey = AgentRegistry.ActiveSessionKey;
+        if (string.IsNullOrEmpty(activeSessionKey))
+            return string.Empty;
+
+        var mainAgent = _agentTracker.Get(activeSessionKey);
         if (mainAgent == null)
             return string.Empty;
 
