@@ -37,6 +37,8 @@ public class ToolDisplayHandlerIntegrationTests
         public void AddCommand(StreamShell.Command command) => Commands.Add(command);
         public Task Run(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void Clear() { Messages.Clear(); }
+        public void SetTopSeparator(string? leftText = null, string? rightText = null,
+            char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null) { }
         public void Stop() { }
         public void SetRightMarginIndent(int margin) { }
         public void SetInputPrefix(string prefix) { }

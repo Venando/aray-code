@@ -1,3 +1,5 @@
+using OpenClawPTT.TTS;
+
 namespace OpenClawPTT.Services.TestMode;
 
 /// <summary>
@@ -25,7 +27,8 @@ public sealed class TestModeServiceFactory : ServiceFactory
     /// <summary>
     /// Creates a mock gateway service that simulates connections without real network activity.
     /// </summary>
-    public override IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
+    public override IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
+        IPttStateMachine? pttStateMachine = null, Task<ITextToSpeech?>? ttsProviderTask = null)
     {
         return new MockGatewayService(_scenario, _colorConsole);
     }

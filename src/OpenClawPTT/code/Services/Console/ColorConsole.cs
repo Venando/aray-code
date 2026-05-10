@@ -39,7 +39,7 @@ public sealed class ColorConsole : IColorConsole
         // Compute final right-edge margin: max(config indent, 10% of console width)
         ReservedRightMargin = Math.Max(
             config.RightMarginIndent,
-            (int)(ConsoleHelper.GetWindowWidth() * 0.1));
+            (int)(ConsoleMetrics.GetWindowWidth() * 0.1));
 
         UserMessagePrefix = config.UserMessagePrefix;
 

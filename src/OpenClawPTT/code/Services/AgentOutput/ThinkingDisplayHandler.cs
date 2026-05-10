@@ -70,7 +70,7 @@ public sealed class ThinkingDisplayHandler
         if (!string.IsNullOrEmpty(thinking))
         {
             // Available width: min of 80 and console width minus overhead
-            int consoleWidth = ConsoleHelper.GetWindowWidth();
+            int consoleWidth = ConsoleMetrics.GetWindowWidth();
 
             // Estimate prefix visual width (~5 chars for "  💭 ", variable for rest)
             int prefixWidth = TextWidth.GetVisualWidth("  💭 Thinking ");

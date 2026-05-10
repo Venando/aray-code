@@ -11,6 +11,14 @@ public interface IStreamShellHost
     void AddMessage(string markup);
     void AddCommand(StreamShell.Command command);
     void Clear();
+
+    /// <summary>
+    /// Sets the top separator line (between message feed and input block).
+    /// LeftText/RightText support Spectre markup. Called frequently to update status info.
+    /// </summary>
+    void SetTopSeparator(string? leftText = null, string? rightText = null,
+        char repeatedCharacter = '─', string? repeatedCharMarkup = null);
+
     event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted;
     Task Run(CancellationToken cancellationToken = default);
     void Stop();

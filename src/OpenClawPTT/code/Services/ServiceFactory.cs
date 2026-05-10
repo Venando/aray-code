@@ -41,27 +41,24 @@ public class ServiceFactory : IServiceFactory
             "AgentSettingsPersistence not initialized. Call InitializeAgentSettingsPersistence first.");
     }
 
-    public virtual IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
+    public virtual IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
+        IPttStateMachine? pttStateMachine = null, Task<ITextToSpeech?>? ttsProviderTask = null)
     {
         var jobRunner = new BackgroundJobRunner(msg => _colorConsole.Log("jobrunner", msg));
         var replyCoordinator = new ReplyStreamCoordinator(cfg, _colorConsole);
         var toolHandler = new ToolDisplayHandler(cfg.ReservedRightMargin, _shellHost);
         var thinkingHandler = new ThinkingDisplayHandler(cfg, _shellHost);
 
+        // Audio handler is created asynchronously via GatewayService when the TTS
+        // provider task completes (parallel init). No synchronous audio handler is
+        // passed at construction time — GatewayService wires it on completion.
         AudioResponseHandler? audioHandler = null;
-        if (cfg.AudioResponseMode?.ToLowerInvariant() != "text-only")
-        {
-            var audioPlayer = new AudioPlayerService(_colorConsole);
-            var ttsService = new TtsService(cfg, _colorConsole);
-            audioHandler = new AudioResponseHandler(
-                cfg, _colorConsole, jobRunner, audioPlayer,
-                summarizer, pttStateMachine, ttsService.Provider);
-        }
 
         var coordinator = new AgentOutputCoordinator(
             replyCoordinator, toolHandler, thinkingHandler, audioHandler);
 
-        return new GatewayService(cfg, _colorConsole, coordinator, summarizer, pttStateMachine);
+        return new GatewayService(cfg, _colorConsole, coordinator, summarizer, pttStateMachine,
+            ttsProviderTask: ttsProviderTask);
     }
 
     public virtual IAudioService CreateAudioService(AppConfig cfg)

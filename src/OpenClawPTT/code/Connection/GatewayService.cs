@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services.Diagnostics;
+using OpenClawPTT.TTS;
 
 namespace OpenClawPTT.Services;
 
@@ -17,6 +18,7 @@ public sealed class GatewayService : IGatewayService
     private IGatewayClient _gatewayClient;
     private AgentOutputCoordinator _coordinator;
     private ErrorLogStore? _errorLog;
+    private Task? _ttsWireTask;
     private bool _disposed;
 
     public event Action<string>? AgentReplyFull;
@@ -28,7 +30,7 @@ public sealed class GatewayService : IGatewayService
     public event Action<string, JsonElement>? EventReceived;
     public event Action<string>? AgentReplyAudio;
 
-    public GatewayService(AppConfig config, IColorConsole console, AgentOutputCoordinator coordinator, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null)
+    public GatewayService(AppConfig config, IColorConsole console, AgentOutputCoordinator coordinator, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null, Task<ITextToSpeech?>? ttsProviderTask = null)
     {
         _config = config;
         _console = console;
@@ -38,12 +40,48 @@ public sealed class GatewayService : IGatewayService
         _device = new DeviceIdentity(config.DataDir);
         _device.EnsureKeypair();
         _gatewayClient = CreateGatewayClient();
+
+        // Wire TTS provider asynchronously when the background init task completes.
+        // No temporal coupling window — the task reference is available from construction,
+        // and audio only arrives after gateway connect (by which time the task may be done).
+        if (ttsProviderTask != null)
+            _ttsWireTask = WireTtsOnProviderReadyAsync(ttsProviderTask);
     }
 
     /// <summary>Wire an ErrorLogStore for logging send/connect failures.</summary>
     public void SetErrorLogStore(ErrorLogStore store)
     {
         _errorLog = store;
+    }
+
+    /// <summary>
+    /// Async continuation that wires the audio handler into the output coordinator
+    /// once the TTS provider background task completes.
+    /// Runs on a thread-pool thread; avoids blocking the constructor or gateway connect.
+    /// </summary>
+    private async Task WireTtsOnProviderReadyAsync(Task<ITextToSpeech?> ttsTask)
+    {
+        try
+        {
+            var ttsProvider = await ttsTask.ConfigureAwait(false);
+            if (ttsProvider != null)
+            {
+                var jobRunner = new BackgroundJobRunner(msg => _console.Log("jobrunner", msg));
+                var audioPlayer = new AudioPlayerService(_console);
+                var audioHandler = new AudioResponseHandler(
+                    _config, _console, jobRunner, audioPlayer,
+                    _summarizer, _pttStateMachine, ttsProvider);
+                _coordinator.SetAudioHandler(audioHandler);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // App shutting down — TTS init cancelled, nothing to wire
+        }
+        catch (Exception ex)
+        {
+            _console.LogError("gateway", $"TTS provider wiring failed: {ex.Message}");
+        }
     }
 
     public async Task ConnectAsync(CancellationToken ct)

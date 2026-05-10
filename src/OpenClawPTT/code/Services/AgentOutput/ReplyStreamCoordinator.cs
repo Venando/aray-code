@@ -79,8 +79,9 @@ public sealed class ReplyStreamCoordinator : IDisposable
     /// <summary>Called for a full (non-streaming) reply. Creates a formatter, processes the body, then finishes.</summary>
     public void OnFullReply(string body)
     {
-        int consoleWidth = ConsoleHelper.GetWindowWidth();
-        int availableWidth = consoleWidth - _prefixLength - _config.ReservedRightMargin;
+        int consoleWidth = ConsoleMetrics.GetWindowWidth();
+        int rightMargin = Math.Max(_config.RightMarginIndent, (int)(consoleWidth * 0.1));
+        int availableWidth = consoleWidth - _prefixLength - rightMargin;
         if (availableWidth <= 0) availableWidth = consoleWidth / 2;
 
         var markdownBody = MarkdownToSpectreConverter.Convert(body, availableWidth);

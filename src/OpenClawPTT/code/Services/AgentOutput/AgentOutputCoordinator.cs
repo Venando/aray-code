@@ -10,7 +10,7 @@ public sealed class AgentOutputCoordinator : IDisposable
     private readonly ReplyStreamCoordinator _replyCoordinator;
     private readonly ToolDisplayHandler _toolDisplayHandler;
     private readonly ThinkingDisplayHandler _thinkingDisplay;
-    private readonly AudioResponseHandler? _audioHandler;
+    private AudioResponseHandler? _audioHandler;
     private bool _disposed;
 
     public AgentOutputCoordinator(
@@ -70,6 +70,18 @@ public sealed class AgentOutputCoordinator : IDisposable
         _replyCoordinator.OnDeltaEnd();
         if (_audioHandler != null && !string.IsNullOrWhiteSpace(_replyCoordinator.AccumulatedText))
             _ = _audioHandler.HandleAudioMarkerAsync(_replyCoordinator.AccumulatedText);
+    }
+
+    /// <summary>
+    /// Sets or replaces the audio handler after construction.
+    /// Used when TTS initializes asynchronously (parallel with gateway connect).
+    /// The previous handler (if any) is disposed before replacement.
+    /// </summary>
+    public void SetAudioHandler(AudioResponseHandler? handler)
+    {
+        if (_audioHandler == handler) return;
+        _audioHandler?.Dispose();
+        _audioHandler = handler;
     }
 
     public void OnAgentReplyAudio(string audioText)

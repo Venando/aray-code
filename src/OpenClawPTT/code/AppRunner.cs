@@ -3,6 +3,7 @@ namespace OpenClawPTT;
 using System.Net.WebSockets;
 using OpenClawPTT.Services;
 using OpenClawPTT.Services.Diagnostics;
+using OpenClawPTT.TTS;
 using StreamShell;
 
 /// <summary>
@@ -17,6 +18,7 @@ public class AppRunner : IDisposable
     private readonly IConfigurationService _configService;
     private readonly IColorConsole _console;
     private readonly ErrorLogStore _errorLog;
+    private readonly IStatusService _statusService;
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -33,6 +35,7 @@ public class AppRunner : IDisposable
         _configService = configService;
         _console = console;
         _errorLog = new ErrorLogStore(cfg.DataDir);
+        _statusService = new StatusService(shellHost);
     }
 
     /// <summary>
@@ -69,19 +72,67 @@ public class AppRunner : IDisposable
         using var directLlmService = _factory.CreateDirectLlmService(_cfg);
         using var ttsSummarizer = _factory.CreateTtsSummarizer(directLlmService.IsConfigured ? directLlmService : null);
 
-        using var gateway = _factory.CreateGatewayService(_cfg, ttsSummarizer, pttStateMachine);
+        // ── Parallel init: TTS provider on background thread while we prepare the rest ──
+        // TtsService constructor may block (e.g. Python provider initializes synchronously),
+        // so we run it on a background thread to avoid delaying gateway connection.
+        using var ttsInitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var ttsInitTask = Task.Run(() => InitializeTtsProviderAsync(_cfg, ttsInitCts.Token), ttsInitCts.Token);
+
+        // Create gateway service (fast — no longer blocks on TTS init).
+        // GatewayService receives the TTS provider task and wires audio asynchronously
+        // when the task completes — no temporal coupling window.
+        using var gateway = _factory.CreateGatewayService(_cfg, ttsSummarizer, pttStateMachine,
+            ttsProviderTask: ttsInitTask);
 
         // Wire ErrorLogStore into GatewayService so SendTextAsync/SendRpcAsync failures are logged
         if (gateway is GatewayService gw)
             gw.SetErrorLogStore(_errorLog);
 
-        // Try to connect. On failure, classify the error, show guidance, and
-        // continue with StreamShell alive so the user can run /reconnect.
+        // Gateway connect runs in parallel with TTS init — the TTS task is handled
+        // by GatewayService's internal continuation.
         var connectResult = await TryConnectWithGuidanceAsync(gateway, ct);
+
         if (connectResult == ConnectResult.GiveUp)
             return (int)AppLoopExitCode.Error;
 
         return await RunPttLoopAsync(gateway, pttStateMachine, directLlmService, ttsSummarizer, ct);
+    }
+
+    /// <summary>
+    /// Initializes the TTS provider on a background thread.
+    /// Updates status via <see cref="_statusService"/> as init progresses.
+    /// </summary>
+    private async Task<ITextToSpeech?> InitializeTtsProviderAsync(AppConfig cfg, CancellationToken ct)
+    {
+        try
+        {
+            _console.Log("tts", "Initializing TTS...");
+            var ttsService = new TtsService(cfg, _console);
+            ct.ThrowIfCancellationRequested();
+
+            if (ttsService.Provider != null)
+            {
+                _statusService.SetTtsStatus("Connected", StatusColor.Green);
+                _console.LogOk("tts", $"TTS connected ({ttsService.ProviderType})");
+                return ttsService.Provider;
+            }
+
+            // Provider is null (Edge with no key, etc.) — warn but don't error
+            _statusService.SetTtsStatus("Disconnected", StatusColor.Red);
+            _console.Log("tts", "TTS provider is null (not configured).");
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            _statusService.SetTtsStatus("Disconnected", StatusColor.Red);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _statusService.SetTtsStatus("Disconnected", StatusColor.Red);
+            _console.LogError("tts", $"TTS initialization failed: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>Result of the guided connect attempt.</summary>
@@ -98,6 +149,7 @@ public class AppRunner : IDisposable
             _console.PrintInfo("Connecting to gateway...");
             await gateway.ConnectAsync(ct);
             _console.LogOk("gateway", "Gateway connected.");
+            _statusService.SetGatewayStatus("Connected", StatusColor.Green);
             return ConnectResult.Success;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -122,13 +174,17 @@ public class AppRunner : IDisposable
                     _console.PrintInfo($"    → {action}");
             }
 
+            _statusService.SetGatewayStatus("Connecting", StatusColor.Yellow);
+
             if (classification.ShouldStopApp)
             {
+                _statusService.SetGatewayStatus("Disconnected", StatusColor.Red);
                 _console.PrintError("Cannot continue without gateway connection.");
                 return ConnectResult.GiveUp;
             }
 
             // App stays alive — StreamShell keeps running, user can /reconnect
+            _statusService.SetGatewayStatus("Disconnected", StatusColor.Red);
             _console.PrintInfo("StreamShell is still available. Use /reconnect to retry, or /quit to exit.");
             return ConnectResult.ContinueWithoutGateway;
         }
