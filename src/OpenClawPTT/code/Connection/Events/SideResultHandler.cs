@@ -63,7 +63,8 @@ public class SideResultHandler : IEventHandler<SideResultEvent>
             {
                 if (first)
                 {
-                    _console.PrintMarkup($"{prefix}[red]{MarkupEscape(line)}[/]");
+                    // prefix already contains [red] for ✗, so just close it
+                    _console.PrintMarkup($"{prefix}{MarkupEscape(line)}[/]");
                     first = false;
                 }
                 else
