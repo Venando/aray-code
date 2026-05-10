@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Spectre.Console;
 using StreamShell;
 
 namespace OpenClawPTT.Services;
@@ -14,14 +15,18 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public sealed class AgentStatusBottomPanel : IBottomPanel
 {
-    private const int LineCountValue = 5;
+    private const int LineCountValue = 7;
     private readonly IAgentStatusTracker _tracker;
     private bool _isDirty;
+    private IColorConsole _colorConsole;
+    private string[] _lines;
 
-    public AgentStatusBottomPanel(IAgentStatusTracker tracker)
+    public AgentStatusBottomPanel(IAgentStatusTracker tracker, IColorConsole colorConsole)
     {
         _tracker = tracker;
+        _colorConsole = colorConsole;
         _tracker.Changed += OnTrackerChanged;
+        _lines = new string[LineCountValue];
     }
 
     private void OnTrackerChanged() => _isDirty = true;
@@ -32,10 +37,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
 
     public IReadOnlyList<string> GetLines(string currentInput)
     {
-        var lines = new string[LineCountValue];
-
         var all = _tracker.All;
-        var mainAgents = all.Where(s => !s.IsSubagent).ToList();
+        var mainAgents = all.Where(s => !s.IsSubagent && AgentRegistry.Agents.Any(a => a.SessionKey == s.SessionKey)).ToList();
         // Show ALL subagents (active + recently finished), filtering only those
         // that finished more than 30 seconds ago to keep the panel informative.
         var activeSubs = all.Where(s => s.IsSubagent && !ShouldHideSubagent(s)).ToList();
@@ -46,28 +49,31 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
             .Where(g => !string.IsNullOrEmpty(g.Key))
             .ToList();
 
-        // Line 0: Tab autocomplete suggestion slot (must be empty)
-        lines[0] = string.Empty;
+        int rowIndex = 0;
 
-        // Lines 1-3: Subagent groups (one row per parent agent, up to 3)
-        int groupIdx = 0;
-        for (int line = 1; line <= 3; line++)
+        AddRow(ref rowIndex, BuildCenteredMainAgentsLine(mainAgents));
+        AddRow(ref rowIndex, "");
+
+        for (int i = 0; i < subagentGroups.Count; i++)
         {
-            if (groupIdx < subagentGroups.Count)
-            {
-                lines[line] = BuildSubagentGroupLine(subagentGroups[groupIdx], mainAgents);
-                groupIdx++;
-            }
-            else
-            {
-                lines[line] = string.Empty;
-            }
+            AddRow(ref rowIndex, BuildSubagentGroupLine(subagentGroups[i], mainAgents));
+            AddRow(ref rowIndex, "");
         }
 
-        // Line 4: All main agents centered
-        lines[4] = BuildCenteredMainAgentsLine(mainAgents);
+        ClearRows(rowIndex);
 
-        return lines;
+        return _lines;
+    }
+
+    private void AddRow(ref int rowIndex, string row)
+    {
+        _lines[LineCountValue - ++rowIndex] = row;
+    }
+
+    private void ClearRows(int rowIndex)
+    {
+        while (rowIndex != LineCountValue)
+            AddRow(ref rowIndex, string.Empty);
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -99,7 +105,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
 
     // ─────────────────────────────────────────────────────────────────
     // Main agents line (centered)
-    // Format: "🎩 Maestro 🟢 │ 🦊 Anime 🟢 │ 🤖 Worker ⚪"
+    // Format: "🎩 🟢 │ 🦊 🟢 │ 🤖 ⚪"
     // ─────────────────────────────────────────────────────────────────
 
     private static string BuildCenteredMainAgentsLine(List<AgentStatusSnapshot> mainAgents)
@@ -120,7 +126,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
             first = false;
 
             var statusEmoji = agent.GetStatusEmoji();
-            sb.Append($"[{color}]{emoji} {name}[/] {statusEmoji}");
+            sb.Append($"{emoji} {statusEmoji}");
         }
 
         if (first) // nothing visible
@@ -137,7 +143,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
     {
         try
         {
-            int consoleWidth = Console.WindowWidth > 0 ? Console.WindowWidth : 80;
+            int consoleWidth = ConsoleMetrics.GetWindowWidth();
             int visibleLen = GetVisibleLength(markup);
             int padding = Math.Max(0, (consoleWidth - visibleLen) / 2);
             return new string(' ', padding) + markup;
@@ -154,16 +160,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
     /// </summary>
     private static int GetVisibleLength(string markup)
     {
-        // Step 1: replace escaped brackets with single-char placeholders
-        var temp = markup.Replace("[[", "\x01").Replace("]]", "\x02");
-
-        // Step 2: strip markup tags
-        temp = Regex.Replace(temp, @"\[[^\]]*\]", "");
-
-        // Step 3: restore escaped brackets
-        temp = temp.Replace("\x01", "[").Replace("\x02", "]");
-
-        return temp.Length;
+        return Markup.Remove(markup).Length;
     }
 
     private static bool ShouldHideSubagent(AgentStatusSnapshot s)
@@ -197,12 +194,12 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
             var emoji = AgentSettingsPersistenceLegacy.GetPersistedEmoji(registryAgent.AgentId) ?? "🤖";
             var color = AgentSettingsPersistenceLegacy.GetPersistedColor(registryAgent.AgentId) ?? "grey";
             var show = AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(registryAgent.AgentId);
-            var name = EscapeMarkup(registryAgent.Name);
+            var name = Markup.Escape(registryAgent.Name);
             return (emoji, color, name, show);
         }
 
         // Fallback: use snapshot data
-        var fallbackName = EscapeMarkup(ShortenMainAgentName(snapshot.DisplayName));
+        var fallbackName = Markup.Escape(ShortenMainAgentName(snapshot.DisplayName));
         return ("🤖", "grey", fallbackName, true);
     }
 
@@ -224,15 +221,5 @@ public sealed class AgentStatusBottomPanel : IBottomPanel
         }
 
         return displayName.Length > 16 ? displayName[..16] : displayName;
-    }
-
-    /// <summary>
-    /// Escapes Spectre markup characters in text so they don't break rendering.
-    /// </summary>
-    private static string EscapeMarkup(string text)
-    {
-        return text
-            .Replace("[", "[[")
-            .Replace("]", "]]");
     }
 }

@@ -17,8 +17,6 @@ internal static class Program
 
         // Create agent status tracker and bottom panel
         var agentStatusTracker = new AgentStatusTracker();
-        var agentStatusPanel = new AgentStatusBottomPanel(agentStatusTracker);
-        shellHost.SetDefaultPanel(agentStatusPanel);
 
         // Use TestModeServiceFactory when test mode is enabled
         ServiceFactory factory;
@@ -32,6 +30,9 @@ internal static class Program
         }
 
         var colorConsole = factory.CreateColorConsole();
+
+        var agentStatusPanel = new AgentStatusBottomPanel(agentStatusTracker, colorConsole);
+        shellHost.SetDefaultPanel(agentStatusPanel);
 
         var bootstrapper = new AppBootstrapper(configService, factory, shellHost, colorConsole, null, testModeEnabled);
         var exitCode = await bootstrapper.RunAsync(cts.Token);

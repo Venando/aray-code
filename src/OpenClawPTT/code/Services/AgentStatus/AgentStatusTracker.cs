@@ -2,6 +2,14 @@ namespace OpenClawPTT.Services;
 
 /// <summary>
 /// Thread-safe in-memory store for agent and subagent status snapshots.
+/// <para>
+/// <b>Non-erasure guarantee:</b> <see cref="Update"/> always passes the
+/// previously stored snapshot to <see cref="AgentStatusExtractor.Extract"/>
+/// so that information present in an earlier, richer payload is never
+/// overwritten by a later partial payload.  The merge logic lives in the
+/// extractor; the tracker is purely a thread-safe key-value store that
+/// fires <see cref="Changed"/> on every write.
+/// </para>
 /// </summary>
 public sealed class AgentStatusTracker : IAgentStatusTracker
 {
@@ -10,23 +18,32 @@ public sealed class AgentStatusTracker : IAgentStatusTracker
 
     public event Action? Changed;
 
+    /// <summary>
+    /// Stores or merges <paramref name="snapshot"/> into the tracker.
+    /// The incoming snapshot is merged with the existing one (if any) so
+    /// that no previously captured field is erased by a later partial event.
+    /// </summary>
     public void Update(AgentStatusSnapshot snapshot)
     {
+        bool changed;
         lock (_lock)
         {
-            // Preserve ParentSessionKey from existing snapshot if new one lacks it.
-            // This prevents a subagent from "demoting" to main agent when a later
-            // payload omits the parent field.
-            if (string.IsNullOrEmpty(snapshot.ParentSessionKey)
-                && _snapshots.TryGetValue(snapshot.SessionKey, out var existing)
-                && !string.IsNullOrEmpty(existing.ParentSessionKey))
-            {
-                snapshot = snapshot with { ParentSessionKey = existing.ParentSessionKey };
-            }
+            _snapshots.TryGetValue(snapshot.SessionKey, out var existing);
 
-            _snapshots[snapshot.SessionKey] = snapshot;
+            // Merge with the existing snapshot so that fields absent in the
+            // new payload are preserved from the old one.
+            var merged = existing is null
+                ? snapshot
+                : AgentStatusExtractor.MergeSnapshots(existing, snapshot);
+
+            changed = !ReferenceEquals(existing, merged)
+                      && (existing is null || !existing.Equals(merged));
+
+            _snapshots[snapshot.SessionKey] = merged;
         }
-        Changed?.Invoke();
+
+        if (changed)
+            Changed?.Invoke();
     }
 
     public void Remove(string sessionKey)

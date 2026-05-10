@@ -184,19 +184,20 @@ public class GatewayMessager : IDisposable, IRpcCaller
         _console.Log("debug", $"Event name={name}", LogLevel.Debug);
 
         // ── Extract agent/subagent status from ALL payloads BEFORE filtering ──
-        var snapshot = AgentStatusExtractor.Extract(payload);
+        var snapshot = AgentStatusExtractor.Extract(_console, payload);
         if (snapshot != null)
         {
             _agentStatusTracker.Update(snapshot);
         }
+        
         // Also handle explicit subagent creation events that may not carry a nested session
-        if (name.Contains("subagent", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("spawn", StringComparison.OrdinalIgnoreCase))
-        {
-            var createSnapshot = AgentStatusExtractor.Extract(payload);
-            if (createSnapshot != null)
-                _agentStatusTracker.Update(createSnapshot);
-        }
+        // if (name.Contains("subagent", StringComparison.OrdinalIgnoreCase) ||
+        //     name.Contains("spawn", StringComparison.OrdinalIgnoreCase))
+        // {
+        //     var createSnapshot = AgentStatusExtractor.Extract(_console, payload);
+        //     if (createSnapshot != null)
+        //         _agentStatusTracker.Update(createSnapshot);
+        // }
 
         // Debug: log all events for error/fallback detection
         var isNoteworthy = IsNoteworthyEvent(name);
