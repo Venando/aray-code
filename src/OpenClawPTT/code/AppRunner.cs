@@ -107,14 +107,14 @@ public class AppRunner : IDisposable
         try
         {
             _console.Log("tts", "Initializing TTS...");
-            var ttsService = new TtsService(cfg, _console);
+            using var ttsService = new TtsService(cfg, _console);
             ct.ThrowIfCancellationRequested();
 
             if (ttsService.Provider != null)
             {
                 _statusService.SetTtsStatus("Connected", StatusColor.Green);
                 _console.LogOk("tts", $"TTS connected ({ttsService.ProviderType})");
-                return ttsService.Provider;
+                return ttsService.ReleaseProvider();
             }
 
             // Provider is null (Edge with no key, etc.) — warn but don't error

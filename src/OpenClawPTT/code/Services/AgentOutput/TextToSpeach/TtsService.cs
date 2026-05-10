@@ -22,7 +22,7 @@ public enum TtsProviderType
 /// </summary>
 public sealed class TtsService : IDisposable
 {
-    private readonly ITextToSpeech? _provider;
+    private ITextToSpeech? _provider;
     private readonly TtsProviderType _providerType;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
@@ -135,6 +135,17 @@ public sealed class TtsService : IDisposable
         }
 
         return await _provider.SynthesizeAsync(text, voice, model, ct);
+    }
+
+    /// <summary>
+    /// Releases ownership of the TTS provider, transferring it to the caller.
+    /// After calling this, Dispose() will not dispose the provider.
+    /// </summary>
+    public ITextToSpeech? ReleaseProvider()
+    {
+        var provider = _provider;
+        _provider = null;  // Prevent Dispose from killing the provider
+        return provider;
     }
 
     public void Dispose()
