@@ -49,6 +49,18 @@ public sealed class AppBootstrapper : IDisposable
             // Start StreamShell UI (non-blocking)
             var shellTask = _shellHost.Run(_cts.Token);
 
+            // When StreamShell exits unexpectedly (e.g. Ctrl+D), cancel the app's
+            // CTS so the runner loop also stops — killing both, not just StreamShell.
+            // When the app shuts down normally (/quit), _cts is already cancelled
+            // so this continuation is a no-op.
+            _ = shellTask.ContinueWith(_ =>
+            {
+                if (_cts is { IsCancellationRequested: false })
+                {
+                    try { _cts.Cancel(); } catch (ObjectDisposedException) { }
+                }
+            }, TaskContinuationOptions.ExecuteSynchronously);
+
             var cfg = await _configService.LoadOrSetupAsync(_shellHost, ct: _cts.Token);
 
             // Apply terminal display configuration from loaded config
@@ -78,8 +90,10 @@ public sealed class AppBootstrapper : IDisposable
 
     private void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
     {
+        // Ctrl+C: suppress process termination but do NOT cancel the app.
+        // The user wants Ctrl+C to not kill the app — it's handled by StreamShell as Copy.
+        // Ctrl+Break can also arrive here; we ignore it too.
         e.Cancel = true;
-        _cts?.Cancel();
     }
 
     public void Dispose()
