@@ -18,6 +18,8 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public sealed class StatusService : IStatusService, IDisposable
 {
+    private const string RepeatedCharacterMarkup = "white";
+    private const string ConversationNameMarkup = $"italic {RepeatedCharacterMarkup}"; 
     private readonly IStreamShellHost _shellHost;
     private IAgentStatusTracker? _agentTracker;
     private readonly object _lock = new();
@@ -28,6 +30,7 @@ public sealed class StatusService : IStatusService, IDisposable
     private string _ttsLabel = "Starting";
     private StatusColor _ttsColor = StatusColor.Yellow;
     private string? _conversationName;
+
 
     public StatusService(IStreamShellHost shellHost, IAgentStatusTracker? agentStatusTracker = null)
     {
@@ -109,7 +112,7 @@ public sealed class StatusService : IStatusService, IDisposable
             string rightText = $"  GW:[{ToMarkupColor(_gatewayColor)}]● {_gatewayLabel}[/]" +
                                $"  TTS:[{ToMarkupColor(_ttsColor)}]● {_ttsLabel}[/]";
             string leftText = BuildLeftText();
-            _shellHost.SetTopSeparator(leftText: leftText, rightText: rightText, repeatedCharacter: '─');
+            _shellHost.SetTopSeparator(leftText: leftText, rightText: rightText, repeatedCharacter: '─', RepeatedCharacterMarkup);
         }
         catch (Exception ex)
         {
@@ -165,10 +168,10 @@ public sealed class StatusService : IStatusService, IDisposable
         // Token usage: percentage (current/max)
         AppendTokenUsage(mainAgent);
 
-        _sb.Append(' ');
-
         // Conversation name (if generated)
         AppendConversationName();
+
+        _sb.Append(' ');
 
         return _sb.ToString();
     }
@@ -296,7 +299,7 @@ public sealed class StatusService : IStatusService, IDisposable
         if (string.IsNullOrWhiteSpace(_conversationName))
             return;
 
-        _sb.Append("[grey]\u2502[/] [italic]");
+        _sb.Append($"[grey]\u2502[/] [{ConversationNameMarkup}]");
         _sb.Append(_conversationName);
         _sb.Append("[/] [grey]\u2502[/]");
     }
