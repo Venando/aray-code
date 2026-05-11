@@ -27,6 +27,7 @@ public sealed class StatusService : IStatusService, IDisposable
     private StatusColor _gatewayColor = StatusColor.Yellow;
     private string _ttsLabel = "Starting";
     private StatusColor _ttsColor = StatusColor.Yellow;
+    private string? _conversationName;
 
     public StatusService(IStreamShellHost shellHost, IAgentStatusTracker? agentStatusTracker = null)
     {
@@ -70,6 +71,15 @@ public sealed class StatusService : IStatusService, IDisposable
 
             _agentTracker = tracker;
             _agentTracker.Changed += OnAgentStatusChanged;
+            Render();
+        }
+    }
+
+    public void SetConversationName(string? name)
+    {
+        lock (_lock)
+        {
+            _conversationName = name;
             Render();
         }
     }
@@ -156,6 +166,9 @@ public sealed class StatusService : IStatusService, IDisposable
         AppendTokenUsage(mainAgent);
 
         _sb.Append(' ');
+
+        // Conversation name (if generated)
+        AppendConversationName();
 
         return _sb.ToString();
     }
@@ -276,6 +289,16 @@ public sealed class StatusService : IStatusService, IDisposable
         {
             return null;
         }
+    }
+
+    private void AppendConversationName()
+    {
+        if (string.IsNullOrWhiteSpace(_conversationName))
+            return;
+
+        _sb.Append("[grey]\u2502[/] [italic]");
+        _sb.Append(_conversationName);
+        _sb.Append("[/] [grey]\u2502[/]");
     }
 
     private static string? TryGetPersistedColor(string agentId)

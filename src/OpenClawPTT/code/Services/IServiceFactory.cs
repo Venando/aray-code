@@ -41,4 +41,6 @@ public interface IServiceFactory
         bool requireConfirmBeforeSend = false);
 
     ITtsSummarizer CreateTtsSummarizer(IDirectLlmService? directLlm);
+
+    IConversationNamingService CreateConversationNamingService(IDirectLlmService? directLlm);
 }

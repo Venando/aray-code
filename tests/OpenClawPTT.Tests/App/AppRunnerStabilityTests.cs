@@ -60,6 +60,7 @@ public class AppRunnerStabilityTests
             bool requireConfirmBeforeSend = false) => PttLoop.Object;
 
         public ITtsSummarizer CreateTtsSummarizer(IDirectLlmService? directLlm) => Mock.Of<ITtsSummarizer>();
+        public IConversationNamingService CreateConversationNamingService(IDirectLlmService? directLlm) => Mock.Of<IConversationNamingService>();
     }
 
     private static IAgentSettingsPersistence CreatePersistenceMock()

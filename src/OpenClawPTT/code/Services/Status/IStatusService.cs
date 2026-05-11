@@ -17,4 +17,10 @@ public interface IStatusService
     /// status on the left side of the top separator. Safe to call after construction.
     /// </summary>
     void SetAgentStatusTracker(IAgentStatusTracker tracker);
+
+    /// <summary>
+    /// Sets the conversation name displayed in the top separator.
+    /// Pass null to clear the conversation name.
+    /// </summary>
+    void SetConversationName(string? name);
 }

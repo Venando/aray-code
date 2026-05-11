@@ -108,4 +108,9 @@ public class ServiceFactory : IServiceFactory
     {
         return new TtsSummarizer(directLlm, _colorConsole);
     }
+
+    public IConversationNamingService CreateConversationNamingService(IDirectLlmService? directLlm)
+    {
+        return new ConversationNamingService(directLlm, _colorConsole);
+    }
 }
