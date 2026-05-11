@@ -49,6 +49,9 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     // Reusable dictionary for O(1) agent lookup — cleared each render
     private readonly Dictionary<string, AgentInfo> _agentLookup = new();
 
+    // Reusable builder for the decorative cap line — separate from _builder to avoid interference
+    private readonly StringBuilder _capBuilder = new(256);
+
     // Cached console width to avoid calling ConsoleMetrics.GetWindowWidth() under lock.
     // Safe staleness: the panel re-renders frequently enough that a stale width is acceptable.
     private int _cachedConsoleWidth;
@@ -249,9 +252,11 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                 // Determine if we need the decorative top cap
                 bool needsCap = _maxLineCount > DefaultLineCount;
 
-                // Build status line
+                // Build status line and track per-agent segment widths for the cap
                 bool first = true;
                 int contentWidth = 0;
+                var segmentWidths = new List<int>(_visible.Count);
+                const int separatorChars = 3; // ' │ ' = 3 visible chars between agents
 
                 _builder.Append('│');
                 contentWidth += 1;
@@ -261,7 +266,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     if (!first)
                     {
                         _builder.Append(" [white bold]│[/] ");
-                        contentWidth += 3;
+                        contentWidth += separatorChars;
                     }
 
                     first = false;
@@ -271,9 +276,12 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     var color = Markup.Escape(
                         AgentSettingsPersistenceLegacy.GetPersistedColor(registryAgent.AgentId) ?? "grey");
 
+                    int segWidth = 0;
+
                     _builder.Append(emoji);
                     _builder.Append(' ');
-                    contentWidth += CharacterWidth.GetDisplayWidth(emoji) + 1;
+                    int emojiW = CharacterWidth.GetDisplayWidth(emoji);
+                    segWidth += emojiW + 1;
 
                     var rawName = registryAgent.Name ?? string.Empty;
                     var truncatedName = rawName.Length > MaxAgentNameLength
@@ -287,11 +295,15 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     _builder.Append(displayName);
                     _builder.Append("[/]");
                     _builder.Append(' ');
-                    contentWidth += displayName.Length + 1;
+                    segWidth += displayName.Length + 1;
 
                     var statusEmoji = Markup.Escape(snapshot.GetStatusEmoji());
                     _builder.Append(statusEmoji);
-                    contentWidth += CharacterWidth.GetDisplayWidth(statusEmoji);
+                    int statusW = CharacterWidth.GetDisplayWidth(statusEmoji);
+                    segWidth += statusW;
+
+                    contentWidth += segWidth;
+                    segmentWidths.Add(segWidth);
                 }
 
                 if (!first)
@@ -305,16 +317,35 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                         _builder.Insert(0, new string(' ', padding));
                     }
 
+                    // Build dynamic cap: ╭─┬─┬─╮ with segments matching agent widths
+                    _capBuilder.Clear();
+                    _capBuilder.Append('╭');
+                    for (int i = 0; i < segmentWidths.Count; i++)
+                    {
+                        _capBuilder.Append('─', segmentWidths[i]);
+                        if (i < segmentWidths.Count - 1)
+                        {
+                            // ─┬─ replaces ' │ ' (3 chars: dash + T-junction + dash)
+                            _capBuilder.Append("─┬─");
+                        }
+                        else
+                        {
+                            // ╮ closes after the last segment
+                            _capBuilder.Append('╮');
+                        }
+                    }
+
+                    string capLine = _capBuilder.ToString();
+
                     if (!needsCap)
                     {
                         // Single-line mode: decoration goes via StreamShell separator
-                        bottomSepRightText = "╭──────────────┬───────────────┬───────────";
+                        bottomSepRightText = capLine;
                     }
                     else
                     {
                         // Multi-line mode: top cap line is drawn above the status line
-                        _lines[0] = new string(' ', Math.Max(0, padding)) +
-                                    "╭──────────────┬───────────────┬───────────";
+                        _lines[0] = new string(' ', Math.Max(0, padding)) + capLine;
                     }
                 }
 
