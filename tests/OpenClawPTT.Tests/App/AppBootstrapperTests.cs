@@ -12,11 +12,13 @@ public class AppBootstrapperTests : IDisposable
     private readonly Mock<IServiceFactory> _fakeFactory;
     private readonly Mock<IStreamShellHost> _fakeShellHost;
     private readonly Mock<IColorConsole> _fakeConsole;
+    /// <summary>Controls shell task lifetime. Unset = shell keeps running.</summary>
+    private readonly TaskCompletionSource _shellTaskTcs = new();
 
     public AppBootstrapperTests()
     {
         _fakeShellHost = new Mock<IStreamShellHost>();
-        _fakeShellHost.Setup(x => x.Run(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _fakeShellHost.Setup(x => x.Run(It.IsAny<CancellationToken>())).Returns(_shellTaskTcs.Task);
         _fakeConsole = new Mock<IColorConsole>();
 
         _fakeConfig = new Mock<IConfigurationService>();
@@ -165,6 +167,32 @@ public class AppBootstrapperTests : IDisposable
         var exitCode = await bootstrapper.RunAsync(cts.Token);
 
         Assert.Equal(AppExitHandler.ExitCancelled, exitCode);
+    }
+
+    #endregion
+
+    #region Shell exit before runner (Ctrl+D)
+
+    [Fact]
+    public async Task RunAsync_ShellExitsBeforeRunner_CancelsCtsAndExitsCleanly()
+    {
+        // Simulate Ctrl+D: shell task completes before the runner starts.
+        // The bootstrapper should cancel the CTS and exit cleanly.
+        _shellTaskTcs.TrySetResult();
+
+        var mockRunner = MakeMockRunner(0);
+        var bootstrapper = new AppBootstrapper(
+            _fakeConfig.Object,
+            _fakeFactory.Object,
+            _fakeShellHost.Object,
+            _fakeConsole.Object,
+            (_, _) => mockRunner.Object);
+
+        // Should not throw or hang
+        var exitCode = await bootstrapper.RunAsync();
+
+        // Shell exiting gracefully should result in a clean exit (0)
+        Assert.Equal(0, exitCode);
     }
 
     #endregion
