@@ -7,7 +7,7 @@ namespace OpenClawPTT.Services;
 /// <summary>
 /// Compact left-aligned bottom panel showing agent statuses.
 /// Skips the currently active agent and sorts remaining agents by last activity.
-/// 
+///
 /// Line count is dynamically capped: expands up to <see cref="_maxLineCount"/> when
 /// content requires decorative borders, shrinks to 1 when only the status line is needed.
 /// This minimises string allocations (GC pressure) during quiet periods.
@@ -143,155 +143,30 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             try
             {
                 _builder.Clear();
-
-                // Refresh cached console width before render
                 _cachedConsoleWidth = ConsoleMetrics.GetWindowWidth();
 
                 var snapshots = _tracker.All;
-                var agents = AgentRegistry.Agents;
                 var activeSessionKey = _cachedActiveSessionKey;
 
-                // Materialize agents once to avoid triple enumeration + enumerator boxing
-                List<AgentInfo> agentList;
-                if (agents is null)
+                // Prepare: materialize agents, filter visible, sort by activity
+                var visibleAgents = PrepareVisibleAgents(snapshots, activeSessionKey);
+
+                // Render: build the status line and cap line
+                if (visibleAgents.Count > 0)
                 {
-                    agentList = new List<AgentInfo>(0);
-                }
-                else if (agents is List<AgentInfo> list)
-                {
-                    agentList = list;
+                    var statusLine = RenderStatusLine(visibleAgents, out var segmentWidths, out var contentWidth);
+                    var padding = ComputePadding(contentWidth);
+
+                    if (padding > 0)
+                        statusLine = new string(' ', padding) + statusLine;
+
+                    _lines[agentListPrintIndex] = statusLine;
+                    _lines[capPrintIndex] = RenderCapLine(segmentWidths, padding);
                 }
                 else
                 {
-                    agentList = new List<AgentInfo>(agents);
+                    _lines[agentListPrintIndex] = NoAgentsInfoTextMarkup;
                 }
-
-                // Build dictionary for O(1) agent lookup
-                _agentLookup.Clear();
-                foreach (var agent in agentList)
-                {
-                    if (agent?.SessionKey is not null)
-                        _agentLookup[agent.SessionKey] = agent;
-                }
-
-                // Collect visible agents (skip active, skip hidden, skip subagents)
-                _visible.Clear();
-                if (snapshots is not null)
-                {
-                    foreach (var snapshot in snapshots)
-                    {
-                        if (snapshot is null)
-                            continue;
-                        if (snapshot.IsSubagent)
-                            continue;
-                        if (snapshot.SessionKey == activeSessionKey)
-                            continue;
-
-                        if (!_agentLookup.TryGetValue(snapshot.SessionKey!, out var registryAgent))
-                            continue;
-
-                        var show = AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(registryAgent.AgentId);
-                        if (!show)
-                            continue;
-
-                        _visible.Add((snapshot, registryAgent));
-                    }
-                }
-
-                // Sort by last activity descending (most recent first)
-                _visible.Sort((a, b) =>
-                {
-                    long aTime = a.Snapshot.UpdatedAt ?? a.Snapshot.StartedAt ?? 0;
-                    long bTime = b.Snapshot.UpdatedAt ?? b.Snapshot.StartedAt ?? 0;
-                    return bTime.CompareTo(aTime);
-                });
-
-                // Build status line and track per-agent segment widths for the cap
-                bool first = true;
-                int contentWidth = 0;
-                var segmentWidths = new List<int>(_visible.Count);
-                const int separatorChars = 3; // ' │ ' = 3 visible chars between agents
-
-                _builder.Append('│');
-                contentWidth += 1;
-
-                foreach (var (snapshot, registryAgent) in _visible)
-                {
-                    if (!first)
-                    {
-                        _builder.Append(" [white bold]│[/] ");
-                        contentWidth += separatorChars;
-                    }
-
-                    first = false;
-
-                    var emoji = Markup.Escape(
-                        AgentSettingsPersistenceLegacy.GetPersistedEmoji(registryAgent.AgentId) ?? "🤖");
-                    var color = Markup.Escape(
-                        AgentSettingsPersistenceLegacy.GetPersistedColor(registryAgent.AgentId) ?? "grey");
-
-                    int segWidth = 0;
-
-                    _builder.Append(emoji);
-                    _builder.Append(' ');
-                    int emojiW = CharacterWidth.GetDisplayWidth(emoji);
-                    segWidth += emojiW + 1;
-
-                    var rawName = registryAgent.Name ?? string.Empty;
-                    var truncatedName = rawName.Length > MaxAgentNameLength
-                        ? rawName[..MaxAgentNameLength]
-                        : rawName;
-                    var displayName = Markup.Escape(truncatedName);
-
-                    _builder.Append('[');
-                    _builder.Append(color);
-                    _builder.Append(']');
-                    _builder.Append(displayName);
-                    _builder.Append("[/]");
-                    _builder.Append(' ');
-                    segWidth += displayName.Length + 1;
-
-                    var statusEmoji = Markup.Escape(snapshot.GetStatusEmoji());
-                    _builder.Append(statusEmoji);
-                    int statusW = CharacterWidth.GetDisplayWidth(statusEmoji);
-                    segWidth += statusW;
-
-                    contentWidth += segWidth;
-                    segmentWidths.Add(segWidth);
-                }
-
-                if (!first)
-                {
-                    var width = _cachedConsoleWidth;
-                    var padding = width - contentWidth - 1;
-
-                    if (padding > 0)
-                    {
-                        // Single bulk insert avoids O(n) per-char shifts of the StringBuilder buffer
-                        _builder.Insert(0, new string(' ', padding));
-                    }
-
-                    // Build dynamic cap: ╭─┬─┬─ with segments matching agent widths
-                    _capBuilder.Clear();
-                    _capBuilder.Append('╭');
-                    for (int i = 0; i < segmentWidths.Count; i++)
-                    {
-                        _capBuilder.Append('─', segmentWidths[i]);
-                        if (i < segmentWidths.Count - 1)
-                        {
-                            // ─┬─ replaces ' │ ' (3 chars: dash + T-junction + dash)
-                            _capBuilder.Append("─┬─");
-                        }
-                    }
-
-                    string capLine = _capBuilder.ToString();
-
-                    _lines[capPrintIndex] = new string(' ', Math.Max(0, padding)) + capLine;
-                }
-
-                _lines[agentListPrintIndex] = !first
-                    ? _builder.ToString()
-                    : NoAgentsInfoTextMarkup;
             }
             catch
             {
@@ -304,6 +179,182 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         }
 
         return _lines;
+    }
+
+    // ── Data Preparation ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Builds a filtered, sorted list of visible agents.
+    /// Skips: active agent, subagents, hidden agents, and agents missing from the registry.
+    /// Sorted by last activity descending (most recent first).
+    /// </summary>
+    private List<(AgentStatusSnapshot Snapshot, AgentInfo Agent)> PrepareVisibleAgents(
+        IReadOnlyList<AgentStatusSnapshot>? snapshots,
+        string? activeSessionKey)
+    {
+        var agentList = MaterializeAgents(AgentRegistry.Agents);
+        BuildAgentLookup(agentList);
+
+        _visible.Clear();
+
+        if (snapshots is not null)
+        {
+            foreach (var snapshot in snapshots)
+            {
+                if (snapshot is null || snapshot.IsSubagent || snapshot.SessionKey == activeSessionKey)
+                    continue;
+
+                if (!_agentLookup.TryGetValue(snapshot.SessionKey!, out var registryAgent))
+                    continue;
+
+                var show = AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(registryAgent.AgentId);
+                if (!show)
+                    continue;
+
+                _visible.Add((snapshot, registryAgent));
+            }
+        }
+
+        _visible.Sort(ByLastActivityDesc);
+        return _visible;
+    }
+
+    /// <summary>Materializes the agents enumerable into a list to avoid repeated enumeration.</summary>
+    private static List<AgentInfo> MaterializeAgents(IEnumerable<AgentInfo>? agents)
+    {
+        if (agents is null)
+            return new List<AgentInfo>(0);
+
+        if (agents is List<AgentInfo> list)
+            return list;
+
+        return new List<AgentInfo>(agents);
+    }
+
+    /// <summary>Rebuilds the agent lookup dictionary for O(1) access by session key.</summary>
+    private void BuildAgentLookup(List<AgentInfo> agents)
+    {
+        _agentLookup.Clear();
+        foreach (var agent in agents)
+        {
+            if (agent?.SessionKey is not null)
+                _agentLookup[agent.SessionKey] = agent;
+        }
+    }
+
+    /// <summary>Sort comparison: most recently active agents first.</summary>
+    private static int ByLastActivityDesc(
+        (AgentStatusSnapshot Snapshot, AgentInfo Agent) a,
+        (AgentStatusSnapshot Snapshot, AgentInfo Agent) b)
+    {
+        long aTime = a.Snapshot.UpdatedAt ?? a.Snapshot.StartedAt ?? 0;
+        long bTime = b.Snapshot.UpdatedAt ?? b.Snapshot.StartedAt ?? 0;
+        return bTime.CompareTo(aTime);
+    }
+
+    // ── Rendering ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Renders the full status line for all visible agents.
+    /// Returns the rendered string and outputs per-agent segment widths + total content width.
+    /// </summary>
+    private string RenderStatusLine(
+        List<(AgentStatusSnapshot Snapshot, AgentInfo Agent)> visible,
+        out List<int> segmentWidths,
+        out int contentWidth)
+    {
+        _builder.Append('│');
+        contentWidth = 1;
+
+        segmentWidths = new List<int>(visible.Count);
+        bool first = true;
+        const int SeparatorChars = 3; // ' │ ' = 3 visible chars between agents
+
+        foreach (var (snapshot, registryAgent) in visible)
+        {
+            if (!first)
+            {
+                _builder.Append(" [white bold]│[/] ");
+                contentWidth += SeparatorChars;
+            }
+
+            first = false;
+
+            int segWidth = RenderAgentSegment(snapshot, registryAgent);
+            contentWidth += segWidth;
+            segmentWidths.Add(segWidth);
+        }
+
+        return _builder.ToString();
+    }
+
+    /// <summary>Renders a single agent segment (emoji, name, status) and returns its display width.</summary>
+    private int RenderAgentSegment(AgentStatusSnapshot snapshot, AgentInfo registryAgent)
+    {
+        int segWidth = 0;
+
+        // Emoji
+        var emoji = Markup.Escape(
+            AgentSettingsPersistenceLegacy.GetPersistedEmoji(registryAgent.AgentId) ?? "🤖");
+        _builder.Append(emoji);
+        _builder.Append(' ');
+        segWidth += CharacterWidth.GetDisplayWidth(emoji) + 1;
+
+        // Name (truncated + colorized)
+        var color = Markup.Escape(
+            AgentSettingsPersistenceLegacy.GetPersistedColor(registryAgent.AgentId) ?? "grey");
+        var displayName = FormatAgentName(registryAgent.Name);
+
+        _builder.Append('[');
+        _builder.Append(color);
+        _builder.Append(']');
+        _builder.Append(displayName);
+        _builder.Append("[/]");
+        _builder.Append(' ');
+        segWidth += displayName.Length + 1;
+
+        // Status emoji
+        var statusEmoji = Markup.Escape(snapshot.GetStatusEmoji());
+        _builder.Append(statusEmoji);
+        segWidth += CharacterWidth.GetDisplayWidth(statusEmoji);
+
+        return segWidth;
+    }
+
+    /// <summary>Truncates and escapes an agent name for display.</summary>
+    private static string FormatAgentName(string? name)
+    {
+        var raw = name ?? string.Empty;
+        var truncated = raw.Length > MaxAgentNameLength
+            ? raw[..MaxAgentNameLength]
+            : raw;
+        return Markup.Escape(truncated);
+    }
+
+    /// <summary>Calculates left padding needed to align content to the right edge.</summary>
+    private int ComputePadding(int contentWidth)
+    {
+        var padding = _cachedConsoleWidth - contentWidth - 1;
+        return Math.Max(0, padding);
+    }
+
+    /// <summary>
+    /// Renders the decorative cap line (╭─┬─┬─) matching agent segment widths.
+    /// Prepends padding so it aligns with the status line below.
+    /// </summary>
+    private string RenderCapLine(List<int> segmentWidths, int padding)
+    {
+        _capBuilder.Clear();
+        _capBuilder.Append('╭');
+
+        for (int i = 0; i < segmentWidths.Count; i++)
+        {
+            _capBuilder.Append('─', segmentWidths[i]);
+            if (i < segmentWidths.Count - 1)
+                _capBuilder.Append("─┬─");
+        }
+
+        return new string(' ', padding) + _capBuilder.ToString();
     }
 
     // ── Registry change detection ──────────────────────────────────────────
