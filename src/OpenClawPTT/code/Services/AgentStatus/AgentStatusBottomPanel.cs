@@ -15,20 +15,22 @@ namespace OpenClawPTT.Services;
 public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 {
     private const int MaxAgentNameLength = 10;
-    private const int DefaultLineCount = 1;
+    private const int DefaultLineCount = 2;
+    private const string NoAgentsInfoText = "No agents connected";
+    private const string NoAgentsInfoTextMarkup = $"[grey]{NoAgentsInfoText}[/]";
+    private const string AgentStatusErrorText = "No agents connected";
+    private const string AgentStatusErrorTextMarkup = $"[grey]No agents connected[/]";
 
     private readonly IAgentStatusTracker _tracker;
-    private readonly IStreamShellHost _streamShellHost;
     private readonly StringBuilder _builder = new(256);
     private readonly string[] _lines;
-    private readonly int _maxLineCount;
     private readonly object _sync = new();
 
     // Reusable list for visible agents — avoids per-render allocation
     private readonly List<(AgentStatusSnapshot Snapshot, AgentInfo Agent)> _visible = new();
 
     private bool _disposed;
-    private int _currentLineCount = DefaultLineCount;
+    private readonly int _lineCount = DefaultLineCount;
 
     // Version counter: increments on every meaningful change. Rendered version tracks
     // what was last painted. IsDirty is simply (_version != _renderedVersion).
@@ -43,9 +45,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     // Registry-change detection (AgentRegistry has no "agents changed" event)
     private int _lastRegistryCount;
 
-    // Command override: shows /stop /reset /new status until tracker catches up
-    private string? _commandOverride;
-
     // Reusable dictionary for O(1) agent lookup — cleared each render
     private readonly Dictionary<string, AgentInfo> _agentLookup = new();
 
@@ -57,15 +56,13 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     private int _cachedConsoleWidth;
 
     public AgentStatusBottomPanel(
-        IStreamShellHost streamShellHost,
         IAgentStatusTracker tracker,
         int maxLineCount = DefaultLineCount)
     {
-        _streamShellHost = streamShellHost;
         _tracker = tracker;
-        _maxLineCount = Math.Max(1, maxLineCount);
-        _lines = new string[_maxLineCount];
-        _cachedConsoleWidth = GetWindowWidth();
+        _lineCount = Math.Max(2, maxLineCount);
+        _lines = new string[_lineCount];
+        _cachedConsoleWidth = ConsoleMetrics.GetWindowWidth();
 
         // Set version before subscribing so event handlers can safely increment it
         _version = 1;
@@ -111,7 +108,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     /// Dynamically shrinks to 1 when no decorative border is required,
     /// expands up to <see cref="_maxLineCount"/> when borders are needed.
     /// </summary>
-    public int LineCount => _currentLineCount;
+    public int LineCount => _lineCount;
 
     public bool IsDirty
     {
@@ -121,74 +118,34 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             {
                 if (_disposed) return false;
                 CheckRegistryVersionBump();
-                return _version != _renderedVersion || _commandOverride != null;
+                return _version != _renderedVersion;
             }
-        }
-    }
-
-    public void ClearDirty()
-    {
-        lock (_sync)
-        {
-            // No-op on version tracking: GetLines is the sole authority for advancing
-            // _renderedVersion. We only clear the command override here so a caller
-            // that genuinely wants to dismiss a pending command can do so.
-            _commandOverride = null;
         }
     }
 
     public IReadOnlyList<string> GetLines(string currentInput)
     {
-        string? bottomSepRightText = null;
         IReadOnlyList<string> result;
+        int agentListPrintIndex = _lineCount - 1;
+        int capPrintIndex = _lineCount - 2;
 
         lock (_sync)
         {
             if (_disposed)
             {
                 result = Array.Empty<string>();
-                bottomSepRightText = null;
-                goto emit;
+                return result;
             }
 
             CheckRegistryVersionBump();
 
-            // Detect command input — overrides stale agent status until tracker updates
-            var commandDisplay = TryGetCommandDisplay(currentInput);
-            if (commandDisplay != null)
-                _commandOverride = commandDisplay;
-            else if (!string.IsNullOrEmpty(currentInput))
-                _commandOverride = null; // user typing something else — clear override
-            // Note: empty input (after Enter) keeps the override so the command
-            // status persists until the tracker catches up.
-
-            // Fast path: nothing changed, no command pending
-            if (_version == _renderedVersion && _commandOverride == null)
-            {
-                result = new ArraySegment<string>(_lines, 0, _currentLineCount);
-                bottomSepRightText = null;
-                goto emit;
-            }
-
-            // Command pending and no new tracker data yet — show command status
-            if (_version == _renderedVersion && _commandOverride != null)
-            {
-                _currentLineCount = DefaultLineCount;
-                _lines[0] = _commandOverride;
-                ClearStaleLines();
-                result = new ArraySegment<string>(_lines, 0, _currentLineCount);
-                bottomSepRightText = null;
-                goto emit;
-            }
-
             // Dirty path: rebuild from tracker data
             try
             {
-                _commandOverride = null; // tracker updated, clear any pending command display
                 _builder.Clear();
 
                 // Refresh cached console width before render
-                _cachedConsoleWidth = GetWindowWidth();
+                _cachedConsoleWidth = ConsoleMetrics.GetWindowWidth();
 
                 var snapshots = _tracker.All;
                 var agents = AgentRegistry.Agents;
@@ -248,9 +205,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     long bTime = b.Snapshot.UpdatedAt ?? b.Snapshot.StartedAt ?? 0;
                     return bTime.CompareTo(aTime);
                 });
-
-                // Determine if we need the decorative top cap
-                bool needsCap = _maxLineCount > DefaultLineCount;
 
                 // Build status line and track per-agent segment widths for the cap
                 bool first = true;
@@ -317,7 +271,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                         _builder.Insert(0, new string(' ', padding));
                     }
 
-                    // Build dynamic cap: ╭─┬─┬─╮ with segments matching agent widths
+                    // Build dynamic cap: ╭─┬─┬─ with segments matching agent widths
                     _capBuilder.Clear();
                     _capBuilder.Append('╭');
                     for (int i = 0; i < segmentWidths.Count; i++)
@@ -328,96 +282,28 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                             // ─┬─ replaces ' │ ' (3 chars: dash + T-junction + dash)
                             _capBuilder.Append("─┬─");
                         }
-                        else
-                        {
-                            // ╮ closes after the last segment
-                            _capBuilder.Append('╮');
-                        }
                     }
 
                     string capLine = _capBuilder.ToString();
 
-                    if (!needsCap)
-                    {
-                        // Single-line mode: decoration goes via StreamShell separator
-                        bottomSepRightText = capLine;
-                    }
-                    else
-                    {
-                        // Multi-line mode: top cap line is drawn above the status line
-                        _lines[0] = new string(' ', Math.Max(0, padding)) + capLine;
-                    }
+                    _lines[capPrintIndex] = new string(' ', Math.Max(0, padding)) + capLine;
                 }
 
-                // Write the status / "no agents" line
-                // Single-line: _lines[0] = status
-                // Multi-line:  _lines[0] = cap, _lines[1] = status
-                if (needsCap && !first)
-                {
-                    _lines[1] = _builder.ToString();
-                    _currentLineCount = Math.Min(2, _maxLineCount);
-                }
-                else
-                {
-                    _lines[0] = !first
-                        ? _builder.ToString()
-                        : "[grey]No agents connected[/]";
-                    _currentLineCount = DefaultLineCount;
-                }
-
-                ClearStaleLines();
+                _lines[agentListPrintIndex] = !first
+                    ? _builder.ToString()
+                    : NoAgentsInfoTextMarkup;
             }
             catch
             {
-                // Intentionally swallowed: render failures must not crash the StreamShell loop
-                _currentLineCount = DefaultLineCount;
-                _lines[0] = "[red]Agent status error[/]";
-                ClearStaleLines();
+                _lines[agentListPrintIndex] = AgentStatusErrorTextMarkup;
             }
             finally
             {
                 _renderedVersion = _version;
             }
-
-            result = new ArraySegment<string>(_lines, 0, _currentLineCount);
         }
 
-    emit:
-        // ── External calls (outside lock) ───────────────────────────────
-        // _streamShellHost.SetBottomSeparator may acquire its own locks;
-        // we must not hold _sync while calling it.
-        if (bottomSepRightText is not null)
-            _streamShellHost.SetBottomSeparator(null, bottomSepRightText, ' ');
-
-        return result;
-    }
-
-    /// <summary>
-    /// Releases string references in unused array slots so the GC can collect them.
-    /// </summary>
-    private void ClearStaleLines()
-    {
-        for (int i = _currentLineCount; i < _maxLineCount; i++)
-            _lines[i] = null!;
-    }
-
-    // ── Command detection ──────────────────────────────────────────────────
-
-    private static string? TryGetCommandDisplay(string currentInput)
-    {
-        if (string.IsNullOrWhiteSpace(currentInput))
-            return null;
-
-        var cmd = currentInput.Trim();
-
-        if (cmd.Equals("/stop", StringComparison.OrdinalIgnoreCase))
-            return "[yellow]⏹ Stopping agent...[/]";
-        if (cmd.Equals("/reset", StringComparison.OrdinalIgnoreCase))
-            return "[yellow]🔄 Resetting agent...[/]";
-        if (cmd.Equals("/new", StringComparison.OrdinalIgnoreCase))
-            return "[yellow]✨ New session...[/]";
-
-        return null;
+        return _lines;
     }
 
     // ── Registry change detection ──────────────────────────────────────────
@@ -427,17 +313,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         var agents = AgentRegistry.Agents;
         if (agents is null)
             return 0;
-
-        if (agents is System.Collections.ICollection col)
-            return col.Count;
-
-        int count = 0;
-        foreach (var _ in agents)
-        {
-            count++;
-            if (count > 100) break;
-        }
-        return count;
+        return agents.Count;
     }
 
     private void CheckRegistryVersionBump()
@@ -447,18 +323,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         {
             _lastRegistryCount = count;
             _version++;
-        }
-    }
-
-    private static int GetWindowWidth()
-    {
-        try
-        {
-            return ConsoleMetrics.GetWindowWidth();
-        }
-        catch
-        {
-            return 120; // safe fallback
         }
     }
 }

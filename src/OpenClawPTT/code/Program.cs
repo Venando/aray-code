@@ -33,7 +33,7 @@ internal static class Program
 
         // Load saved config so BottomPanelLineCount is honoured
         var appConfig = configService.Load() ?? new AppConfig();
-        var agentStatusPanel = new AgentStatusBottomPanel(shellHost, agentStatusTracker, appConfig.BottomPanelLineCount);
+        var agentStatusPanel = new AgentStatusBottomPanel(agentStatusTracker, appConfig.BottomPanelLineCount);
         shellHost.SetDefaultPanel(agentStatusPanel);
 
         var bootstrapper = new AppBootstrapper(configService, factory, shellHost, colorConsole, null, testModeEnabled);

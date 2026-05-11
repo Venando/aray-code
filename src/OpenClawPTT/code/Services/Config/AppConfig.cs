@@ -58,7 +58,7 @@ public sealed class AppConfig
     public double ReconnectDelaySeconds { get; set; } = 1.5;
 
     // Bottom panel settings
-    public int BottomPanelLineCount { get; set; } = 1; // Maximum height of the agent status bottom panel
+    public int BottomPanelLineCount { get; set; } = 2; // Maximum height of the agent status bottom panel
 
     // Text formatting
     public int RightMarginIndent { get; set; } = 5; // Minimum right margin indent in characters
