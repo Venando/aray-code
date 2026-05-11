@@ -72,9 +72,10 @@ public sealed class TtsConfigSection : IConfigSectionWizard
         switch (provider)
         {
             case TtsProviderType.OpenAI:
-                var openAiKey = await PromptTextAsync(host, "OpenAI API key for TTS",
+                var openAiKey = await PromptTextHelper.PromptAsync(host, "OpenAI API key for TTS",
                     config.TtsOpenAiApiKey ?? config.OpenAiApiKey ?? "",
-                    _ => true, null, isInitialSetup, ct, isSecret: true, allowEmpty: true);
+                    _ => true, null,
+                    ct, isSecret: true, allowEmpty: true);
                 if (openAiKey != null)
                 {
                     var newKey = string.IsNullOrWhiteSpace(openAiKey) ? null : openAiKey;
@@ -87,9 +88,10 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                 break;
 
             case TtsProviderType.Edge:
-                var subKey = await PromptTextAsync(host, "Azure TTS subscription key",
+                var subKey = await PromptTextHelper.PromptAsync(host, "Azure TTS subscription key",
                     config.TtsSubscriptionKey ?? "",
-                    _ => true, null, isInitialSetup, ct, isSecret: true, allowEmpty: true);
+                    _ => true, null,
+                    ct, isSecret: true, allowEmpty: true);
                 if (subKey != null)
                 {
                     var newKey = string.IsNullOrWhiteSpace(subKey) ? null : subKey;
@@ -99,9 +101,10 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                         changed = true;
                     }
                 }
-                var region = await PromptTextAsync(host, "Azure TTS region",
+                var region = await PromptTextHelper.PromptAsync(host, "Azure TTS region",
                     config.TtsRegion ?? "eastus",
-                    _ => true, null, isInitialSetup, ct, allowEmpty: false);
+                    _ => true, null,
+                    ct);
                 if (region != null && region != config.TtsRegion)
                 {
                     config.TtsRegion = region;
@@ -111,17 +114,19 @@ public sealed class TtsConfigSection : IConfigSectionWizard
 
             case TtsProviderType.Coqui:
             case TtsProviderType.Python:
-                var pythonPath = await PromptTextAsync(host, "Python path",
+                var pythonPath = await PromptTextHelper.PromptAsync(host, "Python path",
                     config.PythonPath ?? "python",
-                    _ => true, null, isInitialSetup, ct, allowEmpty: false);
+                    _ => true, null,
+                    ct);
                 if (pythonPath != null && pythonPath != config.PythonPath)
                 {
                     config.PythonPath = pythonPath;
                     changed = true;
                 }
-                var coquiModel = await PromptTextAsync(host, "Coqui model name",
+                var coquiModel = await PromptTextHelper.PromptAsync(host, "Coqui model name",
                     config.CoquiModelName ?? "tts_models/multilingual/mxtts/vits",
-                    _ => true, null, isInitialSetup, ct, allowEmpty: false);
+                    _ => true, null,
+                    ct);
                 if (coquiModel != null && coquiModel != config.CoquiModelName)
                 {
                     config.CoquiModelName = coquiModel;
@@ -130,17 +135,19 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                 break;
 
             case TtsProviderType.Piper:
-                var piperPath = await PromptTextAsync(host, "Piper binary path",
+                var piperPath = await PromptTextHelper.PromptAsync(host, "Piper binary path",
                     config.PiperPath ?? "piper",
-                    _ => true, null, isInitialSetup, ct, allowEmpty: false);
+                    _ => true, null,
+                    ct);
                 if (piperPath != null && piperPath != config.PiperPath)
                 {
                     config.PiperPath = piperPath;
                     changed = true;
                 }
-                var piperModel = await PromptTextAsync(host, "Piper model path",
+                var piperModel = await PromptTextHelper.PromptAsync(host, "Piper model path",
                     config.PiperModelPath ?? "",
-                    _ => true, null, isInitialSetup, ct, allowEmpty: true);
+                    _ => true, null,
+                    ct, allowEmpty: true);
                 if (piperModel != null)
                 {
                     var newPath = string.IsNullOrWhiteSpace(piperModel) ? null : piperModel;
@@ -154,9 +161,10 @@ public sealed class TtsConfigSection : IConfigSectionWizard
         }
 
         // ── Voice (optional) ──
-        var voice = await PromptTextAsync(host, "Voice name (optional)",
+        var voice = await PromptTextHelper.PromptAsync(host, "Voice name (optional)",
             config.TtsVoice ?? "",
-            _ => true, null, isInitialSetup, ct, allowEmpty: true);
+            _ => true, null,
+            ct, allowEmpty: true);
         if (voice != null)
         {
             var newVoice = string.IsNullOrWhiteSpace(voice) ? null : voice;
@@ -189,76 +197,4 @@ public sealed class TtsConfigSection : IConfigSectionWizard
     };
 
     private enum TtsOutputMode { AlwaysOn, Siso, Off }
-
-    // ── Text prompt helpers (same pattern as HarnessConfigSection) ──
-
-    private static async Task<string?> PromptTextAsync(
-        IStreamShellHost host,
-        string description,
-        string defaultValue,
-        Func<string, bool> validate,
-        string? validationHint,
-        bool isInitialSetup,
-        CancellationToken ct,
-        bool isSecret = false,
-        bool allowEmpty = false)
-    {
-        var tcs = new TaskCompletionSource<string?>();
-
-        void OnInput(StreamShell.UserInputSubmittedEventArgs e)
-        {
-            var input = (e.TextWithoutAttachments ?? e.RawOutput).Trim();
-
-            if (string.IsNullOrEmpty(input))
-            {
-                if (allowEmpty)
-                {
-                    tcs.TrySetResult("");
-                    return;
-                }
-                tcs.TrySetResult(defaultValue);
-                return;
-            }
-
-            if (!validate(input))
-            {
-                host.AddMessage($"[red]  ✗ Invalid value.{(validationHint != null ? " " + validationHint : "")}[/]");
-                SendTextPrompt(host, description, defaultValue, isSecret);
-                return;
-            }
-
-            var displayValue = isSecret ? MaskSecret(input) : input;
-            host.AddMessage($"[green]  ✓ {Spectre.Console.Markup.Escape(displayValue)}[/]");
-            tcs.TrySetResult(input);
-        }
-
-        host.UserInputSubmitted += OnInput;
-        try
-        {
-            SendTextPrompt(host, description, defaultValue, isSecret);
-            using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-            return await tcs.Task;
-        }
-        finally
-        {
-            host.UserInputSubmitted -= OnInput;
-        }
-    }
-
-    private static void SendTextPrompt(IStreamShellHost host, string description, string defaultValue, bool isSecret)
-    {
-        host.AddMessage($"[cyan2]▸ {Spectre.Console.Markup.Escape(description)}[/]");
-        var displayDefault = isSecret ? MaskSecret(defaultValue) : defaultValue;
-        if (!string.IsNullOrEmpty(displayDefault))
-            host.AddMessage($"  [grey](current: {Spectre.Console.Markup.Escape(displayDefault)}, press Enter to keep)[/]");
-    }
-
-    private static string MaskSecret(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return "(not set)";
-        if (value.Length <= 4)
-            return new string('*', value.Length);
-        return value[..4] + new string('*', Math.Min(value.Length - 4, 12));
-    }
 }

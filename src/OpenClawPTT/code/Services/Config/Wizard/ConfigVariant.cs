@@ -15,4 +15,7 @@ public sealed class ConfigVariant : IVariant
     }
 
     public ConfigVariant(string name) : this(name, name) { }
+
+    /// <summary>Creates a variant where the value is the same as the display name.</summary>
+    public static ConfigVariant ForName(string name) => new(name, name);
 }

@@ -14,6 +14,8 @@ namespace OpenClawPTT.ConfigWizard;
 /// </summary>
 public static class PromptSelectionHelper
 {
+    private const string BackSentinel = "__back__";
+
     // ── Bool ─────────────────────────────────────────────────────────
 
     /// <summary>Prompt Yes/No. If cancelled and allowCancel is false, re-prompts.</summary>
@@ -31,9 +33,17 @@ public static class PromptSelectionHelper
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await host.PromptSelection(title, variants);
-            if (result != null)
-                return ((ConfigVariant)result[0]).Value == "yes";
+            try
+            {
+                var result = await host.PromptSelection(title, variants);
+                if (result is { Length: > 0 })
+                    return ((ConfigVariant)result[0]).Value == "yes";
+            }
+            catch (OperationCanceledException)
+            {
+                if (allowCancel)
+                    throw;
+            }
 
             if (allowCancel)
                 throw new OperationCanceledException();
@@ -63,9 +73,17 @@ public static class PromptSelectionHelper
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await host.PromptSelection(title, variants);
-            if (result != null && Enum.TryParse<T>(((ConfigVariant)result[0]).Value, out var parsed))
-                return parsed;
+            try
+            {
+                var result = await host.PromptSelection(title, variants);
+                if (result is { Length: > 0 } && Enum.TryParse<T>(((ConfigVariant)result[0]).Value, out var parsed))
+                    return parsed;
+            }
+            catch (OperationCanceledException)
+            {
+                if (allowCancel)
+                    throw;
+            }
 
             if (allowCancel)
                 throw new OperationCanceledException();
@@ -82,7 +100,7 @@ public static class PromptSelectionHelper
         var values = Enum.GetValues<T>();
         var variants = new System.Collections.Generic.List<IVariant>
         {
-            new ConfigVariant("[grey]← Back[/]", "__back__")
+            new ConfigVariant("[grey]← Back[/]", BackSentinel)
         };
         variants.AddRange(values.Select(v =>
         {
@@ -94,16 +112,23 @@ public static class PromptSelectionHelper
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await host.PromptSelection(title, variants.ToArray());
-            if (result == null)
-                continue; // cancelled — force selection
+            try
+            {
+                var result = await host.PromptSelection(title, variants.ToArray());
+                if (result is not { Length: > 0 })
+                    continue; // cancelled — force selection
 
-            var value = ((ConfigVariant)result[0]).Value;
-            if (value == "__back__")
-                return null;
+                var value = ((ConfigVariant)result[0]).Value;
+                if (value == BackSentinel)
+                    return null;
 
-            if (Enum.TryParse<T>(value, out var parsed))
-                return parsed;
+                if (Enum.TryParse<T>(value, out var parsed))
+                    return parsed;
+            }
+            catch (OperationCanceledException)
+            {
+                // Force selection — loop and re-prompt
+            }
         }
     }
 
@@ -128,9 +153,17 @@ public static class PromptSelectionHelper
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await host.PromptSelection(title, variants);
-            if (result != null)
-                return ((ConfigVariant)result[0]).Value;
+            try
+            {
+                var result = await host.PromptSelection(title, variants);
+                if (result is { Length: > 0 })
+                    return ((ConfigVariant)result[0]).Value;
+            }
+            catch (OperationCanceledException)
+            {
+                if (allowCancel)
+                    throw;
+            }
 
             if (allowCancel)
                 throw new OperationCanceledException();
@@ -147,7 +180,7 @@ public static class PromptSelectionHelper
     {
         var variants = new System.Collections.Generic.List<IVariant>
         {
-            new ConfigVariant("[grey]← Back[/]", "__back__")
+            new ConfigVariant("[grey]← Back[/]", BackSentinel)
         };
         variants.AddRange(options.Select(o =>
         {
@@ -158,15 +191,22 @@ public static class PromptSelectionHelper
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var result = await host.PromptSelection(title, variants.ToArray());
-            if (result == null)
-                continue; // cancelled — force selection
+            try
+            {
+                var result = await host.PromptSelection(title, variants.ToArray());
+                if (result is not { Length: > 0 })
+                    continue; // cancelled — force selection
 
-            var value = ((ConfigVariant)result[0]).Value;
-            if (value == "__back__")
-                return null;
+                var value = ((ConfigVariant)result[0]).Value;
+                if (value == BackSentinel)
+                    return null;
 
-            return value;
+                return value;
+            }
+            catch (OperationCanceledException)
+            {
+                // Force selection — loop and re-prompt
+            }
         }
     }
 

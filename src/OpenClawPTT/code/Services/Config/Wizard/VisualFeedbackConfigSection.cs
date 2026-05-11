@@ -70,9 +70,8 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
         }
 
         // ── Size ──
-        var size = await PromptIntAsync(host, "Indicator size (1–200 pixels)",
-            config.VisualFeedbackSize, 1, 200,
-            isInitialSetup, ct);
+        var size = await PromptTextHelper.PromptIntAsync(host, "Indicator size (1–200 pixels)",
+            config.VisualFeedbackSize, 1, 200, ct);
         if (size.HasValue && size.Value != config.VisualFeedbackSize)
         {
             config.VisualFeedbackSize = size.Value;
@@ -80,9 +79,8 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
         }
 
         // ── Opacity ──
-        var opacity = await PromptDoubleAsync(host, "Indicator opacity (0.0–1.0)",
-            config.VisualFeedbackOpacity, 0.0, 1.0,
-            isInitialSetup, ct);
+        var opacity = await PromptTextHelper.PromptDoubleAsync(host, "Indicator opacity (0.0–1.0)",
+            config.VisualFeedbackOpacity, 0.0, 1.0, ct);
         if (opacity.HasValue && Math.Abs(opacity.Value - config.VisualFeedbackOpacity) > 0.001)
         {
             config.VisualFeedbackOpacity = opacity.Value;
@@ -90,10 +88,10 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
         }
 
         // ── Color ──
-        var color = await PromptTextAsync(host, "Indicator color (hex, e.g. #FF0000)",
+        var color = await PromptTextHelper.PromptAsync(host, "Indicator color (hex, e.g. #FF0000)",
             config.VisualFeedbackColor,
             v => HexColorPattern.IsMatch(v), "Expected hex color like #00FF00",
-            isInitialSetup, ct, allowEmpty: false);
+            ct);
         if (color != null && color != config.VisualFeedbackColor)
         {
             config.VisualFeedbackColor = color.StartsWith("#") ? color : $"#{color}";
@@ -101,9 +99,8 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
         }
 
         // ── Rim thickness ──
-        var rim = await PromptIntAsync(host, "Rim thickness (0 = off, 1–50)",
-            config.VisualFeedbackRimThickness, 0, 50,
-            isInitialSetup, ct);
+        var rim = await PromptTextHelper.PromptIntAsync(host, "Rim thickness (0 = off, 1–50)",
+            config.VisualFeedbackRimThickness, 0, 50, ct);
         if (rim.HasValue && rim.Value != config.VisualFeedbackRimThickness)
         {
             config.VisualFeedbackRimThickness = rim.Value;
@@ -111,99 +108,5 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
         }
 
         return changed;
-    }
-
-    // ── Text / numeric prompt helpers ──
-
-    private static async Task<string?> PromptTextAsync(
-        IStreamShellHost host,
-        string description,
-        string defaultValue,
-        Func<string, bool> validate,
-        string? validationHint,
-        bool isInitialSetup,
-        CancellationToken ct,
-        bool allowEmpty = false)
-    {
-        var tcs = new TaskCompletionSource<string?>();
-
-        void OnInput(StreamShell.UserInputSubmittedEventArgs e)
-        {
-            var input = (e.TextWithoutAttachments ?? e.RawOutput).Trim();
-
-            if (string.IsNullOrEmpty(input))
-            {
-                if (allowEmpty)
-                {
-                    tcs.TrySetResult("");
-                    return;
-                }
-                tcs.TrySetResult(defaultValue);
-                return;
-            }
-
-            if (!validate(input))
-            {
-                host.AddMessage($"[red]  ✗ Invalid value.{(validationHint != null ? " " + validationHint : "")}[/]");
-                SendTextPrompt(host, description, defaultValue);
-                return;
-            }
-
-            host.AddMessage($"[green]  ✓ {Spectre.Console.Markup.Escape(input)}[/]");
-            tcs.TrySetResult(input);
-        }
-
-        host.UserInputSubmitted += OnInput;
-        try
-        {
-            SendTextPrompt(host, description, defaultValue);
-            using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-            return await tcs.Task;
-        }
-        finally
-        {
-            host.UserInputSubmitted -= OnInput;
-        }
-    }
-
-    private static async Task<int?> PromptIntAsync(
-        IStreamShellHost host,
-        string description,
-        int defaultValue,
-        int min,
-        int max,
-        bool isInitialSetup,
-        CancellationToken ct)
-    {
-        var result = await PromptTextAsync(host, description,
-            defaultValue.ToString(),
-            v => int.TryParse(v, out var n) && n >= min && n <= max,
-            $"Expected a number between {min} and {max}",
-            isInitialSetup, ct);
-        return result != null && int.TryParse(result, out var n) ? n : null;
-    }
-
-    private static async Task<double?> PromptDoubleAsync(
-        IStreamShellHost host,
-        string description,
-        double defaultValue,
-        double min,
-        double max,
-        bool isInitialSetup,
-        CancellationToken ct)
-    {
-        var result = await PromptTextAsync(host, description,
-            defaultValue.ToString("F2"),
-            v => double.TryParse(v, out var d) && d >= min && d <= max,
-            $"Expected a number between {min} and {max}",
-            isInitialSetup, ct);
-        return result != null && double.TryParse(result, out var d) ? d : null;
-    }
-
-    private static void SendTextPrompt(IStreamShellHost host, string description, string defaultValue)
-    {
-        host.AddMessage($"[cyan2]▸ {Spectre.Console.Markup.Escape(description)}[/]");
-        if (!string.IsNullOrEmpty(defaultValue))
-            host.AddMessage($"  [grey](current: {Spectre.Console.Markup.Escape(defaultValue)}, press Enter to keep)[/]");
     }
 }

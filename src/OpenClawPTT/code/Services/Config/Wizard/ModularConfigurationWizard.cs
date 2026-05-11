@@ -17,7 +17,7 @@ namespace OpenClawPTT.ConfigWizard;
 public sealed class ModularConfigurationWizard
 {
     /// <summary>Set to true while the wizard is active so other input handlers can skip processing.</summary>
-    public static bool IsActive { get; private set; }
+    public static volatile bool IsActive;
 
     private readonly IReadOnlyList<IConfigSectionWizard> _sections;
 
@@ -103,11 +103,33 @@ public sealed class ModularConfigurationWizard
                 host.AddMessage("");
                 host.AddMessage("[bold cyan]Configuration[/]");
 
-                var result = await host.PromptSelection("Select section to configure:", variants.ToArray());
-                if (result == null)
-                    continue; // cancelled — force selection (StreamShell doesn't support uncancellable)
+                string choice;
+                const int maxAttempts = 3;
+                int attempts = 0;
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var result = await host.PromptSelection("Select section to configure:", variants.ToArray());
+                        if (result is { Length: > 0 })
+                        {
+                            choice = ((ConfigVariant)result[0]).Value;
+                            break;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // ignored — re-prompt
+                    }
 
-                var choice = ((ConfigVariant)result[0]).Value;
+                    attempts++;
+                    if (attempts >= maxAttempts)
+                    {
+                        host.AddMessage("[yellow]  Too many cancellations — exiting reconfiguration.[/]");
+                        return anyChanged ? config : existing;
+                    }
+                }
 
                 if (choice == "__cancel__")
                 {
@@ -145,8 +167,11 @@ public sealed class ModularConfigurationWizard
 
     private static AppConfig Clone(AppConfig source)
     {
-        var json = JsonSerializer.Serialize(source);
-        var clone = JsonSerializer.Deserialize<AppConfig>(json)!;
+        var options = new JsonSerializerOptions();
+        var json = JsonSerializer.Serialize(source, options);
+        var clone = JsonSerializer.Deserialize<AppConfig>(json, options);
+        if (clone == null)
+            throw new InvalidOperationException("Failed to clone AppConfig via JSON round-trip.");
         clone.CustomDataDir = source.CustomDataDir;
         return clone;
     }

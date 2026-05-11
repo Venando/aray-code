@@ -17,11 +17,11 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         bool changed = false;
 
         // ── Hotkey ──
-        var hotkey = await PromptTextAsync(host, "PTT hotkey (e.g. Alt+= or Ctrl+Shift+Space)",
+        var hotkey = await PromptTextHelper.PromptAsync(host, "PTT hotkey (e.g. Alt+= or Ctrl+Shift+Space)",
             config.HotkeyCombination,
             v => { try { HotkeyMapping.Parse(v); return true; } catch { return false; } },
             "Expected format like Alt+= or Ctrl+Shift+Space",
-            isInitialSetup, ct, allowEmpty: false);
+            ct);
         if (hotkey != null && hotkey != config.HotkeyCombination)
         {
             config.HotkeyCombination = hotkey;
@@ -85,10 +85,10 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         }
 
         // ── Agent name ──
-        var agentName = await PromptTextAsync(host, "Your name / agent display prefix (-- to clear)",
+        var agentName = await PromptTextHelper.PromptAsync(host, "Your name / agent display prefix",
             config.AgentName,
             v => !string.IsNullOrWhiteSpace(v), "Cannot be empty",
-            isInitialSetup, ct, allowEmpty: false);
+            ct, allowClear: true);
         if (agentName != null && agentName != config.AgentName)
         {
             config.AgentName = agentName;
@@ -96,10 +96,10 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         }
 
         // ── Transcription prefix ──
-        var prefix = await PromptTextAsync(host, "Transcription context prefix (-- to clear)",
+        var prefix = await PromptTextHelper.PromptAsync(host, "Transcription context prefix",
             config.TranscriptionPromptPrefix,
             _ => true, null,
-            isInitialSetup, ct, allowEmpty: true);
+            ct, allowEmpty: true, allowClear: true);
         if (prefix != null && prefix != config.TranscriptionPromptPrefix)
         {
             config.TranscriptionPromptPrefix = prefix;
@@ -117,83 +117,5 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         }
 
         return changed;
-    }
-
-    // ── Text prompt helpers ──
-
-    private static async Task<string?> PromptTextAsync(
-        IStreamShellHost host,
-        string description,
-        string defaultValue,
-        Func<string, bool> validate,
-        string? validationHint,
-        bool isInitialSetup,
-        CancellationToken ct,
-        bool isSecret = false,
-        bool allowEmpty = false)
-    {
-        var tcs = new TaskCompletionSource<string?>();
-
-        void OnInput(StreamShell.UserInputSubmittedEventArgs e)
-        {
-            var input = (e.TextWithoutAttachments ?? e.RawOutput).Trim();
-
-            if (input == "--")
-            {
-                tcs.TrySetResult("");
-                return;
-            }
-
-            if (string.IsNullOrEmpty(input))
-            {
-                if (allowEmpty)
-                {
-                    tcs.TrySetResult("");
-                    return;
-                }
-                tcs.TrySetResult(defaultValue);
-                return;
-            }
-
-            if (!validate(input))
-            {
-                host.AddMessage($"[red]  ✗ Invalid value.{(validationHint != null ? " " + validationHint : "")}[/]");
-                SendTextPrompt(host, description, defaultValue, isSecret);
-                return;
-            }
-
-            var displayValue = isSecret ? MaskSecret(input) : input;
-            host.AddMessage($"[green]  ✓ {Spectre.Console.Markup.Escape(displayValue)}[/]");
-            tcs.TrySetResult(input);
-        }
-
-        host.UserInputSubmitted += OnInput;
-        try
-        {
-            SendTextPrompt(host, description, defaultValue, isSecret);
-            using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-            return await tcs.Task;
-        }
-        finally
-        {
-            host.UserInputSubmitted -= OnInput;
-        }
-    }
-
-    private static void SendTextPrompt(IStreamShellHost host, string description, string defaultValue, bool isSecret)
-    {
-        host.AddMessage($"[cyan2]▸ {Spectre.Console.Markup.Escape(description)}[/]");
-        var displayDefault = isSecret ? MaskSecret(defaultValue) : defaultValue;
-        if (!string.IsNullOrEmpty(displayDefault))
-            host.AddMessage($"  [grey](current: {Spectre.Console.Markup.Escape(displayDefault)}, press Enter to keep)[/]");
-    }
-
-    private static string MaskSecret(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return "(not set)";
-        if (value.Length <= 4)
-            return new string('*', value.Length);
-        return value[..4] + new string('*', Math.Min(value.Length - 4, 12));
     }
 }
