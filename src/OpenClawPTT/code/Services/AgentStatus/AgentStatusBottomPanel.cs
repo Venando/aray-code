@@ -19,7 +19,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     private const string NoAgentsInfoText = "No agents connected";
     private const string NoAgentsInfoTextMarkup = $"[grey]{NoAgentsInfoText}[/]";
     private const string AgentStatusErrorText = "No agents connected";
-    private const string AgentStatusErrorTextMarkup = $"[grey]No agents connected[/]";
+    private const string AgentStatusErrorTextMarkup = $"[grey]{AgentStatusErrorText}[/]";
 
     private readonly IAgentStatusTracker _tracker;
     private readonly StringBuilder _builder = new(256);
