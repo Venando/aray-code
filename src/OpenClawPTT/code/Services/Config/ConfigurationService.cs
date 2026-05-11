@@ -84,9 +84,15 @@ public class ConfigurationService : IConfigurationService
 
     public void Save(AppConfig cfg) => _storage.Save(cfg);
 
-    public List<string> Validate(AppConfig cfg)
+    public List<string> Validate(AppConfig? cfg)
     {
         var issues = new List<string>();
+
+        if (cfg == null)
+        {
+            issues.Add("Configuration is null.");
+            return issues;
+        }
 
         if (string.IsNullOrWhiteSpace(cfg.GatewayUrl))
             issues.Add("Gateway URL is required.");
@@ -105,8 +111,8 @@ public class ConfigurationService : IConfigurationService
         if (cfg.ReconnectDelaySeconds <= 0)
             issues.Add("Reconnect delay must be positive.");
 
-        if (cfg.VisualMode < VisualMode.SolidDot || cfg.VisualMode > VisualMode.GlowDot)
-            issues.Add("VisualMode must be 1 (SolidDot) or 2 (GlowDot).");
+        if (!Enum.IsDefined(typeof(VisualMode), cfg.VisualMode))
+            issues.Add($"VisualMode must be a defined value (current: {cfg.VisualMode}).");
 
         return issues;
     }

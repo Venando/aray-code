@@ -113,6 +113,21 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                 break;
 
             case TtsProviderType.Coqui:
+                var coquiModelPath = await PromptTextHelper.PromptAsync(host, "Path to Coqui model file",
+                    config.CoquiModelPath ?? "",
+                    _ => true, null,
+                    ct, allowEmpty: true);
+                if (coquiModelPath != null)
+                {
+                    var newPath = string.IsNullOrWhiteSpace(coquiModelPath) ? null : coquiModelPath;
+                    if (newPath != config.CoquiModelPath)
+                    {
+                        config.CoquiModelPath = newPath;
+                        changed = true;
+                    }
+                }
+                goto case TtsProviderType.Python;
+
             case TtsProviderType.Python:
                 var pythonPath = await PromptTextHelper.PromptAsync(host, "Python path",
                     config.PythonPath ?? "python",

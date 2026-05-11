@@ -17,7 +17,7 @@ namespace OpenClawPTT.ConfigWizard;
 public sealed class ModularConfigurationWizard
 {
     /// <summary>Set to true while the wizard is active so other input handlers can skip processing.</summary>
-    public static volatile bool IsActive;
+    public static bool IsActive { get; private set; }
 
     private readonly IReadOnlyList<IConfigSectionWizard> _sections;
 
@@ -173,6 +173,7 @@ public sealed class ModularConfigurationWizard
         if (clone == null)
             throw new InvalidOperationException("Failed to clone AppConfig via JSON round-trip.");
         clone.CustomDataDir = source.CustomDataDir;
+        clone.ReservedRightMargin = source.ReservedRightMargin;
         return clone;
     }
 }

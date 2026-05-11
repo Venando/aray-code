@@ -70,6 +70,15 @@ public sealed class SttConfigSection : IConfigSectionWizard
                     config.GroqApiKey = groqKey;
                     changed = true;
                 }
+                var groqModel = await PromptTextHelper.PromptAsync(host, "Groq STT model",
+                    config.GroqModel ?? "whisper-large-v3",
+                    _ => true, null,
+                    ct);
+                if (groqModel != null && groqModel != config.GroqModel)
+                {
+                    config.GroqModel = groqModel;
+                    changed = true;
+                }
                 break;
 
             case "openai":

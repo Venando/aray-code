@@ -74,7 +74,8 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
         }
 
         // ── TLS fingerprint (only for wss://) ──
-        if (!string.IsNullOrEmpty(config.GatewayUrl) && config.GatewayUrl.StartsWith("wss://", StringComparison.OrdinalIgnoreCase))
+        if (Uri.TryCreate(config.GatewayUrl, UriKind.Absolute, out var uri)
+            && uri.Scheme == "wss")
         {
             var tlsFingerprint = await PromptTextHelper.PromptAsync(host, "TLS cert fingerprint (optional, for wss:// pinning)",
                 config.TlsFingerprint ?? "",

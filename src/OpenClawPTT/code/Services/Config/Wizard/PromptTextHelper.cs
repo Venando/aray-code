@@ -123,7 +123,7 @@ public static class PromptTextHelper
     private static void SendPrompt(IStreamShellHost host, string description, string defaultValue, bool isSecret)
     {
         host.AddMessage($"[cyan2]▸ {Markup.Escape(description)}[/]");
-        var displayDefault = isSecret ? MaskSecret(defaultValue) : defaultValue;
+        var displayDefault = isSecret ? MaskSecret(defaultValue ?? "") : defaultValue;
         if (!string.IsNullOrEmpty(displayDefault))
             host.AddMessage($"  [grey](current: {Markup.Escape(displayDefault)}, press Enter to keep)[/]");
     }
