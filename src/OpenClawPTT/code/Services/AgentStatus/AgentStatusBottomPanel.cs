@@ -165,12 +165,12 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                 }
                 else
                 {
-                    _lines[agentListPrintIndex] = NoAgentsInfoTextMarkup;
+                    _lines[agentListPrintIndex] = PadMarkupToRight(NoAgentsInfoTextMarkup, NoAgentsInfoText.Length);
                 }
             }
             catch
             {
-                _lines[agentListPrintIndex] = AgentStatusErrorTextMarkup;
+                _lines[agentListPrintIndex] = PadMarkupToRight(AgentStatusErrorTextMarkup, AgentStatusErrorText.Length);
             }
             finally
             {
@@ -336,6 +336,15 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     {
         var padding = _cachedConsoleWidth - contentWidth - 1;
         return Math.Max(0, padding);
+    }
+
+    /// <summary>Prepends spaces so the markup string sits at the right edge, matching normal agent line alignment.</summary>
+    private string PadMarkupToRight(string markup, int visibleTextWidth)
+    {
+        var padding = ComputePadding(visibleTextWidth);
+        return padding > 0
+            ? new string(' ', padding) + markup
+            : markup;
     }
 
     /// <summary>
