@@ -37,8 +37,11 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     // Command override: shows /stop /reset /new status until tracker catches up
     private string? _commandOverride;
 
-    public AgentStatusBottomPanel(IAgentStatusTracker tracker, IColorConsole colorConsole)
+    private IStreamShellHost _streamShellHost;
+
+    public AgentStatusBottomPanel(IStreamShellHost streamShellHost, IAgentStatusTracker tracker, IColorConsole colorConsole)
     {
+        _streamShellHost = streamShellHost;
         _tracker = tracker;
         _colorConsole = colorConsole;
         _tracker.Changed += OnTrackerChanged;
@@ -104,6 +107,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         {
             CheckRegistryVersionBump();
 
+            int activeLine = MaxLineCount - 1;
+
             // Detect command input — overrides stale agent status until tracker updates
             var commandDisplay = TryGetCommandDisplay(currentInput);
             if (commandDisplay != null)
@@ -120,7 +125,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             // Command pending and no new tracker data yet — show command status
             if (_version == _renderedVersion && _commandOverride != null)
             {
-                _lines[0] = _commandOverride;
+                _lines[activeLine] = _commandOverride;
                 return _lines;
             }
 
@@ -168,6 +173,9 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                 bool first = true;
                 int count = 0;
 
+                _builder.Append('│');
+                count += 1;
+
                 foreach (var (snapshot, registryAgent) in visible)
                 {
                     if (!first)
@@ -213,16 +221,32 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     var insertAmmount = width - count - 1;
                     for (int i = 0; i < insertAmmount; i++)
                         _builder.Insert(0, ' ');
+
+                    if (MaxLineCount == 1)
+                    {
+                        _streamShellHost.SetBottomSeparator(null, "╭──────────────┬───────────────┬───────────", ' ');
+                    }
+                    else
+                    {
+
+                        string topCap = "";
+
+                        for (int i = 0; i < insertAmmount; i++)
+                            topCap += " ";
+
+                        _lines[activeLine - 1] = topCap + "╭──────────────┬───────────────┬───────────";
+                    }
                 }
 
-                _lines[0] = !first
+
+                _lines[activeLine] = !first
                     ? _builder.ToString()
                     : "[grey]No agents connected[/]";
             }
             catch
             {
                 // Intentionally swallowed: render failures must not crash the StreamShell loop
-                _lines[0] = "[red]Agent status error[/]";
+                _lines[activeLine] = "[red]Agent status error[/]";
             }
             finally
             {
