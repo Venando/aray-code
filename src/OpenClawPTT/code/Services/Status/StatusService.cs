@@ -18,10 +18,23 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public sealed class StatusService : IStatusService, IDisposable
 {
+    private const string RepeatedCharacterMarkup = "white";
+    private const string ConversationNameMarkup = $"italic {RepeatedCharacterMarkup}";
+
+    // Pre-baked constant markup fragments — computed once, never re-allocated
+    private const string GwPrefix = " GW:[";
+    private const string TtsPrefix = "]● ";
+    private const string TtsSuffix = "[/] TTS:[";
+    private const string RightSuffix = "[/]";
+    private const string ConvOpen = "[grey]\u2502[/] [" + ConversationNameMarkup + "]";
+    private const string ConvClose = "[/] [grey]\u2502[/]";
+    private const string Separator = "──────────────── ";
+
     private readonly IStreamShellHost _shellHost;
     private IAgentStatusTracker? _agentTracker;
     private readonly object _lock = new();
-    private readonly StringBuilder _sb = new(192);
+    private readonly StringBuilder _sb = new(256); // left side
+    private readonly StringBuilder _sbRight = new(128); // right side — reused across calls
 
     private string _gatewayLabel = "Starting";
     private StatusColor _gatewayColor = StatusColor.Yellow;
@@ -106,10 +119,22 @@ public sealed class StatusService : IStatusService, IDisposable
     {
         try
         {
-            string rightText = $"  GW:[{ToMarkupColor(_gatewayColor)}]● {_gatewayLabel}[/]" +
-                               $"  TTS:[{ToMarkupColor(_ttsColor)}]● {_ttsLabel}[/]";
+            // Build right side into reusable StringBuilder, then ToString() once
+            _sbRight.Clear();
+            _sbRight.Append(GwPrefix);
+            _sbRight.Append(ToMarkupColor(_gatewayColor));
+            _sbRight.Append(TtsPrefix);
+            _sbRight.Append(_gatewayLabel);
+            _sbRight.Append(TtsSuffix);
+            _sbRight.Append(ToMarkupColor(_ttsColor));
+            _sbRight.Append(TtsPrefix);
+            _sbRight.Append(_ttsLabel);
+            _sbRight.Append(RightSuffix);
+
+            string rightText = _sbRight.ToString(); // one alloc per render
             string leftText = BuildLeftText();
-            _shellHost.SetTopSeparator(leftText: leftText, rightText: rightText, repeatedCharacter: '─');
+            _shellHost.SetTopSeparator(leftText: leftText, rightText: rightText,
+                repeatedCharacter: '─', repeatedCharMarkup: RepeatedCharacterMarkup);
         }
         catch (Exception ex)
         {
@@ -138,11 +163,11 @@ public sealed class StatusService : IStatusService, IDisposable
             return string.Empty;
 
         _sb.Clear();
-
-        _sb.Append("──────────────── ");
+        _sb.Append(Separator);
 
         // Agent icon emoji + name
         AppendAgentEmojiAndName(mainAgent);
+
         // Status emoji (🟢 running, ✅ done, 🔄 tool, etc.)
         _sb.Append(' ');
         _sb.Append(mainAgent.GetStatusEmoji());
@@ -164,11 +189,8 @@ public sealed class StatusService : IStatusService, IDisposable
 
         // Token usage: percentage (current/max)
         AppendTokenUsage(mainAgent);
-
-        _sb.Append(' ');
-
-        // Conversation name (if generated)
         AppendConversationName();
+        _sb.Append(' ');
 
         return _sb.ToString();
     }
@@ -184,9 +206,11 @@ public sealed class StatusService : IStatusService, IDisposable
             var color = TryGetPersistedColor(registryAgent.AgentId);
             if (!string.IsNullOrWhiteSpace(color))
             {
-                _sb.Append($"[{color}]");
+                _sb.Append('[');
+                _sb.Append(color); // no interpolation — direct append
+                _sb.Append(']');
                 _sb.Append(registryAgent.Name);
-                _sb.Append($"[/]");
+                _sb.Append("[/]");
             }
             else
             {
@@ -195,8 +219,7 @@ public sealed class StatusService : IStatusService, IDisposable
         }
         else
         {
-            _sb.Append("🤖");
-            _sb.Append(' ');
+            _sb.Append("🤖 ");
             _sb.Append(!string.IsNullOrEmpty(agent.DisplayName) ? agent.DisplayName : "Agent");
         }
     }
@@ -213,16 +236,62 @@ public sealed class StatusService : IStatusService, IDisposable
 
         _sb.Append(" · ");
 
+        // AppendFormat boxes the double args — use manual formatting instead
         if (percent < 10.0)
-            _sb.AppendFormat("{0:F1}%", percent);
+            AppendDouble(_sb, percent, 1);
         else
-            _sb.AppendFormat("{0:F0}%", percent);
+            AppendDouble(_sb, percent, 0);
+        _sb.Append('%');
 
         _sb.Append(" (");
-        _sb.Append(FormatTokenCount(currentTokens.Value));
+        AppendTokenCount(_sb, currentTokens.Value);
         _sb.Append('/');
-        _sb.Append(FormatTokenCount(maxContext.Value));
+        AppendTokenCount(_sb, maxContext.Value);
         _sb.Append(')');
+    }
+
+    /// <summary>
+    /// Appends a double to <paramref name="sb"/> with the given decimal places,
+    /// without boxing or allocating a temporary string.
+    /// Works for values in the range [0, 999.9] — sufficient for percentages.
+    /// </summary>
+    private static void AppendDouble(StringBuilder sb, double value, int decimals)
+    {
+        // Round before splitting to avoid e.g. 9.999 printing as "10.0%"
+        long scale = decimals == 0 ? 1 : 10;
+        long rounded = (long)Math.Round(value * scale, MidpointRounding.AwayFromZero);
+
+        long intPart = rounded / scale;
+        long fracPart = rounded % scale;
+
+        sb.Append(intPart); // long overload — no boxing
+        if (decimals > 0)
+        {
+            sb.Append('.');
+            sb.Append(fracPart);
+        }
+    }
+
+    /// <summary>
+    /// Appends a human-readable token count (12k, 264k, 1.1M) to <paramref name="sb"/>
+    /// without allocating a temporary string.
+    /// </summary>
+    private static void AppendTokenCount(StringBuilder sb, long count)
+    {
+        if (count >= 1_000_000)
+        {
+            AppendDouble(sb, (double)count / 1_000_000, 1);
+            sb.Append('M');
+        }
+        else if (count >= 1_000)
+        {
+            AppendDouble(sb, (double)count / 1_000, 0);
+            sb.Append('k');
+        }
+        else
+        {
+            sb.Append(count);
+        }
     }
 
     /// <summary>
@@ -250,19 +319,6 @@ public sealed class StatusService : IStatusService, IDisposable
             return name;
         }
         return model;
-    }
-
-    /// <summary>
-    /// Formats a token count to a human-readable short form:
-    /// e.g. 12000 → "12k", 264000 → "264k", 1000000 → "1M"
-    /// </summary>
-    private static string FormatTokenCount(long count)
-    {
-        if (count >= 1_000_000)
-            return $"{(double)count / 1_000_000:F1}M".Replace(",", ".");
-        if (count >= 1_000)
-            return $"{(double)count / 1_000:F0}k".Replace(",", ".");
-        return count.ToString();
     }
 
     /// <summary>Maps <see cref="StatusColor"/> to Spectre.Console markup color names.</summary>
@@ -296,9 +352,9 @@ public sealed class StatusService : IStatusService, IDisposable
         if (string.IsNullOrWhiteSpace(_conversationName))
             return;
 
-        _sb.Append("[grey]\u2502[/] [italic]");
+        _sb.Append(ConvOpen); // pre-baked constant, no alloc
         _sb.Append(_conversationName);
-        _sb.Append("[/] [grey]\u2502[/]");
+        _sb.Append(ConvClose); // pre-baked constant, no alloc
     }
 
     private static string? TryGetPersistedColor(string agentId)
