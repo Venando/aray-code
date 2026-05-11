@@ -18,6 +18,12 @@ public interface IStreamShellHost
     /// </summary>
     void SetTopSeparator(string? leftText = null, string? rightText = null,
         char repeatedCharacter = '─', string? repeatedCharMarkup = null);
+        
+    /// <summary>
+    /// Sets the top separator line (between input block and bottom panel).
+    /// LeftText/RightTex
+    void SetBottomSeparator(string? leftText = null, string? rightText = null,
+        char repeatedCharacter = '─', string? repeatedCharMarkup = null);
 
     event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted;
     Task Run(CancellationToken cancellationToken = default);

@@ -26,7 +26,8 @@ public sealed class FakeInputHandler : IInputHandler
     public int LargePasteThreshold { get; set; } = 300;
     public int LargePasteLineThreshold { get; set; } = 4;
 
-    public string? ProcessInput(CancellationToken cancellationToken = default) => null;
+    public string? ProcessInput() => null;
+    public string? ProcessInput(CancellationToken cancellationToken = default) => cancellationToken.IsCancellationRequested ? null : null;
     public void Reset()
     {
         _text = string.Empty;

@@ -43,6 +43,13 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         _host.SetTopSeparator(leftText, rightText, repeatedCharacter, repeatedCharMarkup);
     }
 
+    /// <summary>Sets the top separator line (between message feed and input block).</summary>
+    public void SetBottomSeparator(string? leftText = null, string? rightText = null,
+        char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null)
+    {
+        _host.SetBottomSeparator(leftText, rightText, repeatedCharacter, repeatedCharMarkup);
+    }
+    
     public void Stop() => _host.Stop();
 
     public void SetRightMarginIndent(int margin) => _host.Settings.WrappingRightMargin = margin;

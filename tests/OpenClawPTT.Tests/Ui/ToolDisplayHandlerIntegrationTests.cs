@@ -39,6 +39,8 @@ public class ToolDisplayHandlerIntegrationTests
         public void Clear() { Messages.Clear(); }
         public void SetTopSeparator(string? leftText = null, string? rightText = null,
             char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null) { }
+        public void SetBottomSeparator(string? leftText = null, string? rightText = null,
+            char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null) { }
         public void Stop() { }
         public void SetRightMarginIndent(int margin) { }
         public void SetInputPrefix(string prefix) { }

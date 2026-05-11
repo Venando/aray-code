@@ -214,31 +214,36 @@ public sealed class GatewayClient : IGatewayClient
 
             var totalEntries = messagesEl.GetArrayLength();
 
-            // Only process the last 2 messages — enough for status snapshots
+            // Only process the few messages — enough for status snapshots
             // and chat history entries, in correct display order.
-            var startIdx = Math.Max(0, totalEntries - 2);
-            var entries = new List<ChatHistoryEntry>(2);
+            const int extractStatusesFromHistory = 2;
+            var statusExtractStartIdx = Math.Max(0, totalEntries - extractStatusesFromHistory);
 
-            for (int i = startIdx; i < totalEntries; i++)
+            for (int i = statusExtractStartIdx; i < totalEntries; i++)
             {
                 // Chat history messages have a different schema from gateway events:
-                // they carry model, provider, token usage, and cost info but NOT
-                // session-level metadata (status, phase, etc.).
                 // Extract what we can and let the tracker merge with existing
-                // snapshots via MergeSnapshots (preserving richer prior data).
                 var snapshot = AgentStatusExtractor.FromHistoryMessage(messagesEl[i], sessionKey);
                 if (snapshot != null)
                 {
                     _agentStatusTracker?.Update(snapshot);
                 }
+            }
 
+            var entries = new List<ChatHistoryEntry>(limit);
+
+            var historyStartIndex = Math.Max(0, totalEntries - limit);
+
+            for (int i = totalEntries - 1; i > 0 && entries.Count < limit; i--)
+            {
                 if (!UserMessageHelper.TryGetChatHistoryEntry(messagesEl[i], out var entry))
                 {
                     continue;
                 }
-
                 entries.Add(entry!);
             }
+            
+            entries.Reverse();
 
             return entries;
         }

@@ -240,45 +240,51 @@ public sealed record AgentStatusSnapshot
     public bool IsUsingTool =>
         StopReason?.Equals("toolUse", StringComparison.OrdinalIgnoreCase) == true;
 
+    // Status emoji constants — single source of truth for all agent state visuals.
+    // Use these instead of literal emoji strings everywhere.
+    public const string AbortedEmoji = "⏳";
+    public const string ToolExecutingEmoji = "🔄";
+    public const string FinishedEmoji = "✅";
+    public const string SpawningEmoji = "⏳";
+    public const string UnknownSubagentEmoji = "⚪";
+    public const string YieldingEmoji = "⏳";
+    public const string ReadyEmoji = "🟢";
+
     /// <summary>Returns a single emoji representing the agent's current state.</summary>
     public string GetStatusEmoji()
     {
-        // ── Aborted — highest priority, applies to both agent types ───────────
-        if (IsAborted) return "⏳";
+        // Aborted — highest priority, applies to both agent types
+        if (IsAborted) return AbortedEmoji;
 
-        // ── Tool mid-execution ────────────────────────────────────────────────
-        if (IsUsingTool) return "🔄";
+        // Tool mid-execution
+        if (IsUsingTool) return ToolExecutingEmoji;
 
-        // ── Subagent states ───────────────────────────────────────────────────
+        // Subagent states
         if (IsSubagent)
         {
             // Completed run (archived).
-            if (IsFinished) return "✅";
+            if (IsFinished) return FinishedEmoji;
 
             // Actively running its LLM turn or waiting for its own tool.
-            if (IsSubagentActive) return "🔄";
+            if (IsSubagentActive) return ToolExecutingEmoji;
 
             // Created/announced but its own lifecycle run hasn't started yet.
-            if (IsSubagentSpawning) return "⏳";
+            if (IsSubagentSpawning) return SpawningEmoji;
 
             // Transitional / unknown state (e.g. mid-handshake payloads).
-            return "⚪";
+            return UnknownSubagentEmoji;
         }
 
-        // ── Main agent states ─────────────────────────────────────────────────
+        // Main agent states
 
         // Yielded: run ended (phase == "end", status == "done") but children
         // are still live. The main agent is not truly done — it's waiting.
-        if (IsYieldingForChildren) return "⏳";
+        if (IsYieldingForChildren) return YieldingEmoji;
 
-        // Actively generating.
-        if (IsRunning) return "🟢";
-
-        // status == "done": distinguish a clean finish from idle.
-        // if (Status?.Equals("done", StringComparison.OrdinalIgnoreCase) == true)
-        //     return EndedAt.HasValue ? "✅" : "⚪";
+        // Actively generating / ready to listen.
+        if (IsRunning) return ReadyEmoji;
 
         // Unknown / initial state.
-        return "🟢";
+        return ReadyEmoji;
     }
 }

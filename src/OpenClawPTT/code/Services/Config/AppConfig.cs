@@ -57,6 +57,9 @@ public sealed class AppConfig
     public double GroqRetryBackoffFactor { get; set; } = 2.0;
     public double ReconnectDelaySeconds { get; set; } = 1.5;
 
+    // Bottom panel settings
+    public int BottomPanelLineCount { get; set; } = 2; // Maximum height of the agent status bottom panel
+
     // Text formatting
     public int RightMarginIndent { get; set; } = 5; // Minimum right margin indent in characters
     public bool EnableWordWrap { get; set; } = true; // Enable word wrapping and margin indent
@@ -168,6 +171,7 @@ public sealed class AppConfig
         ["GroqRetryCount"] = "STT retry attempts on failure",
         ["GroqRetryDelayMs"] = "Delay between STT retries in ms",
         ["GroqRetryBackoffFactor"] = "Backoff multiplier for STT retry delay",
+        ["BottomPanelLineCount"] = "Maximum height of the agent status bottom panel",
         ["ReconnectDelaySeconds"] = "Gateway reconnection delay in seconds",
         ["RightMarginIndent"] = "Right margin indent for word-wrap in characters",
         ["EnableWordWrap"] = "Enable word-wrap and right margin",
