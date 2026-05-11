@@ -36,6 +36,12 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
         LastSeparatorRightText = rightText;
     }
 
+    public void SetBottomSeparator(string? leftText = null, string? rightText = null,
+        char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null)
+    {
+        LastSeparatorRightText = rightText;
+    }
+
     public void Stop() { /* no-op */ }
     public void SetRightMarginIndent(int margin) { /* no-op */ }
     public void SetInputPrefix(string prefix) { /* no-op */ }

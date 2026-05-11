@@ -7,19 +7,26 @@ namespace OpenClawPTT.Services;
 /// <summary>
 /// Compact left-aligned bottom panel showing agent statuses.
 /// Skips the currently active agent and sorts remaining agents by last activity.
+/// 
+/// Line count is dynamically capped: expands up to <see cref="_maxLineCount"/> when
+/// content requires decorative borders, shrinks to 1 when only the status line is needed.
+/// This minimises string allocations (GC pressure) during quiet periods.
 /// </summary>
 public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 {
-    private const int MaxLineCount = 1;
     private const int MaxAgentNameLength = 10;
+    private const int DefaultLineCount = 1;
 
     private readonly IAgentStatusTracker _tracker;
     private readonly IColorConsole _colorConsole;
+    private readonly IStreamShellHost _streamShellHost;
     private readonly StringBuilder _builder = new(256);
-    private readonly string[] _lines = new string[MaxLineCount];
+    private readonly string[] _lines;
+    private readonly int _maxLineCount;
     private readonly object _sync = new();
 
     private bool _disposed;
+    private int _currentLineCount = DefaultLineCount;
 
     // Version counter: increments on every meaningful change. Rendered version tracks
     // what was last painted. IsDirty is simply (_version != _renderedVersion).
@@ -37,13 +44,17 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     // Command override: shows /stop /reset /new status until tracker catches up
     private string? _commandOverride;
 
-    private IStreamShellHost _streamShellHost;
-
-    public AgentStatusBottomPanel(IStreamShellHost streamShellHost, IAgentStatusTracker tracker, IColorConsole colorConsole)
+    public AgentStatusBottomPanel(
+        IStreamShellHost streamShellHost,
+        IAgentStatusTracker tracker,
+        IColorConsole colorConsole,
+        int maxLineCount = DefaultLineCount)
     {
         _streamShellHost = streamShellHost;
         _tracker = tracker;
         _colorConsole = colorConsole;
+        _maxLineCount = Math.Max(1, maxLineCount);
+        _lines = new string[_maxLineCount];
         _tracker.Changed += OnTrackerChanged;
         AgentRegistry.ActiveSessionChanged += OnActiveSessionChanged;
 
@@ -76,7 +87,12 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         }
     }
 
-    public int LineCount => MaxLineCount;
+    /// <summary>
+    /// Returns the number of lines currently needed.
+    /// Dynamically shrinks to 1 when no decorative border is required,
+    /// expands up to <see cref="_maxLineCount"/> when borders are needed.
+    /// </summary>
+    public int LineCount => _currentLineCount;
 
     public bool IsDirty
     {
@@ -107,7 +123,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         {
             CheckRegistryVersionBump();
 
-            int activeLine = MaxLineCount - 1;
+            int activeLine = _maxLineCount - 1;
 
             // Detect command input — overrides stale agent status until tracker updates
             var commandDisplay = TryGetCommandDisplay(currentInput);
@@ -125,6 +141,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             // Command pending and no new tracker data yet — show command status
             if (_version == _renderedVersion && _commandOverride != null)
             {
+                _currentLineCount = DefaultLineCount;
                 _lines[activeLine] = _commandOverride;
                 return _lines;
             }
@@ -169,6 +186,9 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     return bTime.CompareTo(aTime);
                 });
 
+                // Determine if we need the decorative top cap (only when multi-line is configured)
+                bool needsCap = _maxLineCount > DefaultLineCount;
+
                 // Build status line
                 bool first = true;
                 int count = 0;
@@ -212,7 +232,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     var statusEmoji = Markup.Escape(snapshot.GetStatusEmoji());
                     _builder.Append(statusEmoji);
                     count += CharacterWidth.GetDisplayWidth(statusEmoji);
-                    
                 }
 
                 if (!first)
@@ -222,30 +241,36 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     for (int i = 0; i < insertAmmount; i++)
                         _builder.Insert(0, ' ');
 
-                    if (MaxLineCount == 1)
+                    if (!needsCap)
                     {
+                        // Single-line mode: decoration goes via StreamShell separator
                         _streamShellHost.SetBottomSeparator(null, "╭──────────────┬───────────────┬───────────", ' ');
                     }
                     else
                     {
-
-                        string topCap = "";
-
-                        for (int i = 0; i < insertAmmount; i++)
-                            topCap += " ";
-
-                        _lines[activeLine - 1] = topCap + "╭──────────────┬───────────────┬───────────";
+                        // Multi-line mode: top cap line is drawn above the status line
+                        string topCap = new string(' ', insertAmmount) + "╭──────────────┬───────────────┬───────────";
+                        _lines[activeLine - 1] = topCap;
                     }
                 }
 
-
+                // Always write the status / "no agents" line
                 _lines[activeLine] = !first
                     ? _builder.ToString()
                     : "[grey]No agents connected[/]";
+
+                // Dynamic line count: if we have visible agents and multi-line was requested,
+                // use 2 lines (cap + status). Otherwise stick to 1.
+                _currentLineCount = needsCap && !first ? Math.Min(2, _maxLineCount) : DefaultLineCount;
+
+                // Clear any stale lines beyond _currentLineCount to release string references
+                for (int i = _currentLineCount; i < _maxLineCount; i++)
+                    _lines[i] = null!;
             }
             catch
             {
                 // Intentionally swallowed: render failures must not crash the StreamShell loop
+                _currentLineCount = DefaultLineCount;
                 _lines[activeLine] = "[red]Agent status error[/]";
             }
             finally
