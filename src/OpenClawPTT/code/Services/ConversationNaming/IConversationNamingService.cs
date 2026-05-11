@@ -18,6 +18,12 @@ public interface IConversationNamingService : IDisposable
     void OnMessageSent(string messageText);
 
     /// <summary>
+    /// Called when any command is sent. The service checks whether the command
+    /// should reset the conversation name (e.g. /reset, /new).
+    /// </summary>
+    void OnCommandSent(string commandName);
+
+    /// <summary>
     /// Event raised when the conversation name changes (including when cleared on agent switch).
     /// </summary>
     event Action<string?>? ConversationNameChanged;

@@ -110,4 +110,79 @@ public class ConversationNamingServiceTests : IDisposable
 
         Assert.Equal("Code Review", capturedName);
     }
+
+    [Fact]
+    public void OnCommandSent_Reset_ClearsConversationName()
+    {
+        var mockLlm = new Mock<IDirectLlmService>();
+        mockLlm.Setup(x => x.IsConfigured).Returns(true);
+        mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Test Name");
+
+        var service = new ConversationNamingService(mockLlm.Object);
+        string? capturedName = "initial";
+        service.ConversationNameChanged += name => capturedName = name;
+
+        service.OnMessageSent("Message");
+        Thread.Sleep(200);
+        Assert.Equal("Test Name", service.GetCurrentConversationName());
+
+        service.OnCommandSent("reset");
+
+        Assert.Null(service.GetCurrentConversationName());
+        Assert.Null(capturedName);
+    }
+
+    [Fact]
+    public void OnCommandSent_New_ClearsConversationName()
+    {
+        var mockLlm = new Mock<IDirectLlmService>();
+        mockLlm.Setup(x => x.IsConfigured).Returns(true);
+        mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Test Name");
+
+        var service = new ConversationNamingService(mockLlm.Object);
+        service.OnMessageSent("Message");
+        Thread.Sleep(200);
+        Assert.Equal("Test Name", service.GetCurrentConversationName());
+
+        service.OnCommandSent("new");
+
+        Assert.Null(service.GetCurrentConversationName());
+    }
+
+    [Fact]
+    public void OnCommandSent_UnknownCommand_DoesNotClearName()
+    {
+        var mockLlm = new Mock<IDirectLlmService>();
+        mockLlm.Setup(x => x.IsConfigured).Returns(true);
+        mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Test Name");
+
+        var service = new ConversationNamingService(mockLlm.Object);
+        service.OnMessageSent("Message");
+        Thread.Sleep(200);
+        Assert.Equal("Test Name", service.GetCurrentConversationName());
+
+        service.OnCommandSent("config");
+
+        Assert.Equal("Test Name", service.GetCurrentConversationName());
+    }
+
+    [Fact]
+    public void OnCommandSent_IsCaseInsensitive()
+    {
+        var mockLlm = new Mock<IDirectLlmService>();
+        mockLlm.Setup(x => x.IsConfigured).Returns(true);
+        mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Test Name");
+
+        var service = new ConversationNamingService(mockLlm.Object);
+        service.OnMessageSent("Message");
+        Thread.Sleep(200);
+
+        service.OnCommandSent("RESET");
+
+        Assert.Null(service.GetCurrentConversationName());
+    }
 }

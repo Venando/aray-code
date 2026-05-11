@@ -231,7 +231,8 @@ public class AppRunner : IDisposable
             directLlmService: directLlmService.IsConfigured ? directLlmService : null,
             ttsSummarizer: ttsSummarizer,
             errorLogStore: _errorLog,
-            statusService: _statusService
+            statusService: _statusService,
+            namingService: namingService
         );
         await shellCommands.RegisterAsync();
 

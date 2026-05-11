@@ -10,6 +10,13 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 {
     private readonly IDirectLlmService? _directLlm;
     private readonly IColorConsole? _console;
+    // Commands that reset the conversation name when executed
+    private static readonly HashSet<string> ResetCommands = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "reset",
+        "new",
+    };
+
     private readonly ConcurrentDictionary<string, string> _conversationNames = new();
     private readonly HashSet<string> _pendingSessions = new();
     private readonly object _lock = new();
@@ -52,6 +59,26 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 
         // Fire off naming asynchronously — don't block the message send
         _ = GenerateNameAsync(sessionKey, messageText);
+    }
+
+    public void OnCommandSent(string commandName)
+    {
+        if (_disposed) return;
+        if (string.IsNullOrWhiteSpace(commandName)) return;
+        if (!ResetCommands.Contains(commandName)) return;
+
+        var sessionKey = AgentRegistry.ActiveSessionKey;
+        if (sessionKey == null) return;
+
+        _conversationNames.TryRemove(sessionKey, out _);
+
+        // Only fire event if this is still the active session
+        if (AgentRegistry.ActiveSessionKey == sessionKey)
+        {
+            ConversationNameChanged?.Invoke(null);
+        }
+
+        _console?.Log("naming", $"Conversation name cleared by /{commandName}", LogLevel.Debug);
     }
 
     private async Task GenerateNameAsync(string sessionKey, string messageText)

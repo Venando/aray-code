@@ -25,8 +25,9 @@ public sealed class AgentSwitchingCommands
     private readonly IConfigurationService _configService;
     private readonly ErrorLogStore _errorLog;
     private readonly IStatusService _statusService;
+    private readonly IConversationNamingService? _namingService;
 
-    public AgentSwitchingCommands(IStreamShellHost host, ITextMessageSender textSender, IGatewayService gatewayService, AppConfig appConfig, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IPttStateMachine pttStateMachine, IConfigurationService configService, ErrorLogStore errorLog, IStatusService statusService)
+    public AgentSwitchingCommands(IStreamShellHost host, ITextMessageSender textSender, IGatewayService gatewayService, AppConfig appConfig, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IPttStateMachine pttStateMachine, IConfigurationService configService, ErrorLogStore errorLog, IStatusService statusService, IConversationNamingService? namingService = null)
     {
         _host = host;
         _textSender = textSender;
@@ -38,6 +39,7 @@ public sealed class AgentSwitchingCommands
         _configService = configService;
         _errorLog = errorLog;
         _statusService = statusService;
+        _namingService = namingService;
     }
 
     /// <summary>Handler for /crew — lists available agents with all settings.</summary>
@@ -232,6 +234,9 @@ public sealed class AgentSwitchingCommands
     /// </summary>
     public async Task HandleOpenClawCommand(string commandName, string[] args, Dictionary<string, string> named)
     {
+        // Notify conversation naming service that a command was sent
+        _namingService?.OnCommandSent(commandName);
+
         // Intercept /new and /reset — use sessions.reset RPC directly
         if (string.Equals(commandName, "reset", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(commandName, "new", StringComparison.OrdinalIgnoreCase))

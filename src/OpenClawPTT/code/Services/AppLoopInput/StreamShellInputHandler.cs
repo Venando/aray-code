@@ -47,7 +47,8 @@ public sealed class StreamShellInputHandler : IDisposable
         IDirectLlmService? directLlmService = null,
         ITtsSummarizer? ttsSummarizer = null,
         ErrorLogStore? errorLogStore = null,
-        IStatusService? statusService = null)
+        IStatusService? statusService = null,
+        IConversationNamingService? namingService = null)
     {
         _host = host;
         _textSender = textSender;
@@ -62,7 +63,7 @@ public sealed class StreamShellInputHandler : IDisposable
         _ttsSummarizer = ttsSummarizer;
         _errorLog = errorLogStore ?? new ErrorLogStore(appConfig.DataDir);
         _statusService = statusService ?? new StatusService(host);
-        _agentSwitching = new AgentSwitchingCommands(host, textSender, gatewayService, appConfig, console, agentSettingsPersistence, pttStateMachine, _configService, _errorLog, _statusService);
+        _agentSwitching = new AgentSwitchingCommands(host, textSender, gatewayService, appConfig, console, agentSettingsPersistence, pttStateMachine, _configService, _errorLog, _statusService, namingService);
         _messageComposer = new TextMessageComposer(host, textSender);
     }
 
