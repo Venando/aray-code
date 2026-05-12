@@ -26,7 +26,6 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
     private CancellationTokenSource? _readCts;
     private bool _disposed;
     private bool _startupFailed;
-    private bool _startupFailedReported;
 
     // Restart tracking: prevents infinite restart loops when the Python process or environment is broken.
     private int _consecutiveRestarts;
@@ -73,19 +72,11 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
         if (_disposed)
             throw new ObjectDisposedException(nameof(PythonTtsProvider));
 
-        if (_startupFailed)
-        {
-            if (!_startupFailedReported)
-            {
-                _startupFailedReported = true;
-                _console.PrintWarning("Python TTS is not available (startup failed). Audio will be skipped for this request.");
-            }
-            throw new InvalidOperationException("Python TTS provider is not available due to a previous startup failure.");
-        }
-
         await _sem.WaitAsync(ct);
         try
         {
+            await EnsureRunningAsync(ct);
+
             var id = Guid.NewGuid().ToString("N");
             var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             _pending[id] = tcs;
@@ -156,142 +147,139 @@ public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
     private async Task EnsureRunningAsync(CancellationToken ct)
     {
         if (_process != null && !_process.HasExited)
+            return;
+
+        if (_startupFailed)
+            throw new InvalidOperationException("Python TTS provider is not available due to a previous startup failure.");
+
+        while (_consecutiveRestarts < MaxConsecutiveRestarts)
         {
-            // Process is alive — but if we have been retrying, check the limit now.
-            if (_consecutiveRestarts >= MaxConsecutiveRestarts)
+            // Exponential back-off before restart attempts (except first).
+            if (_consecutiveRestarts > 0)
             {
-                _console.PrintWarning(
-                    $"Python TTS failed to start after {MaxConsecutiveRestarts} attempts. Giving up.");
-                _startupFailed = true;
-                _consecutiveRestarts = 0;
-                return;
+                var delay = TimeSpan.FromTicks(Math.Min(
+                    MinRestartDelay.Ticks << (_consecutiveRestarts - 1),
+                    MaxRestartDelay.Ticks));
+                _console.Log("python_tts_provider", $"Waiting {delay.TotalSeconds}s before retry #{_consecutiveRestarts + 1}...");
+                await Task.Delay(delay, ct);
             }
-            return;
-        }
 
-        // Enforce restart limit on the restart path too.
-        if (_consecutiveRestarts >= MaxConsecutiveRestarts)
-        {
-            _console.PrintWarning(
-                $"Python TTS process died and has exceeded the restart limit ({MaxConsecutiveRestarts}). Giving up.");
-            _startupFailed = true;
-            _consecutiveRestarts = 0;
-            return;
-        }
-
-        // Kill any zombie process from the previous attempt.
-        if (_process != null)
-        {
-            _process.Dispose();
-            _process = null;
-        }
-
-        _readCts?.Cancel();
-        _readCts?.Dispose();
-        _readCts = new CancellationTokenSource();
-
-        // Exponential back-off: delay before the next restart attempt.
-        if (_consecutiveRestarts > 0)
-        {
-            var delay = TimeSpan.FromTicks(Math.Min(
-                MinRestartDelay.Ticks << (_consecutiveRestarts - 1),
-                MaxRestartDelay.Ticks));
-            await Task.Delay(delay, ct);
-        }
-
-        ProcessStartInfo psi = _environment.CreateProcessStartInfo(_serviceScriptPathOverride);
-
-        _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        _process.Exited += OnProcessExited;
-
-        _process.Start();
-
-        if (_process.HasExited)
-        {
-            var exitCode = _process.ExitCode;
-            _process.Dispose();
-            _process = null;
-            _consecutiveRestarts++;
-
-            _console.PrintWarning($"Python TTS process exited immediately (code: {exitCode}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
-            _startupFailed = true;
-            return;
-        }
-
-        // Wait for READY — loop until we find {"type":"ready"} or plain "READY", logging all lines
-        using var timeoutCts = new CancellationTokenSource(_startupTimeout);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-
-        string? readyLine = null;
-        while (!linked.Token.IsCancellationRequested)
-        {
-            readyLine = await ReadLineAsync(_process.StandardOutput, linked.Token);
-            
-            if (readyLine == null)
-                break;
-
-            if (IsReadyLine(readyLine))
-                break;
-                
-            // Detect startup errors before READY to avoid hanging on model load failures
-            if (JsonHelper.TryParseJson(readyLine ?? "", out var jsonDoc, out var msgType) &&
-                msgType == MessageType.Error)
+            // Kill any zombie process from the previous attempt.
+            if (_process != null)
             {
-                var errMsg = jsonDoc.RootElement.GetProperty("msg").GetString();
-                jsonDoc.Dispose();
-                _process.Kill(true);
+                _console.Log("python_tts_provider", "Disposing zombie process...");
+                _process.Dispose();
+                _process = null;
+            }
+
+            _readCts?.Cancel();
+            _readCts?.Dispose();
+            _readCts = new CancellationTokenSource();
+
+            ProcessStartInfo psi = _environment.CreateProcessStartInfo(_serviceScriptPathOverride);
+
+            _process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            _process.Exited += OnProcessExited;
+
+            _console.Log("python_tts_provider", $"Starting Python TTS process: {psi.FileName} {psi.Arguments}");
+            _process.Start();
+            _console.Log("python_tts_provider", $"Process started (PID: {_process.Id}).");
+
+            if (_process.HasExited)
+            {
+                var exitCode = _process.ExitCode;
                 _process.Dispose();
                 _process = null;
                 _consecutiveRestarts++;
 
-                _console.PrintWarning($"Python TTS startup failed (error: {errMsg}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
-                _startupFailed = true;
+                _console.PrintWarning(
+                    $"Python TTS process exited immediately (code: {exitCode}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
+                continue;
+            }
+
+            // Wait for READY — loop until we find {"type":"ready"} or plain "READY", logging all lines
+            _console.Log("python_tts_provider", "Waiting for READY...");
+            using var timeoutCts = new CancellationTokenSource(_startupTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+            string? readyLine = null;
+            bool gotErrorBeforeReady = false;
+            while (!linked.Token.IsCancellationRequested)
+            {
+                readyLine = await ReadLineAsync(_process.StandardOutput, linked.Token);
+                _console.Log("python_tts_provider", $"Read line: [{readyLine ?? "(null)"}]");
+
+                if (readyLine == null)
+                    break;
+
+                if (IsReadyLine(readyLine))
+                {
+                    _console.Log("python_tts_provider", "READY detected.");
+                    break;
+                }
+
+                // Detect startup errors before READY to avoid hanging on model load failures
+                if (JsonHelper.TryParseJson(readyLine ?? "", out var jsonDoc, out var msgType) &&
+                    msgType == MessageType.Error)
+                {
+                    var errMsg = jsonDoc.RootElement.GetProperty("msg").GetString();
+                    jsonDoc.Dispose();
+                    _process.Kill(true);
+                    _process.Dispose();
+                    _process = null;
+                    gotErrorBeforeReady = true;
+
+                    _consecutiveRestarts++;
+                    _console.PrintWarning(
+                        $"Python TTS startup failed (error: {errMsg}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
+                    break;
+                }
+            }
+
+            if (readyLine != null && IsReadyLine(readyLine) && _process != null)
+            {
+                // Successfully reached READY — reset restart counter.
+                _consecutiveRestarts = 0;
+
+                _console.Log("python_tts_provider", "Ready");
+
+                // Stderr: structured log messages (perf, warn, info, error)
+                // Stdout: structured protocol messages (ready, done, ok)
+                _ = Task.Run(() => ReadLoopAsync(_process.StandardError, DispatchLog, _readCts.Token), _readCts.Token);
+                _ = Task.Run(() => ReadLoopAsync(_process.StandardOutput, DispatchProtocol, _readCts.Token), _readCts.Token);
                 return;
+            }
+
+            // READY not received — clean up and loop for retry.
+            if (_process != null)
+            {
+                _process.Kill(true);
+                _process.Dispose();
+                _process = null;
+            }
+
+            if (!gotErrorBeforeReady)
+            {
+                _consecutiveRestarts++;
+                _console.PrintWarning(
+                    $"Python TTS failed to start (expected READY, got: {readyLine ?? "(null)"}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
             }
         }
 
-        if (readyLine == null || !IsReadyLine(readyLine))
-        {
-            _process.Kill(true);
-            _process.Dispose();
-            _process = null;
-            _consecutiveRestarts++;
-
-            _console.PrintWarning($"Python TTS failed to start (expected READY, got: {readyLine ?? "(null)"}) after {_consecutiveRestarts} of {MaxConsecutiveRestarts} allowed restarts.");
-            _startupFailed = true;
-            return;
-        }
-
-        // Successfully reached READY — reset restart counter.
+        _startupFailed = true;
         _consecutiveRestarts = 0;
-
-        _console.Log("python_tts_provider", "Ready");
-
-        // Stderr: structured log messages (perf, warn, info, error)
-        // Stdout: structured protocol messages (ready, done, ok)
-        _ = Task.Run(() => ReadLoopAsync(_process.StandardError, DispatchLog, _readCts.Token), _readCts.Token);
-        _ = Task.Run(() => ReadLoopAsync(_process.StandardOutput, DispatchProtocol, _readCts.Token), _readCts.Token);
+        throw new InvalidOperationException(
+            $"Python TTS failed to start after {MaxConsecutiveRestarts} attempts. Giving up.");
     }
 
     private async Task<string?> ReadLineAsync(StreamReader reader, CancellationToken ct)
     {
         try
         {
-            // Poll HasExited to avoid blocking indefinitely if the process dies between the
-            // loop check in ReadLoopAsync and the actual read.
-            // Use Peek() instead of EndOfStream to avoid blocking in async context (CA2024)
-            while (_process is { HasExited: false })
-            {
-                if (ct.IsCancellationRequested)
-                    return null;
-                var peekResult = reader.Peek();
-                if (peekResult == -1)
-                    return null; // End of stream
-                if (peekResult != -1)
-                    return await reader.ReadLineAsync(ct);
-                await Task.Delay(500, ct);
-            }
-            return null;
+            if (_process is { HasExited: true })
+                return null;
+
+            return await reader.ReadLineAsync(ct);
         }
         catch (OperationCanceledException)
         {
