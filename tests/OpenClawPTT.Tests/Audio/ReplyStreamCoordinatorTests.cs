@@ -2,10 +2,27 @@ using Xunit;
 using Moq;
 using OpenClawPTT.Services;
 
+
 namespace OpenClawPTT.Tests;
 
 public class ReplyStreamCoordinatorTests
 {
+    static ReplyStreamCoordinatorTests()
+    {
+        AgentSettingsPersistenceLegacy.Initialize(Mock.Of<IAgentSettingsPersistence>());
+        AgentRegistry.SetAgents(new[]
+        {
+            new AgentInfo
+            {
+                AgentId = "test",
+                Name = "TestAgent",
+                SessionKey = "test-session",
+                IsDefault = true
+            }
+        });
+    }
+
+
     private static Mock<IColorConsole> CreateMockConsole()
     {
         var mock = new Mock<IColorConsole>(MockBehavior.Loose);

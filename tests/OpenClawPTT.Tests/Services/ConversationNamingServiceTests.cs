@@ -9,6 +9,7 @@ using Xunit;
 
 namespace OpenClawPTT.Tests.Services;
 
+[Collection("ConversationNaming")]
 public class ConversationNamingServiceTests : IDisposable
 {
     public ConversationNamingServiceTests()
@@ -35,6 +36,7 @@ public class ConversationNamingServiceTests : IDisposable
         var name = service.GetCurrentConversationName();
 
         Assert.Null(name);
+        service.Dispose();
     }
 
     [Fact]
@@ -45,7 +47,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Code Review");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
         string? capturedName = null;
         service.ConversationNameChanged += name => capturedName = name;
 
@@ -71,6 +73,7 @@ public class ConversationNamingServiceTests : IDisposable
 
         Assert.False(eventFired);
         Assert.Null(service.GetCurrentConversationName());
+        service.Dispose();
     }
 
     [Fact]
@@ -81,7 +84,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Test Name");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
 
         service.OnMessageSent("First message");
         service.OnMessageSent("Second message");
@@ -98,7 +101,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("\"Name:\" \"Code Review\"");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
         string? capturedName = null;
         service.ConversationNameChanged += name => capturedName = name;
 
@@ -116,7 +119,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Test Name");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
         string? capturedName = "initial";
         service.ConversationNameChanged += name => capturedName = name;
 
@@ -140,7 +143,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Test Name");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
         service.OnMessageSent("Message");
         Thread.Sleep(200);
         Assert.Equal("Test Name", service.GetCurrentConversationName());
@@ -160,7 +163,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Test Name");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
         service.OnMessageSent("Message");
         Thread.Sleep(200);
         Assert.Equal("Test Name", service.GetCurrentConversationName());
@@ -180,7 +183,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Test Name");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
         service.OnMessageSent("Message");
         Thread.Sleep(200);
 
@@ -199,7 +202,7 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Test Name");
 
-        var service = new ConversationNamingService(mockLlm.Object);
+        using var service = new ConversationNamingService(mockLlm.Object);
         service.OnMessageSent("Message");
         Thread.Sleep(200);
         Assert.Equal("Test Name", service.GetCurrentConversationName());
@@ -213,3 +216,6 @@ public class ConversationNamingServiceTests : IDisposable
         Assert.Equal("Test Name", service.GetCurrentConversationName());
     }
 }
+
+[CollectionDefinition("ConversationNaming", DisableParallelization = true)]
+public sealed class ConversationNamingCollectionDefinition { }

@@ -294,6 +294,14 @@ public sealed class StatusService : IStatusService, IDisposable
         }
     }
 
+    /// <summary>For testing: returns human-readable token count as a string.</summary>
+    internal static string FormatTokenCount(long count)
+    {
+        var sb = new StringBuilder(16);
+        AppendTokenCount(sb, count);
+        return sb.ToString();
+    }
+
     /// <summary>
     /// Shortens model names by removing the common provider prefix for compact display.
     /// E.g. "deepseek/deepseek-v4-flash" → "deepseek-v4-flash"

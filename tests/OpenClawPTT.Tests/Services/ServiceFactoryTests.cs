@@ -19,6 +19,7 @@ public class ServiceFactoryTests
     {
         HotkeyCombination = "Alt+=",
         HoldToTalk = false,
+        GroqApiKey = "test-key",
     };
 
     private static ServiceFactory CreateFactory()
@@ -150,7 +151,7 @@ public class ServiceFactoryTests
     [Fact]
     public void ServiceFactory_WithDefaultConfig_DoesNotThrow()
     {
-        var cfg = new AppConfig();
+        var cfg = new AppConfig { GroqApiKey = "test-key" };
 
         var ex = Record.Exception(() =>
         {
