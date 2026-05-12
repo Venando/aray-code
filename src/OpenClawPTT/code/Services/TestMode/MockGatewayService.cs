@@ -23,7 +23,9 @@ public sealed class MockGatewayService : IGatewayService
     public event Action? AgentReplyDeltaEnd;
     public event Action<string>? AgentThinking;
     public event Action<string, string>? AgentToolCall;
+#pragma warning disable CS0067 // Event is required by IGatewayService interface but never raised in mock
     public event Action<string, JsonElement>? EventReceived;
+#pragma warning restore CS0067
     public event Action<string>? AgentReplyAudio;
 
     public MockGatewayService(string scenario, IColorConsole console)
