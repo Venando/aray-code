@@ -75,7 +75,7 @@ public sealed class DownloadProgressBottomPanel : IBottomPanel
             }
 
             _isDirty = false;
-            return _lines;
+            return new[] { _lines[0], _lines[1] };
         }
     }
 
