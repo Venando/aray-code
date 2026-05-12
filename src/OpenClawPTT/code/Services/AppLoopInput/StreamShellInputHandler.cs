@@ -35,6 +35,7 @@ public sealed class StreamShellInputHandler : IDisposable
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     private readonly IPttStateMachine _pttStateMachine;
     private readonly ITtsSummarizer? _ttsSummarizer;
+    private readonly IConversationNamingService? _namingService;
     private readonly ErrorLogStore _errorLog;
     private readonly IStatusService _statusService;
     private readonly SessionHistoryService _historyService;
@@ -63,6 +64,7 @@ public sealed class StreamShellInputHandler : IDisposable
         IPttStateMachine pttStateMachine,
         IDirectLlmService? directLlmService = null,
         ITtsSummarizer? ttsSummarizer = null,
+        IConversationNamingService? namingService = null,
         ErrorLogStore? errorLogStore = null,
         IStatusService? statusService = null)
     {
@@ -77,6 +79,7 @@ public sealed class StreamShellInputHandler : IDisposable
         _agentSettingsPersistence = agentSettingsPersistence;
         _pttStateMachine = pttStateMachine;
         _ttsSummarizer = ttsSummarizer;
+        _namingService = namingService;
         _errorLog = errorLogStore ?? new ErrorLogStore(appConfig.DataDir);
         _statusService = statusService ?? new StatusService(host);
         _messageComposer = new TextMessageComposer(host, textSender);
@@ -101,7 +104,6 @@ public sealed class StreamShellInputHandler : IDisposable
         _registry.Register(new ReconfigureCommand(_host, _configService));
         _registry.Register(new CrewCommand(_host, _agentSettingsPersistence, _appConfig, _historyService, _configService));
         _registry.Register(new ChatCommand(_host, _configService, _historyService, _appConfig));
-        _registry.Register(new TtsTestCommand(_host, _ttsSummarizer, _appConfig));
         _registry.Register(new CleanCommand(_host));
         _registry.Register(new ErrorsCommand(_host, _errorLog));
 
@@ -213,7 +215,7 @@ public sealed class StreamShellInputHandler : IDisposable
                          !string.IsNullOrWhiteSpace(_appConfig.DirectLlmModelName);
         if (!hasConfig)
             return;
-        _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig, _statusService));
+        _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig, _statusService, _ttsSummarizer, _namingService));
     }
 
     private void UnregisterDirectLlmCommand()

@@ -219,7 +219,32 @@ public class AppRunner : IDisposable
         using var namingService = _factory.CreateConversationNamingService(
             directLlmService.IsConfigured ? directLlmService : null, _cfg);
         namingService.ConversationNameChanged += name => _statusService.SetConversationName(name);
+
+        // Wire agent replies to naming service for adaptive conversation naming
+        gateway.AgentReplyFull += text => namingService.OnAgentReplyReceived(text);
+        // Subscribe to delta end to capture accumulated reply text
+        gateway.AgentReplyDeltaEnd += () =>
+        {
+            // Delta endpoints capture text varying amounts —
+            // Full replies are also handled by AgentReplyFull above
+        };
+
         var namingTextSender = new ConversationNamingTextMessageSender(textSender, namingService);
+
+        // Provide session history to naming service after it's available
+        var sessionKey = AgentRegistry.ActiveSessionKey;
+        if (sessionKey != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var history = await gateway.FetchSessionHistoryAsync(sessionKey, 10);
+                    namingService.SetSessionHistory(history);
+                }
+                catch { /* best effort */ }
+            });
+        }
 
         var inputHandler = _factory.CreateInputHandler(namingTextSender);
 
@@ -246,6 +271,7 @@ public class AppRunner : IDisposable
             pttStateMachine: pttStateMachine,
             directLlmService: directLlmService.IsConfigured ? directLlmService : null,
             ttsSummarizer: ttsSummarizer,
+            namingService: namingService,
             errorLogStore: _errorLog,
             statusService: _statusService
         );

@@ -2,7 +2,12 @@ using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
 
-/// <summary>Native command: /llm — sends a message directly to the configured LLM.</summary>
+/// <summary>
+/// Native command: /llm — direct LLM interaction with three modes:
+///   <c>/llm message &lt;text&gt;</c> — send a message directly to the configured LLM.
+///   <c>/llm summary-test</c>   — test TTS summarization pipeline with sample file.
+///   <c>/llm title-test</c>    — test conversation naming pipeline with sample file.
+/// </summary>
 public sealed class LlmCommand : ICommand
 {
     private readonly IStreamShellHost _host;
@@ -10,23 +15,67 @@ public sealed class LlmCommand : ICommand
     private readonly IDirectLlmService? _directLlmService;
     private readonly AppConfig _appConfig;
     private readonly IStatusService? _statusService;
+    private readonly ITtsSummarizer? _ttsSummarizer;
+    private readonly IConversationNamingService? _namingService;
 
     public string Name => "llm";
-    public string Description => "<message> Send message directly to configured LLM";
+    public string Description => "<message|summary-test|title-test> Send message to LLM, test TTS summary, or test naming";
     public CommandSource Source => CommandSource.Native;
     public ShellCommandType Type => ShellCommandType.DirectLlm;
-    public string[]? Suggestions => null;
+    public string[]? Suggestions => new[] { "message", "summary-test", "title-test" };
 
-    public LlmCommand(IStreamShellHost host, IColorConsole console, IDirectLlmService? directLlmService, AppConfig appConfig, IStatusService? statusService = null)
+    public LlmCommand(
+        IStreamShellHost host,
+        IColorConsole console,
+        IDirectLlmService? directLlmService,
+        AppConfig appConfig,
+        IStatusService? statusService = null,
+        ITtsSummarizer? ttsSummarizer = null,
+        IConversationNamingService? namingService = null)
     {
         _host = host;
         _console = console;
         _directLlmService = directLlmService;
         _appConfig = appConfig;
         _statusService = statusService;
+        _ttsSummarizer = ttsSummarizer;
+        _namingService = namingService;
     }
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
+    {
+        if (args.Length == 0)
+        {
+            ShowUsage();
+            return;
+        }
+
+        var subcommand = args[0].ToLowerInvariant();
+
+        switch (subcommand)
+        {
+            case "message":
+                await ExecuteMessageAsync(args.Skip(1).ToArray(), ct);
+                break;
+
+            case "summary-test":
+                await ExecuteSummaryTestAsync(ct);
+                break;
+
+            case "title-test":
+                await ExecuteTitleTestAsync(ct);
+                break;
+
+            default:
+                // Treat unrecognized subcommand as a message (backward compat)
+                await ExecuteMessageAsync(args, ct);
+                break;
+        }
+    }
+
+    // ── Mode: message ──────────────────────────────────────────────────────────
+
+    private async Task ExecuteMessageAsync(string[] messageArgs, CancellationToken ct)
     {
         if (_directLlmService == null || !_directLlmService.IsConfigured)
         {
@@ -34,10 +83,10 @@ public sealed class LlmCommand : ICommand
             return;
         }
 
-        var message = string.Join(" ", args);
+        var message = string.Join(" ", messageArgs);
         if (string.IsNullOrWhiteSpace(message))
         {
-            _host.AddMessage("[yellow]  Usage: /llm <your message>[/]");
+            _host.AddMessage("[yellow]  Usage: /llm message <your text>[/]");
             return;
         }
 
@@ -55,5 +104,179 @@ public sealed class LlmCommand : ICommand
         {
             _host.AddMessage($"[red]  LLM request failed: {Markup.Escape(ex.Message)}[/]");
         }
+    }
+
+    // ── Mode: summary-test ─────────────────────────────────────────────────────
+
+    private async Task ExecuteSummaryTestAsync(CancellationToken ct)
+    {
+        if (_ttsSummarizer == null)
+        {
+            _host.AddMessage("[yellow]  TTS summarizer not available. Make sure DirectLlmUrl is configured.[/]");
+            return;
+        }
+
+        var samplePath = Path.Combine(AppContext.BaseDirectory, "test-summary-sample.txt");
+        if (!File.Exists(samplePath))
+        {
+            // Fall back to source-relative path for development builds
+            samplePath = FindSampleFile("test-summary-sample.txt");
+            if (samplePath == null)
+            {
+                _host.AddMessage($"[red]  Sample file not found. Ensure test-summary-sample.txt is in the output directory.[/]");
+                return;
+            }
+        }
+
+        var rawText = await File.ReadAllTextAsync(samplePath, ct);
+        _host.AddMessage($"[grey]  Loaded sample ({rawText.Length} chars raw)[/]");
+
+        _host.AddMessage("[grey]  Running through TTS preprocessing...[/]");
+        var preprocessed = TtsContentFilter.SanitizeForTts(rawText);
+        _host.AddMessage($"[grey]  After sanitize: {preprocessed.Length} chars[/]:[white]{preprocessed}[/]");
+
+        if (_directLlmService == null || !_directLlmService.IsConfigured)
+        {
+            _host.AddMessage("[yellow]  Direct LLM not configured — skipping summarization step.[/]");
+            return;
+        }
+
+        _host.AddMessage($"[grey]  Sending to LLM ({_appConfig.DirectLlmModelName}) for summarization...[/]");
+        try
+        {
+            var summarized = await _ttsSummarizer.SummarizeForTtsAsync(rawText, _appConfig, ct);
+            _host.AddMessage($"[green]  Summary ({summarized.Length} chars):[/]");
+            _host.AddMessage($"  {Markup.Escape(summarized)}");
+        }
+        catch (Exception ex)
+        {
+            _host.AddMessage($"[red]  Summarization failed: {Markup.Escape(ex.Message)}[/]");
+        }
+    }
+
+    // ── Mode: title-test ──────────────────────────────────────────────────────
+
+    private async Task ExecuteTitleTestAsync(CancellationToken ct)
+    {
+        if (_directLlmService == null || !_directLlmService.IsConfigured)
+        {
+            _host.AddMessage("[yellow]  Direct LLM is not configured. Set DirectLlmUrl and DirectLlmModelName in config.[/]");
+            return;
+        }
+
+        var samplePath = Path.Combine(AppContext.BaseDirectory, "test-conversation-sample.txt");
+        if (!File.Exists(samplePath))
+        {
+            samplePath = FindSampleFile("test-conversation-sample.txt");
+            if (samplePath == null)
+            {
+                _host.AddMessage($"[red]  Sample file not found. Ensure test-conversation-sample.txt is in the output directory.[/]");
+                return;
+            }
+        }
+
+        var rawText = await File.ReadAllTextAsync(samplePath, ct);
+        _host.AddMessage($"[grey]  Loaded conversation sample ({rawText.Length} chars)[/]");
+
+        // Build a naming prompt that mimics what the naming service would build
+        var prompt = BuildTitleTestPrompt(rawText);
+
+        _host.AddMessage($"[grey]  Sending to LLM ({_appConfig.DirectLlmModelName}) for title generation...[/]");
+        try
+        {
+            var response = await _directLlmService.SendAsync(prompt, ct);
+            var cleaned = SanitizeTitleResponse(response);
+            _host.AddMessage($"[green]  Generated Title:[/] [bold]{Markup.Escape(cleaned)}[/]");
+        }
+        catch (Exception ex)
+        {
+            _host.AddMessage($"[red]  Title generation failed: {Markup.Escape(ex.Message)}[/]");
+        }
+    }
+
+    private static string BuildTitleTestPrompt(string sampleText)
+    {
+        // Parse the sample file: role/header lines followed by content
+        var lines = sampleText.Split('\n');
+        var conversation = new System.Text.StringBuilder();
+
+        conversation.AppendLine("Based on the following conversation, generate a short 4-6 word descriptive title.");
+        conversation.AppendLine("Return ONLY the title, no quotes, no explanation, no punctuation at the end.");
+        conversation.AppendLine();
+        conversation.AppendLine("Conversation:");
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#'))
+                continue;
+            conversation.AppendLine($"  {trimmed}");
+        }
+
+        return conversation.ToString();
+    }
+
+    private static string SanitizeTitleResponse(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response) || response == "(No response)")
+            return response;
+
+        var cleaned = response.Trim();
+
+        // Remove common LLM wrappers
+        for (int i = 0; i < 3; i++)
+        {
+            if (cleaned.StartsWith('"') && cleaned.EndsWith('"'))
+                cleaned = cleaned[1..^1].Trim();
+            else if (cleaned.StartsWith('\u201C') && cleaned.EndsWith('\u201D'))
+                cleaned = cleaned[1..^1].Trim();
+            else
+                break;
+        }
+
+        if (cleaned.StartsWith("Title:", StringComparison.OrdinalIgnoreCase))
+            cleaned = cleaned["Title:".Length..].Trim();
+        if (cleaned.StartsWith("Name:", StringComparison.OrdinalIgnoreCase))
+            cleaned = cleaned["Name:".Length..].Trim();
+
+        cleaned = cleaned.Replace("\"", "").Replace("\u201C", "").Replace("\u201D", "").Trim();
+        cleaned = cleaned.TrimEnd('.', '!', '?', ':', ';', ',');
+
+        return cleaned;
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private void ShowUsage()
+    {
+        _host.AddMessage("[yellow]  Usage:[/]");
+        _host.AddMessage("  [white]/llm message <text>[/]      Send a message to the configured LLM");
+        _host.AddMessage("  [white]/llm summary-test[/]        Test the TTS summarization pipeline");
+        _host.AddMessage("  [white]/llm title-test[/]          Test the conversation naming pipeline");
+    }
+
+    /// <summary>
+    /// Searches upward from the output directory for sample files in development builds.
+    /// </summary>
+    private static string? FindSampleFile(string fileName)
+    {
+        // Try walking up from the output directory to find the project root
+        var dir = AppContext.BaseDirectory;
+        for (int i = 0; i < 5; i++)
+        {
+            dir = Path.GetDirectoryName(dir);
+            if (dir == null) break;
+
+            var candidate = Path.Combine(dir, fileName);
+            if (File.Exists(candidate))
+                return candidate;
+
+            // Also check the src directory
+            var srcCandidate = Path.Combine(dir, "src", "OpenClawPTT", fileName);
+            if (File.Exists(srcCandidate))
+                return srcCandidate;
+        }
+
+        return null;
     }
 }

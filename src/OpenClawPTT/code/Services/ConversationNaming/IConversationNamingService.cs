@@ -3,8 +3,9 @@ using OpenClawPTT.Services.Commands;
 namespace OpenClawPTT.Services;
 
 /// <summary>
-/// Generates and tracks descriptive names for conversations based on the first user message.
-/// Uses Direct LLM (if configured) to summarize the conversation start into a short name.
+/// Generates and tracks descriptive names for conversations.
+/// Uses multiple messages from both user and agent (including session history)
+/// to produce adaptive conversation titles.
 /// </summary>
 public interface IConversationNamingService : IDisposable
 {
@@ -14,10 +15,22 @@ public interface IConversationNamingService : IDisposable
     string? GetCurrentConversationName();
 
     /// <summary>
-    /// Called when a message is sent. If this is the first message for the current session,
-    /// triggers async name generation via Direct LLM.
+    /// Called when a user message is sent. Accumulates user messages and triggers
+    /// adaptive naming as the conversation grows.
     /// </summary>
     void OnMessageSent(string messageText);
+
+    /// <summary>
+    /// Called when an agent reply is received. Accumulates agent replies and
+    /// triggers adaptive naming as the conversation grows.
+    /// </summary>
+    void OnAgentReplyReceived(string replyText);
+
+    /// <summary>
+    /// Provides session history entries for the current session.
+    /// These are used to build richer naming context (past messages before this session).
+    /// </summary>
+    void SetSessionHistory(List<ChatHistoryEntry>? history);
 
     /// <summary>
     /// Called when any command is executed. The service checks whether the command

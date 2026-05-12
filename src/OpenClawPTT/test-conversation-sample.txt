@@ -1,0 +1,13 @@
+# Test Conversation Sample — Title Test
+
+User: Can you help me refactor this C# class? It has too many responsibilities.
+
+Assistant: I'd be happy to help refactor for SRP. Which class are we looking at?
+
+User: The ConfigurationWizard — it's 496 lines handling 22 different config steps.
+
+Assistant: That's a classic god class. A good approach would be to extract each step into its own class implementing an interface like IConfigurationStep. Then the wizard becomes a simple orchestrator.
+
+User: Right, I was thinking of a Strategy pattern. Each step would handle its own validation and display.
+
+Assistant: Exactly. You could also extract the validation rules into separate validator classes. That way each class has one clear responsibility.

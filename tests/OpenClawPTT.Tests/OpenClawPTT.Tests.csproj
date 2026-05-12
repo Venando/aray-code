@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <None Include="Audio\test-summary-sample.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Audio\test-conversation-sample.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

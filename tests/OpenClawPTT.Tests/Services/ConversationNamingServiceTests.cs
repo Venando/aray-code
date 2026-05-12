@@ -296,8 +296,9 @@ public class ConversationNamingServiceTests : IDisposable
         mockLlm.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns((string prompt, CancellationToken _) =>
             {
-                Assert.Contains("2-4 word", prompt);
-                Assert.Contains("Message: Hello", prompt);
+                Assert.Contains("4-6 word", prompt);
+                Assert.Contains("User: Hello", prompt);
+                Assert.Contains("Current conversation", prompt);
                 return Task.FromResult("Default Fallback")!;
             });
 
@@ -337,7 +338,7 @@ public class ConversationNamingServiceTests : IDisposable
         ev.Wait(TimeSpan.FromSeconds(2));
 
         mockLlm.Verify(x => x.SendAsync(
-            It.Is<string>(s => s == "Custom prompt: test"),
+            It.Is<string>(s => s.Contains("Custom prompt:") && s.Contains("User: test") && s.Contains("Current conversation")),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }
