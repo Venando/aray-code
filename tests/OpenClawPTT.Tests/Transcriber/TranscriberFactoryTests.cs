@@ -24,19 +24,18 @@ public class TranscriberFactoryTests
     }
 
     [Fact]
-    public void Create_WhisperCppProvider_NullApiKey_DoesNotThrow()
+    public void Create_WhisperCppProvider_NullModel_DoesNotThrow()
     {
-        // whisper-cpp doesn't use an API key, path/model are optional
+        // whisper-cpp doesn't use an API key, model is optional (defaults to "base")
         var cfg = new AppConfig
         {
             SttProvider = "whisper-cpp",
-            WhisperCppPath = null,
-            WhisperCppModelPath = null
+            WhisperCppModel = null
         };
 
         var ex = Record.Exception(() => TranscriberFactory.Create(cfg));
 
-        // Should not throw — whisper-cpp uses path-based config
+        // Should not throw — whisper-cpp uses model manager based config
         Assert.Null(ex);
     }
 
@@ -125,13 +124,12 @@ public class TranscriberFactoryTests
     }
 
     [Fact]
-    public void Create_WhisperCppProvider_ValidPath_ReturnsWhisperCppTranscriberAdapter()
+    public void Create_WhisperCppProvider_ValidModel_ReturnsWhisperCppTranscriberAdapter()
     {
         var cfg = new AppConfig
         {
             SttProvider = "whisper-cpp",
-            WhisperCppPath = "/usr/local/bin/whisper",
-            WhisperCppModelPath = "/models/ggml-base.bin"
+            WhisperCppModel = "base"
         };
 
         var result = TranscriberFactory.Create(cfg);

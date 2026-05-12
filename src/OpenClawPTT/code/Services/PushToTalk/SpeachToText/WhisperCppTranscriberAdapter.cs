@@ -9,24 +9,43 @@ namespace OpenClawPTT.Transcriber;
 
 /// <summary>
 /// Adapter for local Whisper.cpp transcription.
-/// Executes the whisper CLI tool with the audio file.
+/// Uses the whisper CLI binary with a downloaded model from WhisperCppModelManager.
 /// </summary>
 public sealed class WhisperCppTranscriberAdapter : ITranscriber
 {
-    private readonly string _whisperPath;
-    private readonly string _modelPath;
+    private readonly string? _whisperBinaryPath;
+    private readonly WhisperCppModelManager _modelManager;
+    private readonly string _modelName;
     private bool _disposed;
 
-    public WhisperCppTranscriberAdapter(string whisperPath = "whisper", string modelPath = "models/ggml-base.bin")
+    /// <summary>
+    /// Creates a new WhisperCppTranscriberAdapter.
+    /// </summary>
+    /// <param name="modelManager">Model manager for model lookup and download.</param>
+    /// <param name="modelName">Whisper model name (e.g. "base", "small.en").</param>
+    /// <param name="whisperBinaryPath">
+    /// Path to the whisper CLI binary. If null, auto-detected via PATH.
+    /// Falls back to "whisper" if not found.
+    /// </param>
+    public WhisperCppTranscriberAdapter(
+        WhisperCppModelManager modelManager,
+        string modelName,
+        string? whisperBinaryPath = null)
     {
-        _whisperPath = whisperPath ?? throw new ArgumentNullException(nameof(whisperPath));
-        _modelPath = modelPath ?? throw new ArgumentNullException(nameof(modelPath));
+        _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
+        _modelName = modelName ?? throw new ArgumentNullException(nameof(modelName));
+        _whisperBinaryPath = whisperBinaryPath ?? WhisperCppModelManager.FindWhisperBinary() ?? "whisper";
     }
 
     public async Task<string> TranscribeAsync(byte[] wavBytes, string fileName = "audio.wav", CancellationToken ct = default)
     {
         if (wavBytes == null || wavBytes.Length == 0)
             throw new ArgumentNullException(nameof(wavBytes), "WAV bytes must not be null or empty.");
+
+        var modelPath = _modelManager.GetModelPath(_modelName);
+        if (!File.Exists(modelPath))
+            throw new TranscriberException(
+                $"Whisper model '{_modelName}' not found. Please download it first via /reconfigure → Speech-To-Text.");
 
         // Write to a temp file for whisper CLI to process
         var tempDir = Path.Combine(Path.GetTempPath(), "openclaw-ptt");
@@ -39,18 +58,20 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
 
             var psi = new ProcessStartInfo
             {
-                FileName = _whisperPath,
-                Arguments = $"--model {_modelPath} --file \"{tempFile}\" --output-txt --no-timestamps",
+                FileName = _whisperBinaryPath,
+                Arguments = $"--model \"{modelPath}\" --file \"{tempFile}\" --output-txt --no-timestamps",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
 
-            using var process = Process.Start(psi) ?? throw new TranscriberException("Failed to start whisper process");
+            using var process = Process.Start(psi)
+                ?? throw new TranscriberException($"Failed to start whisper process. Binary: {_whisperBinaryPath}");
+
             var output = await process.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
             var error = await process.StandardError.ReadToEndAsync(ct).ConfigureAwait(false);
-            
+
             await process.WaitForExitAsync(ct).ConfigureAwait(false);
 
             if (process.ExitCode != 0)
@@ -89,7 +110,6 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
         if (!_disposed)
         {
             _disposed = true;
-            // Nothing else to dispose for process-based transcriber
         }
     }
 }
