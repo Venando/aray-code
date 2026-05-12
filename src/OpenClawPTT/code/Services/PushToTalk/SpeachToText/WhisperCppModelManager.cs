@@ -337,7 +337,7 @@ public sealed class WhisperCppModelManager
             return;
         }
 
-        progressCallback?.Invoke(modelName, "Downloading model...", null, null, false);
+        progressCallback?.Invoke(modelName, "Starting...", null, null, false);
 
         // Create a tiny valid WAV file (44-byte header + minimal silence)
         var tempDir = Path.Combine(Path.GetTempPath(), "openclaw-ptt-whisper");
@@ -349,10 +349,11 @@ public sealed class WhisperCppModelManager
             // Write a minimal 16-bit mono WAV at 16kHz, 0.1 seconds of silence
             CreateSilentWav(dummyWav, sampleRate: 16000, durationSeconds: 0.1f);
 
+            // NOTE: No shell redirects — we capture stderr to parse tqdm progress
             var psi = new ProcessStartInfo
             {
                 FileName = binaryPath,
-                Arguments = $"--model {modelName} --output_dir \"{tempDir}\" --output_format txt \"{dummyWav}\"" + (OperatingSystem.IsWindows() ? " 2>nul" : " 2>/dev/null"),
+                Arguments = $"--model {modelName} --output_dir \"{tempDir}\" --output_format txt \"{dummyWav}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -362,30 +363,38 @@ public sealed class WhisperCppModelManager
             using var process = Process.Start(psi)
                 ?? throw new InvalidOperationException($"Failed to start whisper binary: {binaryPath}");
 
-            // Wait for the process to complete (model downloads then transcribes silence)
+            // Read stderr line by line to parse tqdm progress bar output.
+            // tqdm format: 100%|██████████| 148M/148M [00:02<00:00, 50.1MB/s]
+            var stderrTask = ReadPythonProgressAsync(process, modelName, progressCallback, ct);
+
+            // Drain stdout pipe to avoid deadlock
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+
             try
             {
-                await process.WaitForExitAsync(ct).ConfigureAwait(false);
+                await Task.WhenAll(stderrTask, stdoutTask, process.WaitForExitAsync(ct))
+                    .ConfigureAwait(false);
             }
             finally
             {
                 try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { /* best effort */ }
             }
 
-            if (process.ExitCode == 0 && IsPythonModelCached(modelName))
+            var isCached = IsPythonModelCached(modelName);
+            if (isCached)
             {
                 progressCallback?.Invoke(modelName, "Download complete", null, null, true);
             }
             else
             {
                 progressCallback?.Invoke(modelName,
-                    IsPythonModelCached(modelName) ? "Download complete" : $"whisper exited with code {process.ExitCode}",
-                    null, null, IsPythonModelCached(modelName));
+                    $"whisper exited with code {process.ExitCode}", null, null, false);
             }
         }
         catch (OperationCanceledException)
         {
             try { File.Delete(dummyWav); } catch { /* best effort */ }
+            progressCallback?.Invoke(modelName, "Cancelled", null, null, false);
             throw;
         }
         catch (Exception ex)
@@ -412,6 +421,119 @@ public sealed class WhisperCppModelManager
             catch { /* best effort */ }
         }
     }
+
+    // ── Python tqdm progress parser ──────────────────────────────────
+
+    /// <summary>
+    /// Reads stderr line by line from the Python whisper process and parses
+    /// tqdm progress bar output to provide byte-level progress updates.
+    /// tqdm output format:
+    ///   100%|██████████| 148M/148M [00:02<00:00, 50.1MB/s]
+    /// also handles variants like:
+    ///   45%|████▌       | 7.40M/16.3M [00:01<00:01, 50.1MB/s]
+    /// </summary>
+    private static async Task ReadPythonProgressAsync(
+        Process process,
+        string modelName,
+        Action<string, string, long?, long?, bool>? progressCallback,
+        CancellationToken ct)
+    {
+        // Match patterns like: 45%|...| 7.40M/16.3M [...] or 100%|...| 148M/148M [...]
+        // Group 1 = percentage, Group 2 = downloaded size, Group 3 = total size
+        var tqdmRegex = new System.Text.RegularExpressions.Regex(
+            @"(\d+)%\|.*\|\s*(\S+)/(\S+)\s*\[");
+
+        try
+        {
+            var stderr = process.StandardError;
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var line = await stderr.ReadLineAsync(ct).ConfigureAwait(false);
+                if (line == null)
+                    break;
+
+                var match = tqdmRegex.Match(line);
+                if (match.Success)
+                {
+                    var downloaded = ParseSizeString(match.Groups[2].Value);
+                    var total = ParseSizeString(match.Groups[3].Value);
+                    var status = match.Groups[1].Value == "100"
+                        ? "Downloading..."
+                        : "Downloading...";
+
+                    progressCallback?.Invoke(
+                        modelName, status, downloaded, total, false);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancelled — caller handles it
+        }
+        catch (ObjectDisposedException)
+        {
+            // Process was killed — expected during cancellation
+        }
+        // Other exceptions propagate to the caller
+    }
+
+    /// <summary>
+    /// Parses a size string like "148M", "7.40M", "1.5G", "512K" or "1024"
+    /// into bytes. Returns null if parsing fails.
+    /// </summary>
+    private static long? ParseSizeString(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return null;
+
+        value = value.Trim();
+
+        // Extract the numeric part and suffix
+        int suffixStart = 0;
+        for (int i = 0; i < value.Length; i++)
+        {
+            if (!char.IsDigit(value[i]) && value[i] != '.')
+            {
+                suffixStart = i;
+                break;
+            }
+        }
+
+        if (suffixStart == 0 && !double.TryParse(value, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out _))
+            return null;
+
+        if (suffixStart == value.Length)
+        {
+            // Plain number — bytes
+            if (double.TryParse(value, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var plainBytes))
+                return (long)plainBytes;
+            return null;
+        }
+
+        var numPart = value[..suffixStart];
+        var suffix = value[suffixStart..].ToUpperInvariant();
+
+        if (!double.TryParse(numPart, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var number))
+            return null;
+
+        long multiplier = suffix switch
+        {
+            "B" => 1,
+            "KB" or "K" => 1024,
+            "MB" or "M" => 1024 * 1024,
+            "GB" or "G" => 1024 * 1024 * 1024,
+            "TB" or "T" => 1024L * 1024 * 1024 * 1024,
+            _ => 1,
+        };
+
+        return (long)(number * multiplier);
+    }
+
 
     /// <summary>Creates a minimal valid WAV file with silent audio.</summary>
     private static void CreateSilentWav(string path, int sampleRate, float durationSeconds)
