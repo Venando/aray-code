@@ -37,7 +37,7 @@ public sealed class SessionResetSnapshotCleaner : IDisposable
 
         var sessionKey = AgentRegistry.ActiveSessionKey;
         if (sessionKey != null)
-            _tracker?.Remove(sessionKey);
+            _tracker?.Reset(sessionKey);
     }
 
     public void Dispose()

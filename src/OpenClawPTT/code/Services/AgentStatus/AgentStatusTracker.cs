@@ -62,6 +62,75 @@ public sealed class AgentStatusTracker : IAgentStatusTracker
             Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Resets the operational state of a tracked session while preserving
+    /// identity-level fields (session key, model, display name, etc.).
+    /// After reset the agent appears in a clean green-ready state.
+    /// </summary>
+    public void Reset(string sessionKey)
+    {
+        bool changed;
+        lock (_lock)
+        {
+            if (!_snapshots.TryGetValue(sessionKey, out var existing))
+                return;
+
+            var reset = existing with
+            {
+                // ── Run / event envelope — clear ──
+                RunId = null,
+                Phase = null,
+                Stream = null,
+                EventReason = null,
+                Seq = null,
+
+                // ── Operational state — clear (agent returns to 🟢) ──
+                Status = null,
+                StopReason = null,
+                AbortedLastRun = null,
+                SubagentRunState = null,
+                HasActiveSubagentRun = null,
+
+                // ── Tokens & cost — clear ──
+                InputTokens = null,
+                OutputTokens = null,
+                TotalTokens = null,
+                TotalTokensFresh = null,
+                ContextTokens = null,
+                EstimatedCostUsd = null,
+
+                // ── Timing — clear ──
+                StartedAt = null,
+                EndedAt = null,
+                RuntimeMs = null,
+                UpdatedAt = null,
+
+                // ── Subagent metadata — clear ──
+                SubagentRole = null,
+                SpawnDepth = null,
+                SubagentControlScope = null,
+                SpawnedWorkspaceDir = null,
+                ChildSessions = Array.Empty<string>(),
+
+                // ── Compaction / context — clear ──
+                CompactionCheckpointCount = null,
+                LatestCompactionCheckpointId = null,
+                LatestCompactionCheckpointCreatedAt = null,
+
+                // ── Channel / delivery transient — clear ──
+                SystemSent = null,
+                ThinkingDefault = null,
+            };
+
+            _snapshots[sessionKey] = reset;
+            _allCacheDirty = true;
+            changed = true;
+        }
+
+        if (changed)
+            Changed?.Invoke();
+    }
+
     public AgentStatusSnapshot? Get(string sessionKey)
     {
         lock (_lock)
