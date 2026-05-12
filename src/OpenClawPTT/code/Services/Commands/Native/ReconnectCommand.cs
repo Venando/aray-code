@@ -13,6 +13,12 @@ public sealed class ReconnectCommand : ICommand
     private readonly ErrorLogStore _errorLog;
     private readonly SessionHistoryService _historyService;
 
+    /// <summary>
+    /// Optional callback invoked after a successful reconnection.
+    /// Used by StreamShellInputHandler to re-register gateway-dependent commands.
+    /// </summary>
+    public Func<Task>? OnReconnectSuccess { get; set; }
+
     public string Name => "reconnect";
     public string Description => "Reconnect to the gateway";
     public CommandSource Source => CommandSource.Native;
@@ -44,6 +50,10 @@ public sealed class ReconnectCommand : ICommand
             await _gatewayService.ConnectAsync(ct);
             _statusService.SetGatewayStatus("Connected", StatusColor.Green);
             _host.AddMessage("[green]  Reconnected successfully.[/]");
+
+            // Notify subscribers that gateway is back
+            if (OnReconnectSuccess != null)
+                await OnReconnectSuccess();
 
             var sessionKey = AgentRegistry.ActiveSessionKey;
             if (sessionKey != null)
