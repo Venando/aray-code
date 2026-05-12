@@ -12,8 +12,9 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
     public string Name => "Input & Display";
     public string Description => "Hotkey, display mode, and audio response settings";
 
-    public async Task<bool> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
+    public async Task<ConfigSectionResult> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
     {
+        var result = new ConfigSectionResult();
         bool changed = false;
 
         // ── Hotkey ──
@@ -77,7 +78,10 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
             var audioResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
                 "Audio response mode:", audioModes, config.AudioResponseMode, cancellationToken: ct);
             if (audioResult == null)
-                return changed;
+            {
+                result.IsChanged = changed;
+                return result;
+            }
             audioMode = audioResult;
         }
         if (audioMode != config.AudioResponseMode)
@@ -118,6 +122,7 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
             changed = true;
         }
 
-        return changed;
+        result.IsChanged = changed;
+        return result;
     }
 }

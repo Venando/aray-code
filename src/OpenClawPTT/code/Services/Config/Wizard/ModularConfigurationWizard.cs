@@ -144,8 +144,8 @@ public sealed class ModularConfigurationWizard
 
                 host.AddMessage("");
                 host.AddMessage($"[bold cyan]▶ {selectedSection.Name}[/]");
-                var changed = await selectedSection.RunAsync(host, config, isInitialSetup: false, ct);
-                if (changed)
+                var sectionResult = await selectedSection.RunAsync(host, config, isInitialSetup: false, ct);
+                if (sectionResult.IsChanged)
                 {
                     anyChanged = true;
                     host.AddMessage($"[green]  ✓ {selectedSection.Name} updated.[/]");

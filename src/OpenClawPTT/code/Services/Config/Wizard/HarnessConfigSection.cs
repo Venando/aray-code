@@ -1,22 +1,11 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
 using StreamShell;
 
 namespace OpenClawPTT.ConfigWizard;
-
-
-public class ConfigSetupItem
-{
-    public string? Title;
-    public string? FieldName;
-    public Func<object, bool>? Validator;
-    public string? ValidationHint;
-    public bool IsSecrect = false;
-    public bool IsEmptyToDefault = false;
-    public bool IsClearAllowed = false;
-}
 
 /// <summary>Configures harness selection and gateway connection settings.</summary>
 public sealed class HarnessConfigSection : IConfigSectionWizard
@@ -28,30 +17,22 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
 
     public HarnessConfigSection()
     {
-        AppConfig appConfig;
-
         _configItems = new ConfigSetupItem[]
         {
-            new ConfigSetupItem()
-            {
-                Title = "Gateway URL",
-                FieldName = nameof(appConfig.GatewayUrl),
-                Validator = v => Uri.TryCreate((string)v, UriKind.Absolute, out var uri) && (uri.Scheme == "ws" || uri.Scheme == "wss"),
-                ValidationHint = "Expected ws:// or wss:// URL",
-                DefaultValue = null,
-            }
+            ConfigSetupItem.ForString(
+                title: "Gateway URL",
+                fieldName: nameof(AppConfig.GatewayUrl),
+                validator: v => Uri.TryCreate(v, UriKind.Absolute, out var uri)
+                    && (uri.Scheme == "ws" || uri.Scheme == "wss"),
+                validationHint: "Expected ws:// or wss:// URL"),
         };
     }
 
-    public T GetConfigValue<T>(AppConfig appConfig, string fieldName)
+    public async Task<ConfigSectionResult> RunAsync(
+        IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
     {
-        //Reflection
-    }
-
-
-    public async Task<ConfigSectionResult> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
-    {
-        var configSectionResult = new ConfigSectionResult();
+        var result = new ConfigSectionResult();
+        bool changed = false;
 
         // ── Harness type ──
         var harnessOptions = new (string Name, string Value)[]
@@ -67,14 +48,17 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
             if (isInitialSetup)
             {
                 harness = await PromptSelectionHelper.PromptStringAsync(host,
-                    $"Choose harness:", harnessOptions, allowCancel: false, cancellationToken: ct);
+                    "Choose harness:", harnessOptions, allowCancel: false, cancellationToken: ct);
             }
             else
             {
                 var harnessResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
                     "Choose harness:", harnessOptions, cancellationToken: ct);
                 if (harnessResult == null)
-                    return false;
+                {
+                    result.IsChanged = false;
+                    return result;
+                }
                 harness = harnessResult;
             }
 
@@ -88,20 +72,12 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
 
         ConfigSelectionHelper.PrintSubSection(host, harness, "harness setup");
 
-
-        foreach (var configItem in _configItems)
+        // ── Loop over generic config items ──
+        foreach (var item in _configItems)
         {
-            var result = await PromptTextHelper.PromptAsync(host, configItem.Title ?? "",
-                GetConfigValue<>(config, configItem.FieldName ?? ""),
-                configItem.Validator ?? null,
-                configItem.ValidationHint ?? "",
-                ct,
-                isSecret: configItem.IsSecrect,
-                isEmptyToDefault: configItem.IsEmptyToDefault,
-                allowClear: configItem.IsClearAllowed);
+            if (await item.RunAsync(host, config, isInitialSetup, ct))
+                changed = true;
         }
-
-        // ── Gateway URL ──
 
         // ── Auth token ──
         var authToken = await PromptTextHelper.PromptAsync(host, "Auth token (OPENCLAW_GATEWAY_TOKEN env)",
@@ -140,6 +116,7 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
             }
         }
 
-        return changed;
+        result.IsChanged = changed;
+        return result;
     }
 }

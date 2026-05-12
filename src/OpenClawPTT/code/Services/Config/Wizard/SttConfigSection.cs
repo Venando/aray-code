@@ -12,8 +12,9 @@ public sealed class SttConfigSection : IConfigSectionWizard
     public string Name => "Speech-To-Text";
     public string Description => "STT provider and transcription settings";
 
-    public async Task<bool> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
+    public async Task<ConfigSectionResult> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
     {
+        var result = new ConfigSectionResult();
         bool changed = false;
 
         // ── On initial setup: ask Yes/Skip ──
@@ -24,7 +25,8 @@ public sealed class SttConfigSection : IConfigSectionWizard
             if (!setupStt.HasValue || !setupStt.Value)
             {
                 host.AddMessage("[grey]  Skipped STT setup.[/]");
-                return false;
+                result.IsChanged = false;
+                return result;
             }
         }
 
@@ -42,7 +44,10 @@ public sealed class SttConfigSection : IConfigSectionWizard
             "Choose STT provider:", providers, cancellationToken: ct);
 
         if (provider == null)
-            return false;
+        {
+            result.IsChanged = false;
+            return result;
+        }
 
         ConfigSelectionHelper.PrintSubSection(host, provider, "");
 
@@ -142,6 +147,7 @@ public sealed class SttConfigSection : IConfigSectionWizard
             changed = true;
         }
 
-        return changed;
+        result.IsChanged = changed;
+        return result;
     }
 }

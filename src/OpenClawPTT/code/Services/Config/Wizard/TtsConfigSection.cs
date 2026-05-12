@@ -14,8 +14,9 @@ public sealed class TtsConfigSection : IConfigSectionWizard
     public string Name => "Text-To-Speech";
     public string Description => "TTS provider and voice settings";
 
-    public async Task<bool> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
+    public async Task<ConfigSectionResult> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
     {
+        var result = new ConfigSectionResult();
         bool changed = false;
 
         // ── On initial setup: ask Yes/Skip ──
@@ -26,7 +27,8 @@ public sealed class TtsConfigSection : IConfigSectionWizard
             if (!setupTts.HasValue || !setupTts.Value)
             {
                 host.AddMessage("[grey]  Skipped TTS setup.[/]");
-                return false;
+                result.IsChanged = false;
+                return result;
             }
         }
 
@@ -52,14 +54,18 @@ public sealed class TtsConfigSection : IConfigSectionWizard
             var providerResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
                 "Choose TTS provider:", providers, config.TtsProvider.ToString(), ct);
             if (providerResult == null)
-                return changed;
+            {
+                result.IsChanged = changed;
+                return result;
+            }
             providerStr = providerResult;
         }
 
         if (providerStr == "ElevenLabs")
         {
             host.AddMessage("[yellow]  ElevenLabs TTS is not yet supported.[/]");
-            return changed;
+            result.IsChanged = changed;
+            return result;
         }
 
         if (Enum.TryParse<TtsProviderType>(providerStr, out var provider) && provider != config.TtsProvider)
@@ -205,6 +211,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
             changed = true;
         }
 
-        return changed;
+        result.IsChanged = changed;
+        return result;
     }
 }

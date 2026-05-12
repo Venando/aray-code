@@ -15,8 +15,9 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
 
     private static readonly Regex HexColorPattern = new(@"^#?([0-9A-Fa-f]{6})$", RegexOptions.Compiled);
 
-    public async Task<bool> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
+    public async Task<ConfigSectionResult> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
     {
+        var result = new ConfigSectionResult();
         bool changed = false;
 
         // ── Enabled ──
@@ -31,7 +32,10 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
         }
 
         if (!enabled.HasValue || !enabled.Value)
-            return changed;
+        {
+            result.IsChanged = changed;
+            return result;
+        }
 
         // ── Visual mode ──
         var visualMode = await PromptSelectionHelper.PromptEnumAsync<VisualMode>(host,
@@ -61,7 +65,10 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
             var posResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
                 "Indicator position:", positions, config.VisualFeedbackPosition, ct);
             if (posResult == null)
-                return changed;
+            {
+                result.IsChanged = changed;
+                return result;
+            }
             position = posResult;
         }
         if (position != config.VisualFeedbackPosition)
@@ -108,6 +115,7 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
             changed = true;
         }
 
-        return changed;
+        result.IsChanged = changed;
+        return result;
     }
 }
