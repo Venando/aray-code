@@ -2,6 +2,7 @@ namespace OpenClawPTT;
 
 using System.Net.WebSockets;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Commands;
 using OpenClawPTT.Services.Diagnostics;
 using OpenClawPTT.TTS;
 using StreamShell;
@@ -238,6 +239,10 @@ public class AppRunner : IDisposable
             statusService: _statusService
         );
         shellCommands.CommandExecuted += namingService.OnCommandExecuted;
+
+        using var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentStatusTracker);
+        shellCommands.CommandExecuted += snapshotCleaner.Handle;
+
         await shellCommands.RegisterBaseAsync();
 
         // Register gateway-dependent commands based on connection result

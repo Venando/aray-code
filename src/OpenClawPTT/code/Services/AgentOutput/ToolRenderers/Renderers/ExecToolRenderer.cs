@@ -26,7 +26,7 @@ public sealed class ExecToolRenderer : ToolRendererBase
         const int maxPreviewLines = 6;
         if (lineCount > maxPreviewLines)
         {
-            Output.PrintTruncated(command, "  ", rightMarginIndent, ConsoleColor.White, maxRows: maxPreviewLines);
+            Output.PrintTruncated(command, "  ", rightMarginIndent, ConsoleColor.Gray, maxRows: maxPreviewLines);
             return;
         }
 
