@@ -23,8 +23,17 @@ public sealed class VisualFeedbackConfigSection : ConfigSectionBase
         ("Bottom Right", "BottomRight"),
     };
 
+    // Position must run before Color, so it stays at index 0 and runs inline.
+    private const int IndexPosition = 0;
+    private const int IndexRest = 1;
+
     public VisualFeedbackConfigSection()
     {
+        _configItems.Add(ConfigSetupItem.ForSelectionWithBack(
+            title: "Indicator position",
+            fieldName: nameof(AppConfig.VisualFeedbackPosition),
+            options: PositionOptions));
+
         _configItems.AddRange(new[]
         {
             ConfigSetupItem.ForEnum<VisualMode>(
@@ -76,29 +85,11 @@ public sealed class VisualFeedbackConfigSection : ConfigSectionBase
             return result;
         }
 
-        // ── Position (inline for Back button support) ──
-        string position;
-        if (isInitialSetup)
-        {
-            position = await PromptSelectionHelper.PromptStringAsync(host,
-                "Indicator position:", PositionOptions, config.VisualFeedbackPosition, allowCancel: false, ct);
-        }
-        else
-        {
-            var posResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
-                "Indicator position:", PositionOptions, config.VisualFeedbackPosition, ct);
-            if (posResult == null)
-            {
-                result.IsChanged = changed;
-                return result;
-            }
-            position = posResult;
-        }
-        if (position != config.VisualFeedbackPosition)
-        {
-            config.VisualFeedbackPosition = position;
+        // ── Position (index 0, runs before Color) ──
+        if (await _configItems[IndexPosition].RunAsync(host, config, isInitialSetup, ct))
             changed = true;
-        }
+        result.Settings.Add(new ConfigSectionResult.SettingRecord(
+            _configItems[IndexPosition].Title, _configItems[IndexPosition].GetDisplayValue(config)));
 
         // ── Color (inline for #-prefix post-processing) ──
         var color = await PromptTextHelper.PromptAsync(host, "Indicator color (hex, e.g. #FF0000)",
@@ -111,8 +102,8 @@ public sealed class VisualFeedbackConfigSection : ConfigSectionBase
             changed = true;
         }
 
-        // ── Universal config items ──
-        if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result))
+        // ── VisualMode, Size, Opacity, RimThickness (indices 1..) ──
+        if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexRest))
             changed = true;
 
         result.IsChanged = changed;
