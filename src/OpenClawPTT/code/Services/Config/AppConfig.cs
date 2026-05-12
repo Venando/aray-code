@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using OpenClawPTT.Services;
 using OpenClawPTT.TTS;
 
 namespace OpenClawPTT;
@@ -72,6 +73,14 @@ public sealed class AppConfig
 
     // Visual feedback settings
     public VisualMode VisualMode { get; set; } = VisualMode.SolidDot;
+
+    // Status bar display position for each info element
+    public DisplayPosition ActiveAgentPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ModelPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ThinkingLevelPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ContextPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ConversationNamePosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ConnectionStatusPosition { get; set; } = DisplayPosition.TopSeparatorRight;
 
     // Visual feedback settings
     public bool VisualFeedbackEnabled { get; set; } = true;
@@ -211,5 +220,11 @@ public sealed class AppConfig
         ["TtsTooLongFallback"] = "Action when TTS exceeds limit: truncate or skip",
         ["TtsUseDirectLlmSummary"] = "Use direct LLM summary instead of TTS summarizer pipeline",
         ["CustomDataDir"] = "Override for config data directory path",
+        ["ActiveAgentPosition"] = "Status bar position for active agent icon+name (None, TopSeparatorLeft, TopSeparatorRight, BottomSeparatorLeft, BottomSeparatorRight)",
+        ["ModelPosition"] = "Status bar position for model name",
+        ["ThinkingLevelPosition"] = "Status bar position for thinking level",
+        ["ContextPosition"] = "Status bar position for token context usage",
+        ["ConversationNamePosition"] = "Status bar position for conversation name",
+        ["ConnectionStatusPosition"] = "Status bar position for GW/TTS connection status",
     };
 }

@@ -37,6 +37,9 @@ public class AppRunner : IDisposable
         _errorLog = new ErrorLogStore(cfg.DataDir);
         _statusService = new StatusService(shellHost);
 
+        // Apply per-part display positions from config
+        _statusService.ApplyConfigPositions(cfg);
+
         // Wire agent status tracker if the factory provides one
         if (_factory.AgentStatusTracker != null)
             _statusService.SetAgentStatusTracker(_factory.AgentStatusTracker);
