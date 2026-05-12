@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace OpenClawPTT.Transcriber;
 public sealed class WhisperCppModelManager
 {
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(30) };
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _downloadLocks = new();
 
     /// <summary>All known whisper.cpp models available on HuggingFace.</summary>
     public static readonly IReadOnlyList<WhisperModelInfo> AvailableModels = new List<WhisperModelInfo>
@@ -39,6 +41,7 @@ public sealed class WhisperCppModelManager
 
     public WhisperCppModelManager(IStreamShellHost host, string? dataDir = null)
     {
+        ArgumentNullException.ThrowIfNull(host);
         _host = host;
         var baseDir = dataDir
             ?? Path.Combine(
@@ -106,6 +109,10 @@ public sealed class WhisperCppModelManager
         var totalBytes = response.Content.Headers.ContentLength;
         var tempPath = destPath + ".download";
 
+        // C6: Serialize per-model downloads to avoid TOCTOU race
+        var semaphore = _downloadLocks.GetOrAdd(modelName, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync(ct).ConfigureAwait(false);
+
         try
         {
             long totalRead = 0;
@@ -121,6 +128,7 @@ public sealed class WhisperCppModelManager
 
                 while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                 {
+                    ct.ThrowIfCancellationRequested(); // MEDIUM: check cancellation in loop
                     await fs.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                     totalRead += bytesRead;
 
@@ -133,13 +141,16 @@ public sealed class WhisperCppModelManager
                 }
             }
 
-            // 2. Now that the lock is released, you can move the file
-            if (File.Exists(destPath))
-                File.Delete(destPath);
-
-            File.Move(tempPath, destPath);
+            // 2. Atomic move with overwrite
+            File.Move(tempPath, destPath, overwrite: true);
 
             progressCallback?.Invoke(fileName, "Download complete", totalRead, totalRead, true);
+        }
+        catch (OperationCanceledException)
+        {
+            // H10: Rethrow silently — caller handles cancellation display
+            try { File.Delete(tempPath); } catch { /* best effort */ }
+            throw;
         }
         catch (Exception ex)
         {
@@ -147,6 +158,10 @@ public sealed class WhisperCppModelManager
             // Clean up temp file on failure
             try { File.Delete(tempPath); } catch { /* best effort */ }
             throw;
+        }
+        finally
+        {
+            semaphore.Release();
         }
     }
 
