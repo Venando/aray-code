@@ -2,6 +2,7 @@ using Xunit;
 using Moq;
 using OpenClawPTT.Services;
 using OpenClawPTT;
+using OpenClawPTT.Services.StatusParts;
 
 namespace OpenClawPTT.Tests;
 
@@ -366,31 +367,279 @@ public class StatusServiceTests
     }
 
     [Fact]
-    public void ShortenModelName_StripsDuplicateProviderPrefix()
+    public void ModelPart_ShortensProviderPrefix()
     {
-        // Access via reflection since these are private static methods
-        var type = typeof(StatusService);
-        var method = type.GetMethod("ShortenModelName",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        Assert.NotNull(method);
+        var part = new ModelPart();
+        part.Update("deepseek/deepseek-v4-flash");
+        Assert.Equal("deepseek-v4-flash", part.GetText());
 
-        Assert.Equal("deepseek-v4-flash",
-            method.Invoke(null, new object[] { "deepseek/deepseek-v4-flash" }));
-        Assert.Equal("kimi-k2.6",
-            method.Invoke(null, new object[] { "kimi/kimi-k2.6" }));
-        // gpt-4 doesn't start with "openai", and model is <= 30 chars, so kept as-is
-        Assert.Equal("openai/gpt-4",
-            method.Invoke(null, new object[] { "openai/gpt-4" }));
+        part.Update("kimi/kimi-k2.6");
+        Assert.Equal("kimi-k2.6", part.GetText());
+
+        part.Update("openai/gpt-4");
+        Assert.Equal("openai/gpt-4", part.GetText());
     }
 
     [Fact]
-    public void FormatTokenCount_FormatsCorrectly()
+    public void ModelPart_IsDirtyTracking_Works()
     {
-        Assert.Equal("12k", StatusService.FormatTokenCount(12_000L));
-        Assert.Equal("264k", StatusService.FormatTokenCount(264_000L));
-        Assert.Equal("1k", StatusService.FormatTokenCount(1_000L));
-        Assert.Equal("1.0M", StatusService.FormatTokenCount(1_000_000L));
-        Assert.Equal("500", StatusService.FormatTokenCount(500L));
+        var part = new ModelPart();
+        Assert.True(part.IsDirty); // starts dirty
+
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.Update("different-model");
+        Assert.True(part.IsDirty);
+    }
+
+    [Fact]
+    public void ModelPart_Update_OnlyMarksDirtyOnChange()
+    {
+        var part = new ModelPart();
+        part.Update("same-model");
+        part.GetText();
+        part.MarkClean();
+
+        part.Update("same-model");
+        Assert.False(part.IsDirty);
+    }
+
+    [Fact]
+    public void ContextPart_FormatsTokenCount()
+    {
+        var part = new ContextPart();
+        part.Update(200_000, 12_000);
+        Assert.Contains("12k", part.GetText());
+        Assert.Contains("200k", part.GetText());
+        Assert.Contains("6.0%", part.GetText());
+
+        part.Update(1_000_000, 264_000);
+        Assert.Contains("264k", part.GetText());
+        Assert.Contains("1.0M", part.GetText());
+        Assert.Contains("26%", part.GetText());
+
+        part.Update(1000, 250);
+        Assert.Contains("250", part.GetText());
+        Assert.DoesNotContain("M", part.GetText());
+    }
+
+    [Fact]
+    public void ContextPart_Empty_WhenTokensNull()
+    {
+        var part = new ContextPart();
+        part.Update(null, null);
+        Assert.Equal(string.Empty, part.GetText());
+
+        part.Update(100, null);
+        Assert.Equal(string.Empty, part.GetText());
+    }
+
+    [Fact]
+    public void ContextPart_IsDirtyTracking_Works()
+    {
+        var part = new ContextPart();
+        part.Update(200_000, 12_000);
+        Assert.True(part.IsDirty);
+
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.Update(100_000, 5_000);
+        Assert.True(part.IsDirty);
+    }
+
+    [Fact]
+    public void ActiveAgentPart_IsDirtyTracking_Works()
+    {
+        var snapshot = new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test:main",
+            DisplayName = "TestAgent",
+            Status = "running",
+        };
+
+        var part = new ActiveAgentPart();
+        Assert.True(part.IsDirty); // starts dirty
+
+        part.Update(snapshot);
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.Update(snapshot);
+        Assert.True(part.IsDirty);
+    }
+
+    [Fact]
+    public void ThinkingLevelPart_IsDirtyTracking_Works()
+    {
+        var part = new ThinkingLevelPart();
+        part.Update("high");
+        Assert.True(part.IsDirty);
+
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.Update("low");
+        Assert.True(part.IsDirty);
+    }
+
+    [Fact]
+    public void ConversationNamePart_IsDirtyTracking_Works()
+    {
+        var part = new ConversationNamePart();
+        part.Update("TestConv");
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.Update("NewConv");
+        Assert.True(part.IsDirty);
+
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.Update("NewConv");
+        Assert.False(part.IsDirty);
+    }
+
+    [Fact]
+    public void ConnectionStatusPart_BuildsCorrectText()
+    {
+        var part = new ConnectionStatusPart();
+        part.SetGatewayStatus("Connected", StatusColor.Green);
+        part.SetTtsStatus("Starting", StatusColor.Yellow);
+
+        string text = part.GetText();
+        Assert.Contains("GW:", text);
+        Assert.Contains("Connected", text);
+        Assert.Contains("green", text);
+        Assert.Contains("TTS:", text);
+        Assert.Contains("Starting", text);
+        Assert.Contains("yellow", text);
+    }
+
+    [Fact]
+    public void ConnectionStatusPart_IsDirtyTracking_Works()
+    {
+        var part = new ConnectionStatusPart();
+        part.SetGatewayStatus("Connected", StatusColor.Green);
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.SetGatewayStatus("Connected", StatusColor.Green);
+        Assert.False(part.IsDirty);
+
+        part.SetGatewayStatus("Disconnected", StatusColor.Red);
+        Assert.True(part.IsDirty);
+
+        part.MarkClean();
+        part.SetGatewayStatus("Disconnected", StatusColor.Yellow);
+        Assert.True(part.IsDirty);
+    }
+
+    [Fact]
+    public void StatusPart_Position_CanBeChanged()
+    {
+        var part = new ModelPart();
+        Assert.Equal(DisplayPosition.TopSeparatorLeft, part.Position);
+
+        part.Position = DisplayPosition.TopSeparatorRight;
+        Assert.Equal(DisplayPosition.TopSeparatorRight, part.Position);
+    }
+
+    [Fact]
+    public void StatusPart_Position_Change_AlsoMarksDirty()
+    {
+        var part = new ModelPart();
+        part.Update("test-model");
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.Position = DisplayPosition.TopSeparatorRight;
+        Assert.True(part.IsDirty);
+    }
+
+    [Fact]
+    public void ApplyConfigPositions_SetsAllPartPositions()
+    {
+        var host = new FakeStreamShellHost();
+        var service = new StatusService(host);
+
+        var cfg = new AppConfig
+        {
+            ActiveAgentPosition = DisplayPosition.TopSeparatorRight,
+            ModelPosition = DisplayPosition.None,
+            ThinkingLevelPosition = DisplayPosition.TopSeparatorLeft,
+            ContextPosition = DisplayPosition.None,
+            ConversationNamePosition = DisplayPosition.None,
+            ConnectionStatusPosition = DisplayPosition.TopSeparatorLeft,
+        };
+
+        service.ApplyConfigPositions(cfg);
+
+        var tracker = new FakeAgentStatusTracker();
+        service.SetAgentStatusTracker(tracker);
+
+        var agent = new AgentInfo
+        {
+            AgentId = "test",
+            Name = "TestAgent",
+            IsDefault = true,
+            SessionKey = "agent:test:main"
+        };
+        AgentRegistry.SetAgents(new[] { agent });
+        tracker.AddSnapshot(new AgentStatusSnapshot
+        {
+            SessionKey = "agent:test:main",
+            DisplayName = "TestAgent",
+            Status = "running",
+            Model = "test-model",
+            ThinkingDefault = "high",
+        });
+        tracker.FireChanged();
+
+        service.SetGatewayStatus("Connected", StatusColor.Green);
+        service.SetTtsStatus("Active", StatusColor.Green);
+
+        Assert.NotNull(host.LastSeparatorLeftText);
+        Assert.Contains("high", host.LastSeparatorLeftText);
+        Assert.Contains("GW:", host.LastSeparatorLeftText);
+    }
+
+    [Fact]
+    public void StatusPart_Caching_ReturnsCachedStringWhenNotDirty()
+    {
+        var part = new ModelPart();
+        part.Update("test-model");
+
+        string first = part.GetText();
+        part.MarkClean();
+        string second = part.GetText();
+
+        Assert.Equal(first, second);
+        Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void StatusPart_Caching_ReturnsFreshOnDirty()
+    {
+        var part = new ModelPart();
+        part.Update("first-model");
+        string first = part.GetText();
+        part.MarkClean();
+
+        part.Update("second-model");
+        string second = part.GetText();
+
+        Assert.NotEqual(first, second);
+        Assert.NotSame(first, second);
     }
 
     [Fact]
