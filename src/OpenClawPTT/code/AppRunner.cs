@@ -203,7 +203,11 @@ public class AppRunner : IDisposable
         using var audioService = _factory.CreateAudioService(_cfg);
 
         // Re-create transcriber when config changes (e.g. STT provider/model switched via /reconfigure)
-        void OnConfigSaved(AppConfig newCfg) => audioService.RecreateTranscriber(newCfg, _console);
+        void OnConfigSaved(AppConfig newCfg)
+        {
+            try { audioService.RecreateTranscriber(newCfg, _console); }
+            catch (Exception ex) { _console.PrintError($"Failed to update STT: {ex.Message}"); }
+        }
         _configService.ConfigSaved += OnConfigSaved;
 
         try
