@@ -103,7 +103,8 @@ public class AppRunner : IDisposable
         if (connectResult == ConnectResult.GiveUp)
             return (int)AppLoopExitCode.Error;
 
-        return await RunPttLoopAsync(gateway, pttStateMachine, directLlmService, ttsSummarizer, ct);
+        bool gatewayConnected = connectResult == ConnectResult.Success;
+        return await RunPttLoopAsync(gateway, pttStateMachine, directLlmService, ttsSummarizer, gatewayConnected, ct);
     }
 
     /// <summary>
@@ -198,7 +199,7 @@ public class AppRunner : IDisposable
         }
     }
 
-    private async Task<int> RunPttLoopAsync(IGatewayService gateway, IPttStateMachine pttStateMachine, IDirectLlmService directLlmService, ITtsSummarizer ttsSummarizer, CancellationToken ct)
+    private async Task<int> RunPttLoopAsync(IGatewayService gateway, IPttStateMachine pttStateMachine, IDirectLlmService directLlmService, ITtsSummarizer ttsSummarizer, bool gatewayConnected, CancellationToken ct)
     {
         using var audioService = _factory.CreateAudioService(_cfg);
 
@@ -253,7 +254,15 @@ public class AppRunner : IDisposable
         using var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentStatusTracker);
         shellCommands.CommandExecuted += snapshotCleaner.Handle;
 
-        await shellCommands.RegisterAsync();
+        await shellCommands.RegisterBaseAsync();
+
+        // Register gateway-dependent commands based on connection result
+        if (gatewayConnected)
+            shellCommands.SetGatewayConnected(true);
+
+        // Register /llm command if Direct LLM is configured
+        if (directLlmService.IsConfigured)
+            shellCommands.SetDirectLlmConfigured(true);
 
         // Wire agent hotkey history printing to the canonical shared method
         agentHotkeyService.PrintSessionHistoryAsync = shellCommands.PrintSessionHistory;

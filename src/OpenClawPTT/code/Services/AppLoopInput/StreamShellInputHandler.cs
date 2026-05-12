@@ -15,6 +15,11 @@ namespace OpenClawPTT;
 /// Integrates StreamShell with the PTT client.
 /// Registers all native and OpenClaw commands via <see cref="CommandRegistry"/>
 /// and wires up non-command user text input to the gateway text sender.
+///
+/// Commands are split into three visibility groups:
+///   1. Always-on (no dependencies) — registered once in <see cref="RegisterBaseAsync"/>.
+///   2. Gateway-dependent — shown/hidden via <see cref="SetGatewayConnected"/>.
+///   3. Direct-LLM-dependent — shown/hidden via <see cref="SetDirectLlmConfigured"/>.
 /// </summary>
 public sealed class StreamShellInputHandler : IDisposable
 {
@@ -34,6 +39,17 @@ public sealed class StreamShellInputHandler : IDisposable
     private readonly IStatusService _statusService;
     private readonly SessionHistoryService _historyService;
     private readonly CommandRegistry _registry;
+
+    // ── Group-tracking state ──────────────────────────────────────────────
+    private bool _gatewayCommandsRegistered;
+    private bool _llmCommandRegistered;
+    private string? _lastKnownLlmUrl;
+    private string? _lastKnownLlmModel;
+    private bool _disposed;
+
+    // Singleton list of all OpenClaw command names, ordered for determinism
+    private static readonly string[] OpenClawCommandNames =
+        OpenClawCommandMetadata.Names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public StreamShellInputHandler(
         IStreamShellHost host,
@@ -66,41 +82,207 @@ public sealed class StreamShellInputHandler : IDisposable
         _messageComposer = new TextMessageComposer(host, textSender);
         _historyService = new SessionHistoryService(host, gatewayService, console, pttStateMachine, appConfig);
         _registry = new CommandRegistry(host);
+
+        _lastKnownLlmUrl = appConfig.DirectLlmUrl;
+        _lastKnownLlmModel = appConfig.DirectLlmModelName;
     }
 
-    /// <summary>Register all commands and the UserInputSubmitted handler.</summary>
-    public async Task RegisterAsync()
+    // ── Public registration API ───────────────────────────────────────────
+
+    /// <summary>
+    /// Registers always-on commands (no gateway or Direct LLM dependency),
+    /// wires UserInputSubmitted, and subscribes to ConfigSaved for dynamic
+    /// Direct LLM command visibility.
+    /// </summary>
+    public async Task RegisterBaseAsync()
     {
-        // ── Native commands ───────────────────────────────────────────────
+        // ── Always-on native commands ──────────────────────────────────────
         _registry.Register(new QuitCommand(_host, _onQuit));
         _registry.Register(new ReconfigureCommand(_host, _configService));
         _registry.Register(new CrewCommand(_host, _agentSettingsPersistence, _appConfig, _historyService, _configService));
         _registry.Register(new ChatCommand(_host, _configService, _historyService, _appConfig));
-        _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig));
         _registry.Register(new TtsTestCommand(_host, _ttsSummarizer, _appConfig));
         _registry.Register(new CleanCommand(_host));
-        _registry.Register(new HistoryCommand(_host, _gatewayService, _console, _pttStateMachine, _appConfig));
         _registry.Register(new ErrorsCommand(_host, _errorLog));
-        _registry.Register(new ReconnectCommand(_host, _gatewayService, _console, _statusService, _errorLog, _historyService));
+
+        // /reconnect is always available — it's how users fix a broken connection
+        var reconnectCmd = new ReconnectCommand(_host, _gatewayService, _console, _statusService, _errorLog, _historyService);
+        reconnectCmd.OnReconnectSuccess = OnGatewayReconnected;
+        _registry.Register(reconnectCmd);
+
         _registry.Register(new AppConfigCommand(_host, _appConfig, _configService));
 
-        // ── OpenClaw forwarded commands ───────────────────────────────────
-        // Registered regardless of connection state; execution-time guards handle
-        // the disconnected case (e.g. /reset without an active session shows a
-        // user-friendly message instead of crashing).
-        _registry.RegisterOpenClawCommands(_textSender, _gatewayService, _console);
-
-        // ── Direct LLM command — only when the service is configured ─────────
-        if (_directLlmService != null && _directLlmService.IsConfigured)
-            _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig, _statusService));
-
+        // ── Wire input handling ────────────────────────────────────────────
         _host.UserInputSubmitted += OnUserInput;
 
-        // Fetch initial session history after commands are registered
-        var sessionKey = AgentRegistry.ActiveSessionKey;
-        if (sessionKey != null)
-            await _historyService.PrintSessionHistoryAsync(sessionKey);
+        // ── Subscribe to config changes for Direct LLM command visibility ──
+        _configService.ConfigSaved += OnConfigSaved;
+
+        // Gateway-dependent commands (/history, all OpenClaw commands) and
+        // Direct-LLM commands (/llm) are NOT registered here.
+        // They are added via SetGatewayConnected() / SetDirectLlmConfigured()
+        // which AppRunner calls after determining connection state.
+        await Task.CompletedTask;
     }
+
+    // ── Dynamic command visibility ────────────────────────────────────────
+
+    /// <summary>
+    /// Shows or hides gateway-dependent commands based on connection state.
+    /// When connected, registers <c>/history</c> and all ~60 OpenClaw commands.
+    /// When disconnected, removes them from the palette.
+    /// </summary>
+    public void SetGatewayConnected(bool connected)
+    {
+        if (connected && !_gatewayCommandsRegistered)
+        {
+            RegisterGatewayCommands();
+            _gatewayCommandsRegistered = true;
+
+            // Fetch session history now that gateway-dependent commands are available
+            var sessionKey = AgentRegistry.ActiveSessionKey;
+            if (sessionKey != null)
+                _ = TryFetchHistoryAsync(sessionKey);
+        }
+        else if (!connected && _gatewayCommandsRegistered)
+        {
+            UnregisterGatewayCommands();
+            _gatewayCommandsRegistered = false;
+        }
+    }
+
+    /// <summary>
+    /// Shows or hides the <c>/llm</c> command based on whether Direct LLM is configured.
+    /// </summary>
+    public void SetDirectLlmConfigured(bool configured)
+    {
+        if (configured && !_llmCommandRegistered)
+        {
+            RegisterDirectLlmCommand();
+            _llmCommandRegistered = true;
+        }
+        else if (!configured && _llmCommandRegistered)
+        {
+            UnregisterDirectLlmCommand();
+            _llmCommandRegistered = false;
+        }
+    }
+
+    // ── Group: gateway-dependent commands ─────────────────────────────────
+
+    private void RegisterGatewayCommands()
+    {
+        // Native gateway-dependent commands
+        _registry.Register(new HistoryCommand(_host, _gatewayService, _console, _pttStateMachine, _appConfig));
+
+        // All OpenClaw forwarded commands
+        foreach (var name in OpenClawCommandNames)
+        {
+            var description = OpenClawCommandMetadata.GetDescription(name) ?? "OpenClaw command";
+            var suggestions = OpenClawCommandSuggestions.Get(name);
+
+            var cmd = new OpenClawForwardCommand(
+                name, description, _host, _textSender, _gatewayService, _console, suggestions);
+
+            _registry.Register(cmd);
+        }
+    }
+
+    private void UnregisterGatewayCommands()
+    {
+        // Remove native gateway-dependent command
+        _registry.Unregister("history");
+
+        // Remove all OpenClaw forwarded commands
+        foreach (var name in OpenClawCommandNames)
+            _registry.Unregister(name);
+    }
+
+    // ── Group: Direct-LLM-dependent commands ──────────────────────────────
+
+    private void RegisterDirectLlmCommand()
+    {
+        // Check the current config rather than the captured service reference.
+        // The _directLlmService may be null when Direct LLM is configured at
+        // runtime via /appconfig after startup (Scenario C).  In that case we
+        // still register /llm — LlmCommand.ExecuteAsync gracefully displays
+        // "not configured" if the service is unavailable, prompting the user
+        // to restart.  A future improvement could re-create IDirectLlmService
+        // from IServiceFactory here.
+        bool hasConfig = !string.IsNullOrWhiteSpace(_appConfig.DirectLlmUrl) &&
+                         !string.IsNullOrWhiteSpace(_appConfig.DirectLlmModelName);
+        if (!hasConfig)
+            return;
+        _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig, _statusService));
+    }
+
+    private void UnregisterDirectLlmCommand()
+    {
+        _registry.Unregister("llm");
+    }
+
+    // ── Reconnect callback ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by ReconnectCommand after a successful reconnection.
+    /// Re-registers gateway-dependent commands so they appear in the palette.
+    /// Session history is fetched by <see cref="ReconnectCommand.ExecuteAsync"/>
+    /// after this callback completes, so we don't duplicate the fetch here.
+    /// </summary>
+    private async Task OnGatewayReconnected()
+    {
+        // Force re-register: unregister first, then register fresh
+        if (_gatewayCommandsRegistered)
+        {
+            UnregisterGatewayCommands();
+            _gatewayCommandsRegistered = false;
+        }
+
+        RegisterGatewayCommands();
+        _gatewayCommandsRegistered = true;
+
+        await Task.CompletedTask;
+    }
+
+    // ── Config change handler for Direct LLM ──────────────────────────────
+
+    /// <summary>
+    /// Detects DirectLlmUrl / DirectLlmModelName changes and adds or removes
+    /// the <c>/llm</c> command dynamically.
+    /// </summary>
+    private void OnConfigSaved(AppConfig newCfg)
+    {
+        var llmUrl = newCfg.DirectLlmUrl;
+        var llmModel = newCfg.DirectLlmModelName;
+
+        bool urlChanged = !string.Equals(_lastKnownLlmUrl, llmUrl, StringComparison.OrdinalIgnoreCase);
+        bool modelChanged = !string.Equals(_lastKnownLlmModel, llmModel, StringComparison.OrdinalIgnoreCase);
+
+        if (!urlChanged && !modelChanged)
+            return;
+
+        _lastKnownLlmUrl = llmUrl;
+        _lastKnownLlmModel = llmModel;
+
+        bool nowConfigured = !string.IsNullOrWhiteSpace(llmUrl) && !string.IsNullOrWhiteSpace(llmModel);
+        SetDirectLlmConfigured(nowConfigured);
+    }
+
+    // ── Session history fetch (fire-and-forget with error handling) ───────
+
+    private async Task TryFetchHistoryAsync(string sessionKey)
+    {
+        try
+        {
+            await _historyService.PrintSessionHistoryAsync(sessionKey);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to fetch session history: {ex.Message}");
+        }
+    }
+
+    // ── Public events & wiring ────────────────────────────────────────────
 
     /// <summary>
     /// Raised whenever ANY command (native or OpenClaw) is executed.
@@ -118,8 +300,14 @@ public sealed class StreamShellInputHandler : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _host.UserInputSubmitted -= OnUserInput;
+        _configService.ConfigSaved -= OnConfigSaved;
     }
+
+    // ── User input handling ───────────────────────────────────────────────
 
     /// <summary>
     /// Handles user input from StreamShell.
