@@ -19,7 +19,6 @@ public sealed class WhisperConfigFlow
     private const string TypePython = "python";
     private const string TypeCpp = "cpp";
     private const string CancelSentinel = "__cancel__";
-    private const string SpecifyPathSentinel = "__specify__";
 
     // ── Public entry point ───────────────────────────────────────────
 
@@ -195,33 +194,19 @@ public sealed class WhisperConfigFlow
     }
 
     /// <summary>
-    /// When a binary type is chosen but no binary was detected, let the user
-    /// specify a path via the bottom panel, or cancel.
-    /// Returns the path string, or null if cancelled.
+    /// Called when the user picked a binary type but no matching binary was detected.
+    /// Shows install instructions via host.AddMessage, then prompts Cancel so the
+    /// user can exit the config section and install first.
+    /// Always returns null — the caller handles the cancellation.
     /// </summary>
     private static async Task<string?> HandleMissingBinaryAsync(
         IStreamShellHost host, WhisperType type, CancellationToken ct)
     {
         var typeName = type == WhisperType.Python ? "Python openai-whisper" : "C++ whisper.cpp";
-        host.AddMessage($"[yellow]  No {typeName} binary detected on your system.[/]");
 
-        // Use PromptSelection to ask what to do
-        var variants = new IVariant[]
-        {
-            new ConfigVariant("[bold]Specify path manually...[/]", SpecifyPathSentinel),
-            new ConfigVariant("", ""),
-            new ConfigVariant("[grey]Cancel[/]", CancelSentinel),
-        };
-
-        var result = await host.PromptSelection($"No {typeName} binary found.", variants);
-        if (result is not { Length: > 0 } || result[0] is not ConfigVariant cv)
-            return null;
-
-        if (cv.Value == CancelSentinel)
-            return null;
-
-        // "Specify path" — fall back to free text input
-        // StreamShell doesn't have a free-text input in selections, so we show info
+        // Show install instructions via host message
+        host.AddMessage("");
+        host.AddMessage($"[yellow]  ⚠ No {typeName} binary detected on your system.[/]");
         host.AddMessage("");
         host.AddMessage($"[grey]  Install {typeName}:[/]");
         if (type == WhisperType.Python)
@@ -232,8 +217,17 @@ public sealed class WhisperConfigFlow
         {
             host.AddMessage("[grey]    Build from: https://github.com/ggerganov/whisper.cpp[/]");
         }
-        host.AddMessage("[grey]    Install the binary on PATH, then re-run this configuration.[/]");
+        host.AddMessage("[grey]    Add it to PATH, then re-run this configuration.[/]");
         host.AddMessage("");
+
+        // Prompt to let user acknowledge and return to provider selection
+        var variants = new IVariant[]
+        {
+            new ConfigVariant("[grey]Cancel[/]", CancelSentinel),
+        };
+
+        var result = await host.PromptSelection($"{typeName} not installed.", variants);
+        _ = result; // only Cancel is available — swallow result
 
         return null;
     }
