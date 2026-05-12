@@ -21,7 +21,7 @@ public class TranscriberFactoryTests
     #region Null API key scenarios
 
     [Fact]
-    public void Create_OpenAiProvider_NullApiKey_ThrowsArgumentNullException()
+    public void Create_OpenAiProvider_NullApiKey_ThrowsInvalidOperationException()
     {
         var cfg = new AppConfig
         {
@@ -31,7 +31,7 @@ public class TranscriberFactoryTests
 
         var ex = Record.Exception(() => TranscriberFactory.Create(cfg, Console));
 
-        Assert.IsType<ArgumentNullException>(ex);
+        Assert.IsType<InvalidOperationException>(ex);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class TranscriberFactoryTests
 
         var ex = Record.Exception(() => TranscriberFactory.Create(cfg, Console));
 
-        Assert.True(ex is ArgumentNullException or ArgumentException);
+        Assert.True(ex is InvalidOperationException or ArgumentException);
     }
 
     #endregion
