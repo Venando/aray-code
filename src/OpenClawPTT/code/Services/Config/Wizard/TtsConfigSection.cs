@@ -22,8 +22,8 @@ public sealed class TtsConfigSection : IConfigSectionWizard
         if (isInitialSetup)
         {
             var setupTts = await PromptSelectionHelper.PromptBoolAsync(host,
-                "Setup Text-To-Speech?", defaultValue: true, allowCancel: false, ct);
-            if (!setupTts)
+                "Setup Text-To-Speech?", defaultValue: true, allowCancel: false, cancellationToken: ct);
+            if (!setupTts.HasValue || !setupTts.Value)
             {
                 host.AddMessage("[grey]  Skipped TTS setup.[/]");
                 return false;
@@ -45,7 +45,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
         if (isInitialSetup)
         {
             providerStr = await PromptSelectionHelper.PromptStringAsync(host,
-                "Choose TTS provider:", providers, config.TtsProvider.ToString(), allowCancel: false, ct);
+                "Choose TTS provider:", providers, config.TtsProvider.ToString(), allowCancel: false, cancellationToken: ct);
         }
         else
         {
@@ -75,7 +75,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                 var openAiKey = await PromptTextHelper.PromptAsync(host, "OpenAI API key for TTS",
                     config.TtsOpenAiApiKey ?? config.OpenAiApiKey ?? "",
                     _ => true, null,
-                    ct, isSecret: true, allowEmpty: true);
+                    ct, isSecret: true, isEmptyToDefault: true);
                 if (openAiKey != null)
                 {
                     var newKey = string.IsNullOrWhiteSpace(openAiKey) ? null : openAiKey;
@@ -91,7 +91,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                 var subKey = await PromptTextHelper.PromptAsync(host, "Azure TTS subscription key",
                     config.TtsSubscriptionKey ?? "",
                     _ => true, null,
-                    ct, isSecret: true, allowEmpty: true);
+                    ct, isSecret: true, isEmptyToDefault: true);
                 if (subKey != null)
                 {
                     var newKey = string.IsNullOrWhiteSpace(subKey) ? null : subKey;
@@ -116,7 +116,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                 var coquiModelPath = await PromptTextHelper.PromptAsync(host, "Path to Coqui model file",
                     config.CoquiModelPath ?? "",
                     _ => true, null,
-                    ct, allowEmpty: true);
+                    ct, isEmptyToDefault: true);
                 if (coquiModelPath != null)
                 {
                     var newPath = string.IsNullOrWhiteSpace(coquiModelPath) ? null : coquiModelPath;
@@ -162,7 +162,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
                 var piperModel = await PromptTextHelper.PromptAsync(host, "Piper model path",
                     config.PiperModelPath ?? "",
                     _ => true, null,
-                    ct, allowEmpty: true);
+                    ct, isEmptyToDefault: true);
                 if (piperModel != null)
                 {
                     var newPath = string.IsNullOrWhiteSpace(piperModel) ? null : piperModel;
@@ -179,7 +179,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
         var voice = await PromptTextHelper.PromptAsync(host, "Voice name (optional)",
             config.TtsVoice ?? "",
             _ => true, null,
-            ct, allowEmpty: true);
+            ct, isEmptyToDefault: true);
         if (voice != null)
         {
             var newVoice = string.IsNullOrWhiteSpace(voice) ? null : voice;
@@ -198,7 +198,7 @@ public sealed class TtsConfigSection : IConfigSectionWizard
             ("Off", "off"),
         };
         var ttsMode = await PromptSelectionHelper.PromptStringAsync(host,
-            "TTS output mode:", ttsModes, config.TtsOutputMode, allowCancel: false, ct);
+            "TTS output mode:", ttsModes, config.TtsOutputMode, allowCancel: false, cancellationToken: ct);
         if (ttsMode != config.TtsOutputMode)
         {
             config.TtsOutputMode = ttsMode;

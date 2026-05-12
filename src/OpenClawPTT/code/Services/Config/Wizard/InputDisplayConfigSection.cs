@@ -29,31 +29,33 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         }
 
         // ── Hold to talk ──
-        var holdToTalk = await PromptSelectionHelper.PromptBoolAsync(host,
+        bool? holdToTalk = await PromptSelectionHelper.PromptBoolAsync(host,
             "Hold-to-talk mode? (Hold = hold down, Release = send)",
-            config.HoldToTalk, allowCancel: false, ct);
-        if (holdToTalk != config.HoldToTalk)
+            config.HoldToTalk, allowCancel: false, cancellationToken: ct);
+
+
+        if (holdToTalk.HasValue && holdToTalk.Value != config.HoldToTalk)
         {
-            config.HoldToTalk = holdToTalk;
+            config.HoldToTalk = holdToTalk.Value;
             changed = true;
         }
 
         // ── Real-time reply ──
         var realTime = await PromptSelectionHelper.PromptBoolAsync(host,
             "Show real-time reply streaming?",
-            config.RealTimeReplyOutput, allowCancel: false, ct);
-        if (realTime != config.RealTimeReplyOutput)
+            config.RealTimeReplyOutput, allowCancel: false, cancellationToken: ct);
+        if (realTime.HasValue && realTime.Value != config.RealTimeReplyOutput)
         {
-            config.RealTimeReplyOutput = realTime;
+            config.RealTimeReplyOutput = realTime.Value;
             changed = true;
         }
 
         // ── Reply display mode ──
         var replyMode = await PromptSelectionHelper.PromptEnumAsync<ReplyDisplayMode>(host,
-            "Reply display mode:", config.ReplyDisplayMode, allowCancel: false, ct);
-        if (replyMode != config.ReplyDisplayMode)
+            "Reply display mode:", config.ReplyDisplayMode, allowCancel: false, cancellationToken: ct);
+        if (replyMode.HasValue && replyMode.Value != config.ReplyDisplayMode)
         {
-            config.ReplyDisplayMode = replyMode;
+            config.ReplyDisplayMode = replyMode.Value;
             changed = true;
         }
 
@@ -68,12 +70,12 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         if (isInitialSetup)
         {
             audioMode = await PromptSelectionHelper.PromptStringAsync(host,
-                "Audio response mode:", audioModes, config.AudioResponseMode, allowCancel: false, ct);
+                "Audio response mode:", audioModes, config.AudioResponseMode, allowCancel: false, cancellationToken: ct);
         }
         else
         {
             var audioResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
-                "Audio response mode:", audioModes, config.AudioResponseMode, ct);
+                "Audio response mode:", audioModes, config.AudioResponseMode, cancellationToken: ct);
             if (audioResult == null)
                 return changed;
             audioMode = audioResult;
@@ -99,7 +101,7 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         var prefix = await PromptTextHelper.PromptAsync(host, "Transcription context prefix",
             config.TranscriptionPromptPrefix,
             _ => true, null,
-            ct, allowEmpty: true, allowClear: true);
+            ct, isEmptyToDefault: true, allowClear: true);
         if (prefix != null && prefix != config.TranscriptionPromptPrefix)
         {
             config.TranscriptionPromptPrefix = prefix;
@@ -109,10 +111,10 @@ public sealed class InputDisplayConfigSection : IConfigSectionWizard
         // ── Require confirm before send ──
         var requireConfirm = await PromptSelectionHelper.PromptBoolAsync(host,
             "Require confirmation before sending messages?",
-            config.RequireConfirmBeforeSend, allowCancel: false, ct);
-        if (requireConfirm != config.RequireConfirmBeforeSend)
+            config.RequireConfirmBeforeSend, allowCancel: false, cancellationToken: ct);
+        if (requireConfirm.HasValue && requireConfirm.Value != config.RequireConfirmBeforeSend)
         {
-            config.RequireConfirmBeforeSend = requireConfirm;
+            config.RequireConfirmBeforeSend = requireConfirm.Value;
             changed = true;
         }
 

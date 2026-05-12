@@ -6,15 +6,52 @@ using StreamShell;
 
 namespace OpenClawPTT.ConfigWizard;
 
+
+public class ConfigSetupItem
+{
+    public string? Title;
+    public string? FieldName;
+    public Func<object, bool>? Validator;
+    public string? ValidationHint;
+    public bool IsSecrect = false;
+    public bool IsEmptyToDefault = false;
+    public bool IsClearAllowed = false;
+}
+
 /// <summary>Configures harness selection and gateway connection settings.</summary>
 public sealed class HarnessConfigSection : IConfigSectionWizard
 {
     public string Name => "Harness";
     public string Description => "Harness type and gateway connection";
 
-    public async Task<bool> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
+    private readonly ConfigSetupItem[] _configItems;
+
+    public HarnessConfigSection()
     {
-        bool changed = false;
+        AppConfig appConfig;
+
+        _configItems = new ConfigSetupItem[]
+        {
+            new ConfigSetupItem()
+            {
+                Title = "Gateway URL",
+                FieldName = nameof(appConfig.GatewayUrl),
+                Validator = v => Uri.TryCreate((string)v, UriKind.Absolute, out var uri) && (uri.Scheme == "ws" || uri.Scheme == "wss"),
+                ValidationHint = "Expected ws:// or wss:// URL",
+                DefaultValue = null,
+            }
+        };
+    }
+
+    public T GetConfigValue<T>(AppConfig appConfig, string fieldName)
+    {
+        //Reflection
+    }
+
+
+    public async Task<ConfigSectionResult> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
+    {
+        var configSectionResult = new ConfigSectionResult();
 
         // ── Harness type ──
         var harnessOptions = new (string Name, string Value)[]
@@ -23,46 +60,56 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
             ("Nanobot (not supported)", "nanobot"),
         };
 
-        string harness;
-        if (isInitialSetup)
+        string? harness = null;
+
+        while (harness == null)
         {
-            harness = await PromptSelectionHelper.PromptStringAsync(host,
-                "Choose harness:", harnessOptions, "openclaw", allowCancel: false, ct);
-        }
-        else
-        {
-            var harnessResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
-                "Choose harness:", harnessOptions, "openclaw", ct);
-            if (harnessResult == null)
-                return false;
-            harness = harnessResult;
+            if (isInitialSetup)
+            {
+                harness = await PromptSelectionHelper.PromptStringAsync(host,
+                    $"Choose harness:", harnessOptions, allowCancel: false, cancellationToken: ct);
+            }
+            else
+            {
+                var harnessResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
+                    "Choose harness:", harnessOptions, cancellationToken: ct);
+                if (harnessResult == null)
+                    return false;
+                harness = harnessResult;
+            }
+
+            // For now only OpenClaw is supported; Nanobot is a placeholder
+            if (harness == "nanobot")
+            {
+                host.AddMessage("[dim]Nanobot harness is not yet supported yet[/]");
+                harness = null;
+            }
         }
 
-        // For now only OpenClaw is supported; Nanobot is a placeholder
-        if (harness == "nanobot")
+        ConfigSelectionHelper.PrintSubSection(host, harness, "harness setup");
+
+
+        foreach (var configItem in _configItems)
         {
-            host.AddMessage("[yellow]  Nanobot harness is not yet supported. Using OpenClaw.[/]");
-            harness = "openclaw";
+            var result = await PromptTextHelper.PromptAsync(host, configItem.Title ?? "",
+                GetConfigValue<>(config, configItem.FieldName ?? ""),
+                configItem.Validator ?? null,
+                configItem.ValidationHint ?? "",
+                ct,
+                isSecret: configItem.IsSecrect,
+                isEmptyToDefault: configItem.IsEmptyToDefault,
+                allowClear: configItem.IsClearAllowed);
         }
 
         // ── Gateway URL ──
-        var gatewayUrl = await PromptTextHelper.PromptAsync(host, "Gateway URL",
-            config.GatewayUrl,
-            v => Uri.TryCreate(v, UriKind.Absolute, out var uri) && (uri.Scheme == "ws" || uri.Scheme == "wss"),
-            "Expected ws:// or wss:// URL",
-            ct);
-        if (gatewayUrl != null && gatewayUrl != config.GatewayUrl)
-        {
-            config.GatewayUrl = gatewayUrl;
-            changed = true;
-        }
 
         // ── Auth token ──
         var authToken = await PromptTextHelper.PromptAsync(host, "Auth token (OPENCLAW_GATEWAY_TOKEN env)",
             config.AuthToken ?? Environment.GetEnvironmentVariable("OPENCLAW_GATEWAY_TOKEN") ?? "",
-            _ => true,
+            value => !string.IsNullOrWhiteSpace(value),
             null,
-            ct, isSecret: true, allowEmpty: true);
+            ct, isSecret: true, isEmptyToDefault: false);
+
         if (authToken != null)
         {
             var newValue = string.IsNullOrWhiteSpace(authToken) ? null : authToken;
@@ -81,7 +128,7 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
                 config.TlsFingerprint ?? "",
                 _ => true,
                 null,
-                ct, allowEmpty: true);
+                ct, isEmptyToDefault: true);
             if (tlsFingerprint != null)
             {
                 var newValue = string.IsNullOrWhiteSpace(tlsFingerprint) ? null : tlsFingerprint;

@@ -28,7 +28,7 @@ public sealed class AppConfig
     public int MaxRecordSeconds { get; set; } = 120;
     /// <summary>Controls diagnostic log output verbosity. Default = Error (only errors shown).</summary>
     public LogLevel DebugLevel { get; set; } = LogLevel.Error;
-    public string GroqApiKey { get; set; } = "gsk_";
+    public string GroqApiKey { get; set; } = "";
     public bool RealTimeReplyOutput { get; set; } = true;
     public ReplyDisplayMode ReplyDisplayMode { get; set; } = ReplyDisplayMode.Both;
 

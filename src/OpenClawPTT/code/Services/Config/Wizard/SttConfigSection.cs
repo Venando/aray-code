@@ -19,14 +19,16 @@ public sealed class SttConfigSection : IConfigSectionWizard
         // ── On initial setup: ask Yes/Skip ──
         if (isInitialSetup)
         {
-            var setupStt = await PromptSelectionHelper.PromptBoolAsync(host,
-                "Setup Speech-To-Text?", defaultValue: true, allowCancel: false, ct);
-            if (!setupStt)
+            var setupStt = await PromptSelectionHelper.PromptSkipOrProceedAsync(host,
+                "Setup Speech-To-Text?", allowCancel: true, cancellationToken: ct);
+            if (!setupStt.HasValue || !setupStt.Value)
             {
                 host.AddMessage("[grey]  Skipped STT setup.[/]");
                 return false;
             }
         }
+
+        ConfigSelectionHelper.PrintSubSection(host, "proceeding");
 
         // ── Provider selection ──
         var providers = new (string Name, string Value)[]
@@ -36,20 +38,13 @@ public sealed class SttConfigSection : IConfigSectionWizard
             ("Whisper.cpp (local)", "whisper-cpp"),
         };
 
-        string provider;
-        if (isInitialSetup)
-        {
-            provider = await PromptSelectionHelper.PromptStringAsync(host,
-                "Choose STT provider:", providers, config.SttProvider ?? "groq", allowCancel: false, ct);
-        }
-        else
-        {
-            var providerResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
-                "Choose STT provider:", providers, config.SttProvider ?? "groq", ct);
-            if (providerResult == null)
-                return changed;
-            provider = providerResult;
-        }
+        string? provider = await PromptSelectionHelper.PromptStringAsync(host,
+            "Choose STT provider:", providers, cancellationToken: ct);
+
+        if (provider == null)
+            return false;
+
+        ConfigSelectionHelper.PrintSubSection(host, provider, "");
 
         if (provider != config.SttProvider)
         {
@@ -85,7 +80,7 @@ public sealed class SttConfigSection : IConfigSectionWizard
                 var openAiKey = await PromptTextHelper.PromptAsync(host, "OpenAI API key for STT",
                     config.OpenAiApiKey ?? "",
                     _ => true, null,
-                    ct, isSecret: true, allowEmpty: true);
+                    ct, isSecret: true, isEmptyToDefault: true);
                 if (openAiKey != null)
                 {
                     var newKey = string.IsNullOrWhiteSpace(openAiKey) ? null : openAiKey;
@@ -110,7 +105,7 @@ public sealed class SttConfigSection : IConfigSectionWizard
                 var whisperPath = await PromptTextHelper.PromptAsync(host, "Path to whisper-cpp executable",
                     config.WhisperCppPath ?? "",
                     _ => true, null,
-                    ct, allowEmpty: true);
+                    ct, isEmptyToDefault: true);
                 if (whisperPath != null)
                 {
                     var newPath = string.IsNullOrWhiteSpace(whisperPath) ? null : whisperPath;
@@ -123,7 +118,7 @@ public sealed class SttConfigSection : IConfigSectionWizard
                 var whisperModel = await PromptTextHelper.PromptAsync(host, "Path to whisper-cpp model file",
                     config.WhisperCppModelPath ?? "",
                     _ => true, null,
-                    ct, allowEmpty: true);
+                    ct, isEmptyToDefault: true);
                 if (whisperModel != null)
                 {
                     var newPath = string.IsNullOrWhiteSpace(whisperModel) ? null : whisperModel;

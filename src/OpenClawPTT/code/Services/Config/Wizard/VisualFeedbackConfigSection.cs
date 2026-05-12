@@ -22,22 +22,23 @@ public sealed class VisualFeedbackConfigSection : IConfigSectionWizard
         // ── Enabled ──
         var enabled = await PromptSelectionHelper.PromptBoolAsync(host,
             "Show visual feedback indicator?",
-            config.VisualFeedbackEnabled, allowCancel: false, ct);
-        if (enabled != config.VisualFeedbackEnabled)
+            config.VisualFeedbackEnabled, allowCancel: false, cancellationToken: ct);
+
+        if (enabled.HasValue && enabled.Value != config.VisualFeedbackEnabled)
         {
-            config.VisualFeedbackEnabled = enabled;
+            config.VisualFeedbackEnabled = enabled.Value;
             changed = true;
         }
 
-        if (!enabled)
+        if (!enabled.HasValue || !enabled.Value)
             return changed;
 
         // ── Visual mode ──
         var visualMode = await PromptSelectionHelper.PromptEnumAsync<VisualMode>(host,
-            "Visual indicator style:", config.VisualMode, allowCancel: false, ct);
-        if (visualMode != config.VisualMode)
+            "Visual indicator style:", config.VisualMode, allowCancel: false, cancellationToken: ct);
+        if (visualMode.HasValue && visualMode.Value != config.VisualMode)
         {
-            config.VisualMode = visualMode;
+            config.VisualMode = visualMode.Value;
             changed = true;
         }
 

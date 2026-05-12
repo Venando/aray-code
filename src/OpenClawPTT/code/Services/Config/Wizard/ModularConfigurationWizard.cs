@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
+using Spectre.Console;
 using StreamShell;
 
 namespace OpenClawPTT.ConfigWizard;
@@ -50,15 +51,15 @@ public sealed class ModularConfigurationWizard
         {
             var config = new AppConfig();
 
-            host.AddMessage("[cyan2]═══════════════════════════════════════════[/]");
-            host.AddMessage("[cyan2]  Welcome! Let's configure OpenClaw PTT.  [/]");
-            host.AddMessage("[cyan2]═══════════════════════════════════════════[/]");
-
             foreach (var section in _sections)
             {
                 ct.ThrowIfCancellationRequested();
-                host.AddMessage("");
-                host.AddMessage($"[bold cyan]▶ {section.Name}[/] [grey]- {section.Description}[/]");
+                
+                for (int i = 0; i < ConsoleMetrics.GetWindowHeight(); i++)
+                    host.AddMessage("");
+
+                host.AddMessage($"[bold cyan2]──────────● [underline]{section.Name}[/]      [/]");
+                host.AddMessage($"[grey]{ section.Description} [/]");
                 await section.RunAsync(host, config, isInitialSetup: true, ct);
             }
 

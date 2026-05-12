@@ -25,7 +25,7 @@ public static class PromptTextHelper
         string? validationHint,
         CancellationToken ct,
         bool isSecret = false,
-        bool allowEmpty = false,
+        bool isEmptyToDefault = false,
         bool allowClear = false)
     {
         var tcs = new TaskCompletionSource<string?>();
@@ -43,15 +43,9 @@ public static class PromptTextHelper
                     return;
                 }
 
-                if (string.IsNullOrEmpty(input))
+                if (isEmptyToDefault && input.Length == 0)
                 {
-                    if (allowEmpty)
-                    {
-                        tcs.TrySetResult("");
-                        return;
-                    }
-                    tcs.TrySetResult(defaultValue);
-                    return;
+                    input = defaultValue;
                 }
 
                 if (!validate(input))
@@ -61,7 +55,14 @@ public static class PromptTextHelper
                     return;
                 }
 
-                var displayValue = isSecret ? MaskSecret(input) : input;
+                string displayValue = input;
+                
+                if (isSecret)
+                    displayValue = MaskSecret(displayValue);
+
+                if (string.IsNullOrWhiteSpace(displayValue))
+                    displayValue = "(not set)";
+
                 host.AddMessage($"[green]  ✓ {Markup.Escape(displayValue)}[/]");
                 tcs.TrySetResult(input);
             }
@@ -122,6 +123,7 @@ public static class PromptTextHelper
 
     private static void SendPrompt(IStreamShellHost host, string description, string defaultValue, bool isSecret)
     {
+        host.AddMessage("");
         host.AddMessage($"[cyan2]▸ {Markup.Escape(description)}[/]");
         var displayDefault = isSecret ? MaskSecret(defaultValue ?? "") : defaultValue;
         if (!string.IsNullOrEmpty(displayDefault))

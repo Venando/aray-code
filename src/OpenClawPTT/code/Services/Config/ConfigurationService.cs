@@ -4,8 +4,12 @@ using System.Text.Json;
 using OpenClawPTT.ConfigWizard;
 using Spectre.Console;
 using System.Threading.Tasks;
+using StreamShell;
 
 namespace OpenClawPTT.Services;
+
+
+public record Variant(string Name) : IVariant;
 
 public class ConfigurationService : IConfigurationService
 {
@@ -29,7 +33,10 @@ public class ConfigurationService : IConfigurationService
 
         if (cfg is null)
         {
-            shellHost.AddMessage("[cyan2]No configuration found — starting first-time setup.[/]");
+            shellHost.AddMessage("[dim]No configuration found — starting first-time setup.[/]");
+            
+            await shellHost.PromptSelection("Continue?", [new Variant("Yes") ]);
+
             cfg = await _wizard.RunInitialSetupAsync(shellHost, ct);
             _storage.Save(cfg);
             shellHost.AddMessage("[green]Configuration saved.[/]");

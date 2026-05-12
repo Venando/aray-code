@@ -24,5 +24,15 @@ public interface IConfigSectionWizard
     /// <param name="isInitialSetup">True during first-time setup (no "Back" option on first prompt).</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>True if any setting was changed.</returns>
-    Task<bool> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct);
+    Task<ConfigSectionResult> RunAsync(IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct);
 }
+
+public class ConfigSectionResult
+{
+    public readonly IReadOnlyList<SettingRecord> Settings = new List<SettingRecord>();
+
+    public bool IsChanged { get; set;}
+    
+    public record SettingRecord(string Name, string DisplayValue);
+}
+
