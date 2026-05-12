@@ -91,41 +91,23 @@ public sealed class TtsConfigSection : ConfigSectionBase
         var result = new ConfigSectionResult();
         bool changed = false;
 
-        // ── On initial setup: ask Yes/Skip ──
-        if (isInitialSetup)
+        var setupTts = await PromptSelectionHelper.PromptSkipOrProceedAsync(host,
+            "Setup Text-To-Speech?", allowCancel: true, cancellationToken: ct);
+        if (!setupTts.HasValue || !setupTts.Value)
         {
-            var setupTts = await PromptSelectionHelper.PromptBoolAsync(host,
-                "Setup Text-To-Speech?", defaultValue: true, allowCancel: false, cancellationToken: ct);
-            if (!setupTts.HasValue || !setupTts.Value)
-            {
-                host.AddMessage("[grey]  Skipped TTS setup.[/]");
-                result.IsChanged = false;
-                return result;
-            }
+            host.AddMessage("[grey]  Skipped TTS setup.[/]");
+            result.IsChanged = false;
+            return result;
         }
+
+        ConfigSelectionHelper.PrintSubSection(host, "proceeding");
 
         // ── Provider selection ──
-        string providerStr;
-        if (isInitialSetup)
-        {
-            providerStr = await PromptSelectionHelper.PromptStringAsync(host,
-                "Choose TTS provider:", TtsProviderOptions, config.TtsProvider.ToString(), allowCancel: false, cancellationToken: ct);
-        }
-        else
-        {
-            var providerResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
-                "Choose TTS provider:", TtsProviderOptions, config.TtsProvider.ToString(), ct);
-            if (providerResult == null)
-            {
-                result.IsChanged = changed;
-                return result;
-            }
-            providerStr = providerResult;
-        }
 
-        if (providerStr == "ElevenLabs")
+        string providerStr = await PromptSelectionHelper.PromptStringWithBackAsync(host,
+            "Choose TTS provider:", TtsProviderOptions, config.TtsProvider.ToString(), ct);
+        if (providerStr == null)
         {
-            host.AddMessage("[yellow]  ElevenLabs TTS is not yet supported.[/]");
             result.IsChanged = changed;
             return result;
         }
@@ -134,6 +116,15 @@ public sealed class TtsConfigSection : ConfigSectionBase
         {
             config.TtsProvider = provider;
             changed = true;
+        }
+
+        ConfigSelectionHelper.PrintSubSection(host, providerStr);
+
+        if (providerStr == "ElevenLabs")
+        {
+            host.AddMessage("[yellow]  ElevenLabs TTS is not yet supported.[/]");
+            result.IsChanged = changed;
+            return result;
         }
 
         // ── Seed provider-specific defaults ──

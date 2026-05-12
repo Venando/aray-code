@@ -32,7 +32,8 @@ public sealed class SttConfigSection : ConfigSectionBase
                 title: "Locale (e.g. en-US, ja-JP, ru-RU)",
                 fieldName: nameof(AppConfig.Locale),
                 validator: v => v.Length >= 2,
-                validationHint: "At least 2 characters"),
+                validationHint: "At least 2 characters",
+                isEmptyToDefault:true),
         });
 
         // ── Groq items ──
@@ -45,7 +46,8 @@ public sealed class SttConfigSection : ConfigSectionBase
 
         AddConfigItem(TagGroq, ConfigSetupItem.ForString(
             title: "Groq STT model",
-            fieldName: nameof(AppConfig.GroqModel)));
+            fieldName: nameof(AppConfig.GroqModel),
+            isEmptyToDefault:true));
 
         // ── OpenAI items ──
         AddConfigItem(TagOpenAi, ConfigSetupItem.ForString(
