@@ -25,15 +25,8 @@ public sealed class SttConfigSection : ConfigSectionBase
     public SttConfigSection()
     {
         // Universal items (always prompted)
-        _configItems.AddRange(new[]
-        {
-            ConfigSetupItem.ForString(
-                title: "Locale (e.g. en-US, ja-JP, ru-RU)",
-                fieldName: nameof(AppConfig.Locale),
-                validator: v => v.Length >= 2,
-                validationHint: "At least 2 characters",
-                isEmptyToDefault:true),
-        });
+        // NOTE: locale is only needed for cloud STT providers (Groq, OpenAI).
+        // Whisper.cpp auto-detects language from audio.
 
         // ── Groq items ──
         AddConfigItem(TagGroq, ConfigSetupItem.ForString(
@@ -48,6 +41,13 @@ public sealed class SttConfigSection : ConfigSectionBase
             fieldName: nameof(AppConfig.GroqModel),
             isEmptyToDefault:true));
 
+        AddConfigItem(TagGroq, ConfigSetupItem.ForString(
+            title: "Locale (e.g. en-US, ja-JP, ru-RU)",
+            fieldName: nameof(AppConfig.Locale),
+            validator: v => v.Length >= 2,
+            validationHint: "At least 2 characters",
+            isEmptyToDefault:true));
+
         // ── OpenAI items ──
         AddConfigItem(TagOpenAi, ConfigSetupItem.ForString(
             title: "OpenAI API key for STT",
@@ -58,6 +58,13 @@ public sealed class SttConfigSection : ConfigSectionBase
         AddConfigItem(TagOpenAi, ConfigSetupItem.ForString(
             title: "OpenAI STT model",
             fieldName: nameof(AppConfig.OpenAiModel)));
+
+        AddConfigItem(TagOpenAi, ConfigSetupItem.ForString(
+            title: "Locale (e.g. en-US, ja-JP, ru-RU)",
+            fieldName: nameof(AppConfig.Locale),
+            validator: v => v.Length >= 2,
+            validationHint: "At least 2 characters",
+            isEmptyToDefault:true));
     }
 
     public override async Task<ConfigSectionResult> RunAsync(

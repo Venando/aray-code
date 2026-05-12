@@ -311,11 +311,22 @@ public sealed class WhisperCppModelManager
         if (!Directory.Exists(cacheDir))
             return false;
 
-        // Check for the standard PyTorch model file (model_name.pt or model_name.en.pt)
-        if (File.Exists(Path.Combine(cacheDir, $"{modelName}.pt")))
-            return true;
+        return File.Exists(Path.Combine(cacheDir, $"{modelName}.pt"));
+    }
 
-        return false;
+    /// <summary>
+    /// Deletes a Python openai-whisper model from the local cache.
+    /// Returns true if the model existed and was deleted.
+    /// </summary>
+    public static bool DeletePythonModel(string modelName)
+    {
+        var cacheDir = GetPythonCacheDir();
+        var path = Path.Combine(cacheDir, $"{modelName}.pt");
+        if (!File.Exists(path))
+            return false;
+
+        File.Delete(path);
+        return true;
     }
 
     /// <summary>

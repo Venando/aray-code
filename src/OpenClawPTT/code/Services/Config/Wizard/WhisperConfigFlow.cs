@@ -33,34 +33,35 @@ public sealed class WhisperConfigFlow
         var allBinaries = WhisperCppModelManager.FindAllWhisperBinaries();
         var modelManager = new WhisperCppModelManager(host, config.CustomDataDir ?? config.DataDir);
 
-        // ── Step 1: Binary type selection ──
-        var binaryType = await SelectBinaryTypeAsync(host, allBinaries, ct);
-        if (binaryType == null)
-            return false;
+        // ── Step 1: Binary type selection (loop until available or cancelled) ──
+        BinaryTypeOption binaryType;
+        string resolvedBinaryPath = null!;
 
-        var resolvedPath = ResolveBinaryForType(binaryType.Value.Type, allBinaries);
-        var resolvedBinary = resolvedPath != null
-            ? new WhisperBinaryInfo(resolvedPath, binaryType.Value.Type)
-            : null;
+        while (true)
+        {
+            var selected = await SelectBinaryTypeAsync(host, allBinaries, ct);
+            if (selected == null)
+                return false;
+
+            binaryType = selected.Value;
+            resolvedBinaryPath = ResolveBinaryForType(binaryType.Type, allBinaries)!;
+            if (resolvedBinaryPath != null)
+                break;
+
+            await HandleMissingBinaryAsync(host, binaryType.Type, ct);
+            // Loop back — user can pick the other binary type
+        }
+
+        var resolvedBinary = new WhisperBinaryInfo(resolvedBinaryPath, binaryType.Type);
 
         bool changed = false;
-        string resolvedBinaryPath;
-        if (resolvedBinary != null)
+        if (resolvedBinaryPath != config.WhisperCppBinaryPath)
         {
-            resolvedBinaryPath = resolvedBinary.Path;
-            if (resolvedBinaryPath != config.WhisperCppBinaryPath)
-            {
-                config.WhisperCppBinaryPath = resolvedBinaryPath;
-                changed = true;
-            }
-        }
-        else
-        {
-            await HandleMissingBinaryAsync(host, binaryType.Value.Type, ct);
-            return changed;
+            config.WhisperCppBinaryPath = resolvedBinaryPath;
+            changed = true;
         }
 
-        var isPython = binaryType.Value.Type == WhisperType.Python;
+        var isPython = binaryType.Type == WhisperType.Python;
 
         // ── Step 2: Model selection ──
         var modelResult = await WhisperModelSelector.SelectModelAsync(
@@ -68,7 +69,7 @@ public sealed class WhisperConfigFlow
         if (modelResult == null)
         {
             if (changed)
-                host.AddMessage($"[green]  Binary: {binaryType.Value.DisplayText}[/]");
+                host.AddMessage($"[green]  Binary: {binaryType.DisplayText}[/]");
             return changed;
         }
 
@@ -99,7 +100,7 @@ public sealed class WhisperConfigFlow
         // ── Log final config ──
         if (changed)
         {
-            host.AddMessage($"[green]  Binary: {binaryType.Value.DisplayText}[/]");
+            host.AddMessage($"[green]  Binary: {binaryType.DisplayText}[/]");
             if (resolvedBinary != null)
                 host.AddMessage($"[grey]  Path: {resolvedBinary.Path}[/]");
             host.AddMessage($"[green]  Model: {modelResult}[/]");
@@ -176,6 +177,7 @@ public sealed class WhisperConfigFlow
 
     /// <summary>
     /// Shows install instructions when a binary type was chosen but no binary detected.
+    /// Returns immediately — caller loops back to binary type selection.
     /// </summary>
     private static async Task HandleMissingBinaryAsync(
         IStreamShellHost host, WhisperType type, CancellationToken ct)
@@ -192,7 +194,6 @@ public sealed class WhisperConfigFlow
         host.AddMessage("[grey]    Add it to PATH, then re-run this configuration.[/]");
         host.AddMessage("");
 
-        var variants = new IVariant[] { new ConfigVariant("[grey]Cancel[/]", CancelSentinel) };
-        _ = await host.PromptSelection($"{typeName} not installed.", variants);
+        await Task.CompletedTask;
     }
 }

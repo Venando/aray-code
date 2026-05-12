@@ -10,8 +10,9 @@ namespace OpenClawPTT.ConfigWizard;
 
 /// <summary>
 /// Handles whisper model selection via PromptSelection.
-/// Unified flow for both Python openai-whisper (all models selectable, auto-download)
-/// and C++ whisper.cpp (downloaded models selectable, non-downloaded downloadable).
+/// Unified flow for both Python openai-whisper (models cached in ~/.cache/whisper/)
+/// and C++ whisper.cpp (models stored as .bin files).
+/// Showes cached models as selectable, non-cached as downloadable, and allows removal.
 /// </summary>
 internal static class WhisperModelSelector
 {
@@ -34,22 +35,17 @@ internal static class WhisperModelSelector
             var variants = new List<IVariant>();
 
             if (isPython)
-            {
                 BuildPythonVariants(variants, currentModel);
-            }
             else
-            {
                 BuildCppVariants(variants, modelManager, currentModel);
-            }
 
             variants.Add(new ConfigVariant("", ""));
             variants.Add(new ConfigVariant("[grey]Cancel[/]", CancelSentinel));
 
-            var promptText = isPython
-                ? "Select model (auto-downloaded on first use):"
-                : "Select model, download, or cancel:";
+            var selection = await host.PromptSelection(
+                "Select model, download, remove, or cancel:",
+                variants.ToArray());
 
-            var selection = await host.PromptSelection(promptText, variants.ToArray());
             if (selection is not { Length: > 0 } || selection[0] is not ConfigVariant cv)
                 return result;
 
@@ -58,16 +54,27 @@ internal static class WhisperModelSelector
             if (choice == CancelSentinel)
                 return result;
 
-            if (choice.StartsWith("use:"))
+            if (choice.StartsWith("use:") || choice.StartsWith("download:"))
             {
-                result = choice["use:".Length..];
+                result = choice[(choice.StartsWith("use:") ? "use:" : "download:").Length..];
             }
-            else if (choice.StartsWith("download:"))
+            else if (choice.StartsWith("remove:"))
             {
-                var modelName = choice["download:".Length..];
-                await WhisperDownloadProgress.DownloadCppAsync(
-                    host, modelManager, modelName, ct);
-                result = modelName;
+                var modelName = choice["remove:".Length..];
+                var confirm = await host.PromptSelection(
+                    $"Remove model '{modelName}'?",
+                    [new ConfigVariant("[red]Yes, remove[/]", "yes"),
+                     new ConfigVariant("Cancel", "no")]);
+
+                if (confirm is { Length: > 0 } && confirm[0] is ConfigVariant cv2 && cv2.Value == "yes")
+                {
+                    bool removed = isPython
+                        ? WhisperCppModelManager.DeletePythonModel(modelName)
+                        : modelManager.DeleteModel(modelName);
+
+                    if (removed)
+                        host.AddMessage($"[green]  ✓ Removed {modelName}[/]");
+                }
             }
         }
 
@@ -78,13 +85,48 @@ internal static class WhisperModelSelector
 
     private static void BuildPythonVariants(List<IVariant> variants, string? currentModel)
     {
-        foreach (var info in WhisperCppModelManager.AvailableModels)
+        var allModels = WhisperCppModelManager.AvailableModels;
+
+        // Cached (downloaded) models — selectable
+        var cached = allModels.Where(m => WhisperCppModelManager.IsPythonModelCached(m.Name)).ToList();
+        foreach (var info in cached)
         {
             var isActive = info.Name == currentModel;
-            var name = isActive
-                ? $"[green]● {info.Name}[/] [cyan][[active]][/] [grey]({info.Description})[/]"
-                : $"[green]● {info.Name}[/] [grey]({info.Description})[/]";
-            variants.Add(new ConfigVariant(name, $"use:{info.Name}"));
+            var activeMarker = isActive ? " [cyan][[active]][/]" : "";
+            variants.Add(new ConfigVariant(
+                $"[green]✓ {info.Name}[/] [grey]({info.Description})[/]{activeMarker}",
+                $"use:{info.Name}"));
+        }
+
+        // Non-cached models — download option
+        var notCached = allModels.Where(m => !WhisperCppModelManager.IsPythonModelCached(m.Name)).ToList();
+        if (notCached.Count > 0)
+        {
+            if (variants.Count > 0)
+            {
+                variants.Add(new ConfigVariant("", ""));
+                variants.Add(new ConfigVariant("[bold cyan]── Available for download ──[/]", "__header__"));
+            }
+
+            foreach (var info in notCached)
+            {
+                variants.Add(new ConfigVariant(
+                    $"[grey]⬇ {info.Name} ({info.Description})[/]",
+                    $"download:{info.Name}"));
+            }
+        }
+
+        // Remove cached models
+        if (cached.Count > 0)
+        {
+            variants.Add(new ConfigVariant("", ""));
+            variants.Add(new ConfigVariant("[bold red]── Remove ──[/]", "__remove_header__"));
+            foreach (var info in cached)
+            {
+                variants.Add(new ConfigVariant(
+                    $"[red]Remove: {info.Name}[/]",
+                    $"remove:{info.Name}"));
+            }
         }
     }
 
@@ -94,7 +136,7 @@ internal static class WhisperModelSelector
     {
         var downloadedModels = modelManager.GetDownloadedModels();
 
-        // Downloaded models
+        // Downloaded models — selectable
         foreach (var model in downloadedModels)
         {
             var info = WhisperCppModelManager.AvailableModels
@@ -112,20 +154,33 @@ internal static class WhisperModelSelector
             .Where(m => !downloadedModels.Contains(m.Name))
             .ToList();
 
-        if (notDownloaded.Count == 0)
-            return;
-
-        if (variants.Count > 0)
+        if (notDownloaded.Count > 0)
         {
-            variants.Add(new ConfigVariant("", ""));
-            variants.Add(new ConfigVariant("[bold cyan]── Available for download ──[/]", "__header__"));
+            if (variants.Count > 0)
+            {
+                variants.Add(new ConfigVariant("", ""));
+                variants.Add(new ConfigVariant("[bold cyan]── Available for download ──[/]", "__header__"));
+            }
+
+            foreach (var model in notDownloaded)
+            {
+                variants.Add(new ConfigVariant(
+                    $"[grey]⬇ {model.Name} ({model.Description})[/]",
+                    $"download:{model.Name}"));
+            }
         }
 
-        foreach (var model in notDownloaded)
+        // Remove downloaded models
+        if (downloadedModels.Count > 0)
         {
-            variants.Add(new ConfigVariant(
-                $"[grey]⬇ {model.Name} ({model.Description})[/]",
-                $"download:{model.Name}"));
+            variants.Add(new ConfigVariant("", ""));
+            variants.Add(new ConfigVariant("[bold red]── Remove ──[/]", "__remove_header__"));
+            foreach (var model in downloadedModels)
+            {
+                variants.Add(new ConfigVariant(
+                    $"[red]Remove: {model}[/]",
+                    $"remove:{model}"));
+            }
         }
     }
 }
