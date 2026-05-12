@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using OpenClawPTT.ConfigWizard;
 using OpenClawPTT.Services;
 using Spectre.Console;
 using StreamShell;
@@ -16,7 +17,8 @@ namespace OpenClawPTT;
 public sealed class AgentConfigWizard
 {
     /// <summary>Set to true while any wizard is active, so main input handler skips processing.</summary>
-    public static bool IsActive { get; private set; }
+    [Obsolete("Use WizardState.IsActive instead")]
+    public static bool IsActive => WizardState.IsActive;
 
     /// <summary>Fires when the wizard completes all steps.</summary>
     public event Action? Completed;
@@ -48,7 +50,7 @@ public sealed class AgentConfigWizard
 
     public Task RunAsync(AgentInfo? preSelectedAgent = null)
     {
-        IsActive = true;
+        WizardState.Enter();
         _agent = preSelectedAgent;
         _currentStep = preSelectedAgent != null ? Step.Hotkey : Step.SelectAgent;
         _isFirstPrompt = true;
@@ -142,7 +144,7 @@ public sealed class AgentConfigWizard
 
     private void Unsubscribe()
     {
-        IsActive = false;
+        WizardState.Leave();
         _host.UserInputSubmitted -= OnUserInputSubmitted;
         Completed?.Invoke();
         if (_agent != null)

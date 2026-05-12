@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenClawPTT.ConfigWizard;
 
 namespace OpenClawPTT;
 
@@ -134,6 +135,10 @@ public static class AgentRegistry
     /// <summary>Switch active agent by agentId.</summary>
     public static bool SetActiveAgent(string agentId)
     {
+        // Reject agent switching while any wizard is active (config, agent config, etc.)
+        if (WizardState.IsActive)
+            return false;
+
         lock (_lock)
         {
             var agent = _agents.FirstOrDefault(a =>

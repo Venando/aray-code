@@ -18,7 +18,8 @@ namespace OpenClawPTT.ConfigWizard;
 public sealed class ModularConfigurationWizard
 {
     /// <summary>Set to true while the wizard is active so other input handlers can skip processing.</summary>
-    public static bool IsActive { get; private set; }
+    [Obsolete("Use WizardState.IsActive instead")]
+    public static bool IsActive => WizardState.IsActive;
 
     private readonly IReadOnlyList<IConfigSectionWizard> _sections;
 
@@ -50,7 +51,7 @@ public sealed class ModularConfigurationWizard
     /// </summary>
     public async Task<AppConfig> RunInitialSetupAsync(IStreamShellHost host, CancellationToken ct = default)
     {
-        IsActive = true;
+        WizardState.Enter();
         try
         {
             var config = new AppConfig();
@@ -106,7 +107,7 @@ public sealed class ModularConfigurationWizard
         }
         finally
         {
-            IsActive = false;
+            WizardState.Leave();
         }
     }
 
@@ -118,7 +119,7 @@ public sealed class ModularConfigurationWizard
     /// </summary>
     public async Task<AppConfig> RunReconfigureAsync(IStreamShellHost host, AppConfig existing, CancellationToken ct = default)
     {
-        IsActive = true;
+        WizardState.Enter();
         try
         {
             var config = Clone(existing);
@@ -197,7 +198,7 @@ public sealed class ModularConfigurationWizard
         }
         finally
         {
-            IsActive = false;
+            WizardState.Leave();
         }
     }
 

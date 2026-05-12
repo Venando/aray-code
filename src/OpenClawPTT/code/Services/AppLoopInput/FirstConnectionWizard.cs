@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenClawPTT.ConfigWizard;
 using OpenClawPTT.Services;
 using Spectre.Console;
 using StreamShell;
@@ -38,7 +39,7 @@ public sealed class FirstConnectionWizard
             return;
         }
 
-        IsActive = true;
+        WizardState.Enter();
         AgentRegistry.Deactivate();
         _pendingAgents = new Queue<AgentInfo>(agents);
 
@@ -69,7 +70,7 @@ public sealed class FirstConnectionWizard
         }
         else
         {
-            IsActive = false;
+            WizardState.Leave();
             _host.AddMessage("[grey]  Skipped agent configuration. Use /crew config anytime.[/]");
             ActivateDefault();
         }
@@ -90,7 +91,7 @@ public sealed class FirstConnectionWizard
     {
         if (_pendingAgents.Count == 0)
         {
-            IsActive = false;
+            WizardState.Leave();
             _host.AddMessage("[green]  ✓ All configured![/]");
             ActivateDefault();
             return;

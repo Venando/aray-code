@@ -1,4 +1,5 @@
 using System.Linq;
+using OpenClawPTT.ConfigWizard;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -31,6 +32,13 @@ public sealed class ChatCommand : ICommand
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
     {
+        // Reject agent switching while a wizard is active
+        if (WizardState.IsActive)
+        {
+            _host.AddMessage("[yellow]  Cannot switch agents during configuration.[/]");
+            return;
+        }
+
         if (args.Length == 0)
         {
             _host.AddMessage("[yellow]  Usage: /chat <name|id>[/]");

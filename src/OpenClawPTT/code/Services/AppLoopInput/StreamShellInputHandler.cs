@@ -319,8 +319,8 @@ public sealed class StreamShellInputHandler : IDisposable
         if (e.InputType == StreamShell.InputType.Command)
             return;
 
-        // Skip if a configuration wizard is active (it handles its own input)
-        if (ModularConfigurationWizard.IsActive)
+        // Skip if any wizard is active (it handles its own input)
+        if (WizardState.IsActive)
             return;
 
         // Reject plain-text messages that start with "/" — they look like commands
