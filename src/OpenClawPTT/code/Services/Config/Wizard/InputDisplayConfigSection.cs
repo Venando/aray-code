@@ -62,6 +62,12 @@ public sealed class InputDisplayConfigSection : ConfigSectionBase
                 title: "Require confirmation before sending messages?",
                 fieldName: nameof(AppConfig.RequireConfirmBeforeSend)),
         });
+
+        // Audio response mode (with Back button for reconfig)
+        _configItems.Add(ConfigSetupItem.ForSelectionWithBack(
+            title: "Audio response mode",
+            fieldName: nameof(AppConfig.AudioResponseMode),
+            options: AudioModeOptions));
     }
 
     public override async Task<ConfigSectionResult> RunAsync(
@@ -73,31 +79,6 @@ public sealed class InputDisplayConfigSection : ConfigSectionBase
         // ── Universal config items ──
         if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result))
             changed = true;
-
-        // ── Audio response mode (inline for Back button support) ──
-        string audioMode;
-        if (isInitialSetup)
-        {
-            audioMode = await PromptSelectionHelper.PromptStringAsync(host,
-                "Audio response mode:", AudioModeOptions, config.AudioResponseMode, allowCancel: false, cancellationToken: ct);
-        }
-        else
-        {
-            var audioResult = await PromptSelectionHelper.PromptStringWithBackAsync(host,
-                "Audio response mode:", AudioModeOptions, config.AudioResponseMode, cancellationToken: ct);
-            if (audioResult == null)
-            {
-                result.IsChanged = changed;
-                return result;
-            }
-            audioMode = audioResult;
-        }
-        if (audioMode != config.AudioResponseMode)
-        {
-            config.AudioResponseMode = audioMode;
-            changed = true;
-            result.Settings.Add(new ConfigSectionResult.SettingRecord("Audio response mode", audioMode));
-        }
 
         result.IsChanged = changed;
         return result;
