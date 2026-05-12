@@ -28,7 +28,7 @@ public class EventDispatcherTests
             CustomDataDir = Path.GetTempPath(),
             GatewayUrl = "wss://127.0.0.1:9999/test",
             AuthToken = "test-token",
-            RealTimeReplyOutput = false
+            ReplyDisplayMode = ReplyDisplayMode.Full
         };
         _contentExtractor = new ContentExtractor();
     }
@@ -249,7 +249,7 @@ public class EventDispatcherTests
             CustomDataDir = Path.GetTempPath(),
             GatewayUrl = "wss://127.0.0.1:9999/test",
             AuthToken = "test-token",
-            RealTimeReplyOutput = true
+            ReplyDisplayMode = ReplyDisplayMode.Delta
         };
 
         var startFired = false;
