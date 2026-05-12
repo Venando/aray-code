@@ -82,9 +82,16 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         _lastRegistryCount = GetRegistryCount();
     }
 
+    // Workaround: StreamShell 2026.5.12 has a bug where disposing the default bottom
+    // panel crashes. Check https://www.nuget.org/packages/StreamShell/ for a fix.
+    // When StreamShell is updated past this version, remove the guard and let Dispose
+    // execute normally.
+    private static bool ShouldSkipDispose() => true;
+
     public void Dispose()
     {
-        return; // Ignore disposion until StreamShell version bump from (2025.5.12) has bug with default panel being disposed. (If you read this, check StreamShell version (https://www.nuget.org/packages/StreamShell/) and update it in .csproj and remove this return statement)
+        if (ShouldSkipDispose())
+            return;
 
         lock (_sync)
         {

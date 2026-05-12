@@ -20,7 +20,7 @@ public static class PromptTextHelper
     public static async Task<string?> PromptAsync(
         IStreamShellHost host,
         string description,
-        string defaultValue,
+        string? defaultValue,
         Func<string, bool> validate,
         string? validationHint,
         CancellationToken ct,
@@ -121,7 +121,7 @@ public static class PromptTextHelper
         return result != null && double.TryParse(result, out var d) ? d : null;
     }
 
-    private static void SendPrompt(IStreamShellHost host, string description, string defaultValue, bool isSecret)
+    private static void SendPrompt(IStreamShellHost host, string description, string? defaultValue, bool isSecret)
     {
         host.AddMessage("");
         host.AddMessage($"[cyan2]▸ {Markup.Escape(description)}[/]");
