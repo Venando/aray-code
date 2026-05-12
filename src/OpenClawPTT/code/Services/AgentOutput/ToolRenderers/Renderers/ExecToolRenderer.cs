@@ -49,20 +49,6 @@ public sealed class ExecToolRenderer : ToolRendererBase
             RenderCommand(meta);
             needNewline = meta.IsChained;
         }
-
-        // ── Command output (trimmed, gray) ──────────────────────────────────
-        // The exec tool call may include an "output" property with the command's
-        // stdout/stderr result.  Render it as trimmed gray text below the command.
-        if (args.TryGetProperty("output", out var outputProp))
-        {
-            string output = outputProp.GetString() ?? "";
-            if (!string.IsNullOrWhiteSpace(output))
-            {
-                Output.PrintLine("", ConsoleColor.Gray);
-                const int maxOutputLines = 10;
-                Output.PrintTruncated(output, "  ", rightMarginIndent, ConsoleColor.Gray, maxRows: maxOutputLines);
-            }
-        }
     }
 
     private void RenderCommand(CommandMetadata meta)
