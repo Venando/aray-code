@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using OpenClawPTT.Services;
+using OpenClawPTT.ConfigWizard;
 
 namespace OpenClawPTT;
 
@@ -91,6 +92,9 @@ public sealed class AgentHotkeyService : IDisposable
     /// <summary>Called when a hotkey fires for the agent at the given index.</summary>
     public void HandleHotkeyPressed(int agentIndex)
     {
+        if (WizardState.IsActive)
+            return;
+            
         var agents = AgentRegistry.Agents;
         if (agentIndex < 0 || agentIndex >= agents.Count)
             return;

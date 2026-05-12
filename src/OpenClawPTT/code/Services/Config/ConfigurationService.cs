@@ -66,7 +66,6 @@ public class ConfigurationService : IConfigurationService
             cfg = await _wizard.RunInitialSetupAsync(shellHost, ct);
             _storage.Save(cfg);
             ConfigSaved?.Invoke(cfg);
-            shellHost.AddMessage("[green]Configuration updated.[/]");
         }
 
         return cfg;
@@ -88,7 +87,6 @@ public class ConfigurationService : IConfigurationService
 
         _storage.Save(newCfg);
         ConfigSaved?.Invoke(newCfg);
-        shellHost.AddMessage("[green]Configuration updated.[/]");
         return newCfg;
     }
 
