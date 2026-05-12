@@ -38,6 +38,7 @@ public sealed class AppConfig
     public string? OpenAiApiKey { get; set; }
     public string? OpenAiModel { get; set; }
     public string? WhisperCppModel { get; set; }
+    public string? WhisperCppBinaryPath { get; set; }
     public string? GroqModel { get; set; }
 
     // Shortcut settings
@@ -170,6 +171,7 @@ public sealed class AppConfig
         ["OpenAiApiKey"] = "OpenAI API key (for STT or Direct LLM)",
         ["OpenAiModel"] = "OpenAI model name for STT",
         ["WhisperCppModel"] = "Whisper.cpp model name (e.g. base, small.en, medium)",
+        ["WhisperCppBinaryPath"] = "Path to whisper CLI binary (auto-detected if not set)",
         ["GroqModel"] = "Groq model for STT",
         ["HotkeyCombination"] = "Push-to-talk hotkey (e.g. Alt+=)",
         ["HoldToTalk"] = "Hold key to record, release to send (vs toggle)",

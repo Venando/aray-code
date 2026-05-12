@@ -46,8 +46,7 @@ public static class TranscriberFactory
         var modelManager = new WhisperCppModelManager(host, config.CustomDataDir ?? config.DataDir);
         var modelName = config.WhisperCppModel ?? "base";
 
-        // If the model isn't downloaded yet, this will throw on first transcription
-        // (the user should have downloaded it during config/reconfigure)
-        return new WhisperCppTranscriberAdapter(modelManager, modelName);
+        return new WhisperCppTranscriberAdapter(modelManager, modelName,
+            whisperBinaryPath: config.WhisperCppBinaryPath);
     }
 }

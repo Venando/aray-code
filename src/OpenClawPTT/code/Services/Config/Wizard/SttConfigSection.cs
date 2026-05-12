@@ -166,36 +166,64 @@ public sealed class SttConfigSection : ConfigSectionBase
             ct.ThrowIfCancellationRequested();
 
             var downloadedModels = modelManager.GetDownloadedModels();
-            var binaryPath = WhisperCppModelManager.FindWhisperBinary();
-            var isPythonWhisper = binaryPath != null && WhisperCppModelManager.IsPythonOpenAiWhisper(binaryPath);
 
-            // Show binary status
-            if (binaryPath != null)
+            // Find all whisper binaries and determine the active one
+            var allBinaries = WhisperCppModelManager.FindAllWhisperBinaries();
+            var configuredPath = config.WhisperCppBinaryPath;
+
+            // Resolve active binary: configured path > first detected
+            WhisperBinaryInfo? activeBinary = null;
+            if (configuredPath != null && File.Exists(configuredPath))
             {
-                var type = isPythonWhisper ? "openai-whisper (Python)" : "whisper.cpp (C++)";
-                host.AddMessage($"[green]  ✓ {type} binary found:[/] [grey]{binaryPath}[/]");
+                var isPy = WhisperCppModelManager.IsPythonOpenAiWhisper(configuredPath);
+                activeBinary = new WhisperBinaryInfo(configuredPath, isPy ? WhisperType.Python : WhisperType.Cpp);
+            }
+            activeBinary ??= allBinaries.FirstOrDefault();
 
-                if (isPythonWhisper)
-                    host.AddMessage("[grey]    Models are auto-downloaded by openai-whisper on first use.[/]");
-                else
-                    host.AddMessage("[grey]    Models must be downloaded manually (ggml-*.bin files).[/]");
+            // Show detected binaries
+            if (allBinaries.Count > 0)
+            {
+                host.AddMessage("[bold]  Detected whisper binaries:[/]");
+                foreach (var bin in allBinaries)
+                {
+                    var isActive = activeBinary != null && bin.Path == activeBinary.Path;
+                    var marker = isActive ? " [cyan][[active]][/]" : "";
+                    host.AddMessage($"    [green]● {bin.DisplayType}[/]{marker}");
+                    host.AddMessage($"      [grey]{bin.Path}[/]");
+                }
             }
             else
             {
-                host.AddMessage("[yellow]  ⚠ whisper binary not found on PATH.[/]");
+                host.AddMessage("[yellow]  ⚠ No whisper binary found on PATH.[/]");
                 host.AddMessage("[grey]    Install openai-whisper (pip install openai-whisper) or[/]");
                 host.AddMessage("[grey]    whisper.cpp: https://github.com/ggerganov/whisper.cpp[/]");
 
                 if (downloadedModels.Count == 0)
                 {
-                    host.AddMessage("[yellow]  No models downloaded either. Download is pointless without the whisper binary.[/]");
+                    host.AddMessage("[yellow]  No models downloaded either. Nothing to select without a binary.[/]");
                 }
             }
+
+            // Determine type for menu building
+            var isPythonWhisper = activeBinary?.Type == WhisperType.Python;
 
             // Build menu based on whisper type
             var menuOptions = isPythonWhisper
                 ? BuildPythonModelMenu(host, currentModel)
-                : BuildCppModelMenu(host, modelManager, currentModel, downloadedModels, binaryPath);
+                : BuildCppModelMenu(host, modelManager, currentModel, downloadedModels, allBinaries);
+
+            // Add binary switch option when multiple detected
+            if (allBinaries.Count > 1)
+            {
+                menuOptions.Insert(0, ("[bold]Switch whisper binary...[/]", "__switch_binary__"));
+                menuOptions.Insert(1, ("", ""));
+            }
+            // Add specify path option when no binaries found
+            else if (allBinaries.Count == 0)
+            {
+                menuOptions.Insert(0, ("[bold]Specify whisper binary path...[/]", "__specify_path__"));
+                menuOptions.Insert(1, ("", ""));
+            }
 
             host.AddMessage("");
             var variants = menuOptions
@@ -257,6 +285,35 @@ public sealed class SttConfigSection : ConfigSectionBase
                     }
                 }
             }
+            else if (choice == "__switch_binary__")
+            {
+                // Let user pick which whisper binary to use
+                var binaryVariants = allBinaries
+                    .Select(b => new ConfigVariant(
+                        $"{b.DisplayType}: [grey]{b.Path}[/]", b.Path))
+                    .Cast<IVariant>()
+                    .ToArray();
+
+                var selected = await host.PromptSelection("Choose whisper binary:", binaryVariants);
+                if (selected is { Length: > 0 })
+                {
+                    var newPath = ((ConfigVariant)selected[0]).Value;
+                    config.WhisperCppBinaryPath = newPath;
+                    whisperChanged = true;
+                    host.AddMessage($"[green]  ✓ Selected: {newPath}[/]");
+                    // Loop back to refresh with new binary type menu
+                    continue;
+                }
+            }
+            else if (choice == "__specify_path__")
+            {
+                host.AddMessage("");
+                host.AddMessage("[yellow]  Install a whisper binary and add it to your PATH:[/]");
+                host.AddMessage("[grey]    • pip install openai-whisper[/]");
+                host.AddMessage("[grey]    • Or build whisper.cpp: https://github.com/ggerganov/whisper.cpp[/]");
+                host.AddMessage("[grey]    Then re-enter this section to detect it automatically.[/]");
+                host.AddMessage("");
+            }
 
             // Small pause to let user read messages
             host.AddMessage("");
@@ -277,7 +334,8 @@ public sealed class SttConfigSection : ConfigSectionBase
         var menu = new List<(string Name, string Value)>();
 
         host.AddMessage("");
-        host.AddMessage("[bold]  Available models (auto-downloaded on first use):[/]");
+        host.AddMessage("[grey]    Python openai-whisper auto-downloads models on first use.[/]");
+        host.AddMessage("[bold]  Available models:[/]");
 
         foreach (var info in WhisperCppModelManager.AvailableModels)
         {
@@ -297,7 +355,8 @@ public sealed class SttConfigSection : ConfigSectionBase
     /// </summary>
     private static List<(string Name, string Value)> BuildCppModelMenu(
         IStreamShellHost host, WhisperCppModelManager modelManager,
-        string? currentModel, IReadOnlyList<string> downloadedModels, string? binaryPath)
+        string? currentModel, IReadOnlyList<string> downloadedModels,
+        IReadOnlyList<WhisperBinaryInfo> allBinaries)
     {
         var menu = new List<(string Name, string Value)>();
 
@@ -327,7 +386,7 @@ public sealed class SttConfigSection : ConfigSectionBase
             .Where(m => !downloadedModels.Contains(m.Name))
             .ToList();
 
-        if (notDownloaded.Count > 0 && (binaryPath != null || downloadedModels.Count > 0))
+        if (notDownloaded.Count > 0 && (allBinaries.Count > 0 || downloadedModels.Count > 0))
         {
             menu.Add(("", ""));
             menu.Add(("[bold cyan]── Download ──[/]", "__download_header__"));

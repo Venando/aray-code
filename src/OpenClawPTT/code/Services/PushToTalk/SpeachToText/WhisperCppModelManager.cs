@@ -178,20 +178,29 @@ public sealed class WhisperCppModelManager
     }
 
     /// <summary>
-    /// Attempts to find the whisper.cpp CLI binary on the system.
+    /// Attempts to find the whisper CLI binary on the system.
     /// Checks PATH, common install locations.
     /// </summary>
-    /// <returns>The path to the whisper binary, or null if not found.</returns>
+    /// <returns>The path to the first whisper binary found, or null if not found.</returns>
     public static string? FindWhisperBinary()
     {
+        return FindAllWhisperBinaries().FirstOrDefault()?.Path;
+    }
+
+    /// <summary>
+    /// Finds all whisper CLI binaries on the system with their detected type.
+    /// </summary>
+    public static IReadOnlyList<WhisperBinaryInfo> FindAllWhisperBinaries()
+    {
+        var results = new List<WhisperBinaryInfo>();
+
         // Check common binary names on PATH
         var names = new[] { "whisper", "whisper-cli", "whisper.cpp" };
-
         foreach (var name in names)
         {
             var path = FindOnPath(name);
-            if (path != null)
-                return path;
+            if (path != null && !results.Any(r => r.Path == path))
+                results.Add(new WhisperBinaryInfo(path, IsPythonOpenAiWhisper(path) ? WhisperType.Python : WhisperType.Cpp));
         }
 
         // Check common locations
@@ -208,11 +217,14 @@ public sealed class WhisperCppModelManager
 
         foreach (var path in commonPaths)
         {
-            if (File.Exists(path))
-                return path;
+            if (File.Exists(path) && !results.Any(r => r.Path == path))
+                results.Add(new WhisperBinaryInfo(path, IsPythonOpenAiWhisper(path) ? WhisperType.Python : WhisperType.Cpp));
         }
 
-        return null;
+        // Also check the configured binary path if set
+        // (handled separately — this is discovery only)
+
+        return results;
     }
 
     /// <summary>
@@ -272,5 +284,22 @@ public sealed class WhisperModelInfo
     {
         Name = name;
         Description = description;
+    }
+}
+
+/// <summary>Type of whisper binary detected on the system.</summary>
+public enum WhisperType { Python, Cpp }
+
+/// <summary>Info about a detected whisper binary on the system.</summary>
+public sealed class WhisperBinaryInfo
+{
+    public string Path { get; }
+    public WhisperType Type { get; }
+    public string DisplayType => Type == WhisperType.Python ? "openai-whisper (Python)" : "whisper.cpp (C++)";
+
+    public WhisperBinaryInfo(string path, WhisperType type)
+    {
+        Path = path;
+        Type = type;
     }
 }
