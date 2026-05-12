@@ -215,6 +215,34 @@ public sealed class WhisperCppModelManager
         return null;
     }
 
+    /// <summary>
+    /// Detects whether the given binary is Python openai-whisper (uses model names,
+    /// auto-downloads from HuggingFace) vs native C++ whisper.cpp (uses .bin files).
+    /// </summary>
+    public static bool IsPythonOpenAiWhisper(string binaryPath)
+    {
+        try
+        {
+            if (!File.Exists(binaryPath))
+                return false;
+
+            using var reader = new StreamReader(binaryPath);
+            var firstLine = reader.ReadLine();
+            if (firstLine != null && (firstLine.StartsWith("#!") || firstLine.Contains("python", StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            var dir = Path.GetDirectoryName(binaryPath);
+            if (dir != null && (dir.Contains("Python") || dir.Contains("python")))
+                return true;
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static string? FindOnPath(string name)
     {
         var pathEnv = Environment.GetEnvironmentVariable("PATH");

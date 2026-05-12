@@ -167,99 +167,46 @@ public sealed class SttConfigSection : ConfigSectionBase
 
             var downloadedModels = modelManager.GetDownloadedModels();
             var binaryPath = WhisperCppModelManager.FindWhisperBinary();
+            var isPythonWhisper = binaryPath != null && WhisperCppModelManager.IsPythonOpenAiWhisper(binaryPath);
 
             // Show binary status
             if (binaryPath != null)
             {
-                host.AddMessage($"[green]  ✓ whisper binary found:[/] [grey]{binaryPath}[/]");
+                var type = isPythonWhisper ? "openai-whisper (Python)" : "whisper.cpp (C++)";
+                host.AddMessage($"[green]  ✓ {type} binary found:[/] [grey]{binaryPath}[/]");
+
+                if (isPythonWhisper)
+                    host.AddMessage("[grey]    Models are auto-downloaded by openai-whisper on first use.[/]");
+                else
+                    host.AddMessage("[grey]    Models must be downloaded manually (ggml-*.bin files).[/]");
             }
             else
             {
                 host.AddMessage("[yellow]  ⚠ whisper binary not found on PATH.[/]");
-                host.AddMessage("[grey]    Install whisper.cpp first: https://github.com/ggerganov/whisper.cpp[/]");
+                host.AddMessage("[grey]    Install openai-whisper (pip install openai-whisper) or[/]");
+                host.AddMessage("[grey]    whisper.cpp: https://github.com/ggerganov/whisper.cpp[/]");
 
-                // H6: Without a binary AND no models, user can't use whisper-cpp at all
                 if (downloadedModels.Count == 0)
                 {
                     host.AddMessage("[yellow]  No models downloaded either. Download is pointless without the whisper binary.[/]");
                 }
             }
 
-            // Show downloaded models
-            if (downloadedModels.Count > 0)
-            {
-                host.AddMessage("");
-                host.AddMessage("[bold]  Downloaded models:[/]");
-                foreach (var model in downloadedModels)
-                {
-                    var info = WhisperCppModelManager.AvailableModels
-                        .FirstOrDefault(m => m.Name == model);
-                    var desc = info != null ? $" [grey]({info.Description})[/]" : "";
-                    var isActive = model == currentModel ? " [cyan][[active]][/]" : "";
-                    host.AddMessage($"    [green]● {model}[/]{desc}{isActive}");
-                }
-            }
-            else
-            {
-                host.AddMessage("");
-                host.AddMessage("[grey]  No models downloaded.[/]");
-            }
-
-            // Show available models not downloaded
-            var notDownloaded = WhisperCppModelManager.AvailableModels
-                .Where(m => !downloadedModels.Contains(m.Name))
-                .ToList();
-
-            // Build menu options
-            var menuOptions = new List<(string Name, string Value)>();
-
-            // Select model from downloaded
-            foreach (var model in downloadedModels)
-            {
-                menuOptions.Add(($"[green]Use: {model}[/]", $"use:{model}"));
-            }
-
-            // H6: Only show download options if binary is found or models already downloaded
-            if (notDownloaded.Count > 0 && (binaryPath != null || downloadedModels.Count > 0))
-            {
-                menuOptions.Add(("", ""));
-                menuOptions.Add(("[bold cyan]── Download ──[/]", "__download_header__"));
-                foreach (var model in notDownloaded)
-                {
-                    menuOptions.Add(($"[grey]Download: {model.Name}[/] [grey]({model.Description})[/]", $"download:{model.Name}"));
-                }
-            }
-
-            // Delete downloaded model
-            if (downloadedModels.Count > 0)
-            {
-                menuOptions.Add(("", ""));
-                menuOptions.Add(("[bold red]── Remove ──[/]", "__remove_header__"));
-                foreach (var model in downloadedModels)
-                {
-                    menuOptions.Add(($"[red]Remove: {model}[/]", $"remove:{model}"));
-                }
-            }
-
-            // H7: Add option to specify binary path
-            if (binaryPath == null)
-            {
-                menuOptions.Add(("", ""));
-                menuOptions.Add(("[bold]Specify path...[/]", "__specify_path__"));
-            }
-
-            // Done / Back
-            menuOptions.Add(("", ""));
-            menuOptions.Add(("[bold]Done[/]", "__done__"));
+            // Build menu based on whisper type
+            var menuOptions = isPythonWhisper
+                ? BuildPythonModelMenu(host, currentModel)
+                : BuildCppModelMenu(host, modelManager, currentModel, downloadedModels, binaryPath);
 
             host.AddMessage("");
             var variants = menuOptions
-                .Where(o => !string.IsNullOrEmpty(o.Name))
                 .Select(o => new ConfigVariant(o.Name, o.Value))
                 .ToArray<IVariant>();
 
-            var selection = await host.PromptSelection(
-                "Select model, download, remove, or Done:", variants);
+            var promptText = isPythonWhisper
+                ? "Select model (auto-downloaded on first use):"
+                : "Select model, download, remove, or Done:";
+
+            var selection = await host.PromptSelection(promptText, variants);
 
             if (selection == null || selection.Length == 0)
                 break;
@@ -288,14 +235,11 @@ public sealed class SttConfigSection : ConfigSectionBase
                 var modelName = choice.Substring(9);
                 await DownloadModelWithProgressAsync(host, modelManager, modelName, ct);
                 whisperChanged = true;
-
-                // MEDIUM: No auto-select — user must explicitly "Use:" after download
             }
             else if (choice.StartsWith("remove:"))
             {
                 var modelName = choice.Substring(7);
 
-                // Confirm removal
                 var confirm = await host.PromptSelection($"Remove model '{modelName}'?",
                     [new ConfigVariant("[red]Yes, remove[/]", "yes"), new ConfigVariant("Cancel", "no")]);
 
@@ -313,25 +257,100 @@ public sealed class SttConfigSection : ConfigSectionBase
                     }
                 }
             }
-            else if (choice == "__specify_path__")
-            {
-                // H7: Guide user to add whisper to PATH or set path in config
-                host.AddMessage("");
-                host.AddMessage("[yellow]  To use whisper.cpp STT:[/]");
-                host.AddMessage("[grey]    1. Add whisper binary to your PATH[/]");
-                host.AddMessage("[grey]    2. Or set WhisperCppBinaryPath in config[/]");
-                host.AddMessage("[grey]    Current binary search locations:[/]");
-                host.AddMessage("[grey]      - PATH directories[/]");
-                host.AddMessage("[grey]      - ~/bin/, /usr/local/bin/, /usr/bin/[/]");
-                host.AddMessage("");
-                continue; // C8: removed unreachable __done__ branch
-            }
 
             // Small pause to let user read messages
             host.AddMessage("");
         }
 
         return whisperChanged; // H8: return actual change status
+    }
+
+    // ── Menu builders ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Builds the menu for Python openai-whisper: all models are "Use" options
+    /// (auto-downloaded on first use), no download/remove needed.
+    /// </summary>
+    private static List<(string Name, string Value)> BuildPythonModelMenu(
+        IStreamShellHost host, string? currentModel)
+    {
+        var menu = new List<(string Name, string Value)>();
+
+        host.AddMessage("");
+        host.AddMessage("[bold]  Available models (auto-downloaded on first use):[/]");
+
+        foreach (var info in WhisperCppModelManager.AvailableModels)
+        {
+            var isActive = info.Name == currentModel ? " [cyan][[active]][/]" : "";
+            host.AddMessage($"    [green]● {info.Name}[/] [grey]({info.Description})[/]{isActive}");
+            menu.Add(($"[green]Use: {info.Name}[/]", $"use:{info.Name}"));
+        }
+
+        menu.Add(("", ""));
+        menu.Add(("[bold]Done[/]", "__done__"));
+        return menu;
+    }
+
+    /// <summary>
+    /// Builds the menu for C++ whisper.cpp: show downloaded models for use,
+    /// available models for download, and remove option.
+    /// </summary>
+    private static List<(string Name, string Value)> BuildCppModelMenu(
+        IStreamShellHost host, WhisperCppModelManager modelManager,
+        string? currentModel, IReadOnlyList<string> downloadedModels, string? binaryPath)
+    {
+        var menu = new List<(string Name, string Value)>();
+
+        // Show downloaded models
+        if (downloadedModels.Count > 0)
+        {
+            host.AddMessage("");
+            host.AddMessage("[bold]  Downloaded models:[/]");
+            foreach (var model in downloadedModels)
+            {
+                var info = WhisperCppModelManager.AvailableModels
+                    .FirstOrDefault(m => m.Name == model);
+                var desc = info != null ? $" [grey]({info.Description})[/]" : "";
+                var isActive = model == currentModel ? " [cyan][[active]][/]" : "";
+                host.AddMessage($"    [green]● {model}[/]{desc}{isActive}");
+                menu.Add(($"[green]Use: {model}[/]", $"use:{model}"));
+            }
+        }
+        else
+        {
+            host.AddMessage("");
+            host.AddMessage("[grey]  No models downloaded.[/]");
+        }
+
+        // Show available models not downloaded
+        var notDownloaded = WhisperCppModelManager.AvailableModels
+            .Where(m => !downloadedModels.Contains(m.Name))
+            .ToList();
+
+        if (notDownloaded.Count > 0 && (binaryPath != null || downloadedModels.Count > 0))
+        {
+            menu.Add(("", ""));
+            menu.Add(("[bold cyan]── Download ──[/]", "__download_header__"));
+            foreach (var model in notDownloaded)
+            {
+                menu.Add(($"[grey]Download: {model.Name}[/] [grey]({model.Description})[/]", $"download:{model.Name}"));
+            }
+        }
+
+        // Delete downloaded model
+        if (downloadedModels.Count > 0)
+        {
+            menu.Add(("", ""));
+            menu.Add(("[bold red]── Remove ──[/]", "__remove_header__"));
+            foreach (var model in downloadedModels)
+            {
+                menu.Add(($"[red]Remove: {model}[/]", $"remove:{model}"));
+            }
+        }
+
+        menu.Add(("", ""));
+        menu.Add(("[bold]Done[/]", "__done__"));
+        return menu;
     }
 
     /// <summary>
@@ -346,8 +365,6 @@ public sealed class SttConfigSection : ConfigSectionBase
 
         try
         {
-            var tcs = new TaskCompletionSource<bool>();
-
             await modelManager.DownloadModelAsync(
                 modelName,
                 progressCallback: (fileName, status, downloaded, total, complete) =>
@@ -356,7 +373,6 @@ public sealed class SttConfigSection : ConfigSectionBase
                 },
                 ct: ct);
 
-            // Give the UI a moment to show completion
             await Task.Delay(800, ct);
         }
         catch (OperationCanceledException)

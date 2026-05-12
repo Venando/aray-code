@@ -8,21 +8,23 @@ using System.Threading.Tasks;
 namespace OpenClawPTT.Transcriber;
 
 /// <summary>
-/// Adapter for local Whisper.cpp transcription.
-/// Uses the whisper CLI binary with a downloaded model from WhisperCppModelManager.
+/// Adapter for local Whisper transcription.
+/// Supports both Python openai-whisper (pip-installed) and native C++ whisper.cpp.
+/// Python version uses model names (auto-downloads); C++ version uses pre-downloaded .bin files.
 /// </summary>
 public sealed class WhisperCppTranscriberAdapter : ITranscriber
 {
     private readonly string _whisperBinaryPath;
     private readonly WhisperCppModelManager _modelManager;
     private readonly string _modelName;
+    private readonly bool _isPythonWhisper;
     private readonly TimeSpan _processTimeout = TimeSpan.FromSeconds(120);
     private bool _disposed;
 
     /// <summary>
     /// Creates a new WhisperCppTranscriberAdapter.
     /// </summary>
-    /// <param name="modelManager">Model manager for model lookup and download.</param>
+    /// <param name="modelManager">Model manager for model lookup and download (C++ path only).</param>
     /// <param name="modelName">Whisper model name (e.g. "base", "small.en").</param>
     /// <param name="whisperBinaryPath">
     /// Path to the whisper CLI binary. If null, auto-detected via PATH.
@@ -38,6 +40,9 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
 
         // Validate binary at construction time
         _whisperBinaryPath = ResolveBinaryPath(whisperBinaryPath);
+
+        // Detect whether this is Python openai-whisper (uses model names) or C++ whisper.cpp (uses .bin files)
+        _isPythonWhisper = WhisperCppModelManager.IsPythonOpenAiWhisper(_whisperBinaryPath);
     }
 
     /// <summary>
@@ -65,17 +70,21 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
         if (wavBytes == null || wavBytes.Length == 0)
             throw new ArgumentNullException(nameof(wavBytes), "WAV bytes must not be null or empty.");
 
-        var modelPath = _modelManager.GetModelPath(_modelName);
-        if (!File.Exists(modelPath))
-            throw new TranscriberException(
-                $"Whisper model '{_modelName}' not found. Please download it first via /reconfigure → Speech-To-Text.");
+        // Python openai-whisper uses model names (auto-downloads), C++ uses .bin files
+        if (!_isPythonWhisper)
+        {
+            var modelPath = _modelManager.GetModelPath(_modelName);
+            if (!File.Exists(modelPath))
+                throw new TranscriberException(
+                    $"Whisper model '{_modelName}' not found. Please download it first via /reconfigure → Speech-To-Text.");
+        }
 
         // Link a timeout CTS to the caller's token (120 second process timeout)
         using var timeoutCts = new CancellationTokenSource(_processTimeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
         var linkedCt = linkedCts.Token;
 
-        // Write to a unique temp file for whisper CLI to process (C2: random name avoids concurrent collisions)
+        // Write to a unique temp file for whisper CLI to process (random name avoids concurrent collisions)
         var tempDir = Path.Combine(Path.GetTempPath(), "openclaw-ptt");
         Directory.CreateDirectory(tempDir);
         var uniqueName = $"{Path.GetRandomFileName()}.wav";
@@ -88,8 +97,11 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
             var psi = new ProcessStartInfo
             {
                 FileName = _whisperBinaryPath,
-                // New whisper CLI: positional audio file, --output_dir, --output_format
-                Arguments = $"--model \"{modelPath}\" --output_dir \"{tempDir}\" --output_format txt \"{tempFile}\"",
+                // Python openai-whisper: pass model name (auto-downloads). C++ whisper.cpp: pass .bin file path.
+                // Both use the same CLI format: positional audio, --output_dir, --output_format
+                Arguments = _isPythonWhisper
+                    ? $"--model {_modelName} --output_dir \"{tempDir}\" --output_format txt \"{tempFile}\""
+                    : $"--model \"{_modelManager.GetModelPath(_modelName)}\" --output_dir \"{tempDir}\" --output_format txt \"{tempFile}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -101,7 +113,7 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
 
             try
             {
-                // C1: Read both streams concurrently to avoid deadlock
+                // Read both streams concurrently to avoid deadlock
                 var outputTask = process.StandardOutput.ReadToEndAsync(linkedCt);
                 var errorTask = process.StandardError.ReadToEndAsync(linkedCt);
                 await Task.WhenAll(outputTask, errorTask, process.WaitForExitAsync(linkedCt)).ConfigureAwait(false);
@@ -111,7 +123,7 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
 
                 if (process.ExitCode != 0)
                 {
-                    throw new TranscriberException($"whisper.cpp exited with code {process.ExitCode}: {error}");
+                    throw new TranscriberException($"whisper exited with code {process.ExitCode}: {error}");
                 }
 
                 // Output file will be same name but .txt extension (also unique per temp file)
@@ -127,14 +139,14 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
             }
             catch
             {
-                // H1: On any exception, kill the process
+                // On any exception, kill the process
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 throw;
             }
         }
         finally
         {
-            // Cleanup temp files — best effort is correct for cleanup (M1)
+            // Cleanup temp files — best effort is correct for cleanup
             try
             {
                 if (File.Exists(tempFile))
