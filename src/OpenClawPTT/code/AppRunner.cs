@@ -40,6 +40,9 @@ public class AppRunner : IDisposable
         // Wire agent status tracker if the factory provides one
         if (_factory.AgentStatusTracker != null)
             _statusService.SetAgentStatusTracker(_factory.AgentStatusTracker);
+
+        // Initialize status part positions from config
+        _statusService.ApplyConfigPositions(_cfg);
     }
 
     /// <summary>

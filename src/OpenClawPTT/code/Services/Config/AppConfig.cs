@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using OpenClawPTT.Services;
 using OpenClawPTT.TTS;
 
 namespace OpenClawPTT;
@@ -69,6 +70,15 @@ public sealed class AppConfig
     /// Equals max(RightMarginIndent, 10% of console width).</summary>
     [JsonIgnore]
     public int ReservedRightMargin { get; set; } = 10;
+
+    // Status bar positions for each status part
+    public DisplayPosition ActiveAgentPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ModelPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ThinkingLevelPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ContextPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ConversationNamePosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ConnectionStatusPosition { get; set; } = DisplayPosition.TopSeparatorRight;
+    public DisplayPosition DirectLlmPosition { get; set; } = DisplayPosition.TopSeparatorRight;
 
     // Visual feedback settings
     public VisualMode VisualMode { get; set; } = VisualMode.SolidDot;
@@ -183,6 +193,13 @@ public sealed class AppConfig
         ["VisualFeedbackOpacity"] = "Indicator opacity (0.0 - 1.0)",
         ["VisualFeedbackColor"] = "Indicator hex color (e.g. #FF0000)",
         ["VisualFeedbackRimThickness"] = "Indicator border thickness in pixels",
+        ["ActiveAgentPosition"] = "Status bar position for active agent icon+name (None, TopSeparatorLeft, TopSeparatorRight, BottomSeparatorLeft, BottomSeparatorRight)",
+        ["ModelPosition"] = "Status bar position for model name",
+        ["ThinkingLevelPosition"] = "Status bar position for thinking level",
+        ["ContextPosition"] = "Status bar position for token context usage",
+        ["ConversationNamePosition"] = "Status bar position for conversation name",
+        ["ConnectionStatusPosition"] = "Status bar position for GW/TTS connection status",
+        ["DirectLlmPosition"] = "Status bar position for direct LLM status",
         ["TtsProvider"] = "TTS provider: OpenAI, ElevenLabs, Azure, Coqui, Piper, Espeak",
         ["TtsOpenAiApiKey"] = "OpenAI API key for TTS",
         ["TtsSubscriptionKey"] = "Azure TTS subscription key",
