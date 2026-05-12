@@ -41,6 +41,7 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 
     public void OnMessageSent(string messageText)
     {
+        if (messageText.StartsWith('/')) return;
         if (_disposed) return;
 
         var sessionKey = AgentRegistry.ActiveSessionKey;
