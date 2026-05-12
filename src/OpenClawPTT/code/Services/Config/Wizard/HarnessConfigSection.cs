@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
@@ -25,6 +24,11 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
                 validator: v => Uri.TryCreate(v, UriKind.Absolute, out var uri)
                     && (uri.Scheme == "ws" || uri.Scheme == "wss"),
                 validationHint: "Expected ws:// or wss:// URL"),
+            ConfigSetupItem.ForString(
+                title: "Auth token (OPENCLAW_GATEWAY_TOKEN env)",
+                fieldName: nameof(AppConfig.AuthToken),
+                isSecret: true,
+                isEmptyToDefault: false),
         };
     }
 
@@ -72,28 +76,15 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
 
         ConfigSelectionHelper.PrintSubSection(host, harness, "harness setup");
 
+        // ── Seed auth token from env var if not already set ──
+        if (config.AuthToken == null)
+            config.AuthToken = Environment.GetEnvironmentVariable("OPENCLAW_GATEWAY_TOKEN");
+
         // ── Loop over generic config items ──
         foreach (var item in _configItems)
         {
             if (await item.RunAsync(host, config, isInitialSetup, ct))
                 changed = true;
-        }
-
-        // ── Auth token ──
-        var authToken = await PromptTextHelper.PromptAsync(host, "Auth token (OPENCLAW_GATEWAY_TOKEN env)",
-            config.AuthToken ?? Environment.GetEnvironmentVariable("OPENCLAW_GATEWAY_TOKEN") ?? "",
-            value => !string.IsNullOrWhiteSpace(value),
-            null,
-            ct, isSecret: true, isEmptyToDefault: false);
-
-        if (authToken != null)
-        {
-            var newValue = string.IsNullOrWhiteSpace(authToken) ? null : authToken;
-            if (newValue != config.AuthToken)
-            {
-                config.AuthToken = newValue;
-                changed = true;
-            }
         }
 
         // ── TLS fingerprint (only for wss://) ──
@@ -115,6 +106,12 @@ public sealed class HarnessConfigSection : IConfigSectionWizard
                 }
             }
         }
+
+        // ── Populate settings summary ──
+        result.Settings.Add(new ConfigSectionResult.SettingRecord("Harness Type", harness));
+        result.Settings.Add(new ConfigSectionResult.SettingRecord("Gateway URL", config.GatewayUrl ?? "(not set)"));
+        result.Settings.Add(new ConfigSectionResult.SettingRecord("Auth Token",
+            config.AuthToken != null ? "••••••" : "(not set)"));
 
         result.IsChanged = changed;
         return result;

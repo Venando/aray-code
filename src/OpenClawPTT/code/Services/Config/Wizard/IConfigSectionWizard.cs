@@ -29,7 +29,7 @@ public interface IConfigSectionWizard
 
 public class ConfigSectionResult
 {
-    public readonly IReadOnlyList<SettingRecord> Settings = new List<SettingRecord>();
+    public readonly List<SettingRecord> Settings = new List<SettingRecord>();
 
     public bool IsChanged { get; set;}
     
