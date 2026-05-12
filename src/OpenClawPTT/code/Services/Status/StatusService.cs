@@ -6,9 +6,10 @@ using OpenClawPTT.Services.StatusParts;
 namespace OpenClawPTT.Services;
 
 /// <summary>
-/// Tracks gateway, TTS, and agent status, rendering discrete status info
-/// parts (active agent name, model, thinking level, context usage,
-/// conversation name, connection status) on the StreamShell separator bars.
+/// Tracks gateway, TTS, direct LLM, and agent status, rendering discrete
+/// status info parts (active agent name, model, thinking level, context
+/// usage, conversation name, connection status, direct LLM status) on
+/// the StreamShell separator bars.
 ///
 /// Each part is a separate <see cref="IStatusPart"/> implementation with
 /// its own dirty-flag tracking and text caching.  Parts are collected into
@@ -35,6 +36,7 @@ public sealed class StatusService : IStatusService, IDisposable
     private readonly ContextPart _contextPart;
     private readonly ConversationNamePart _conversationNamePart;
     private readonly ConnectionStatusPart _connectionStatusPart;
+    private readonly DirectLlmStatusPart _directLlmStatusPart;
 
     // All parts in a flat list for iteration
     private readonly IStatusPart[] _allParts;
@@ -61,6 +63,7 @@ public sealed class StatusService : IStatusService, IDisposable
         _contextPart = new ContextPart();
         _conversationNamePart = new ConversationNamePart();
         _connectionStatusPart = new ConnectionStatusPart();
+        _directLlmStatusPart = new DirectLlmStatusPart();
 
         _allParts = new IStatusPart[]
         {
@@ -70,6 +73,7 @@ public sealed class StatusService : IStatusService, IDisposable
             _contextPart,
             _conversationNamePart,
             _connectionStatusPart,
+            _directLlmStatusPart,
         };
 
         if (_agentTracker != null)
@@ -93,6 +97,24 @@ public sealed class StatusService : IStatusService, IDisposable
         lock (_lock)
         {
             _connectionStatusPart.SetTtsStatus(label, color);
+            Render();
+        }
+    }
+
+    public void SetDirectLlmStatus(string label, StatusColor color)
+    {
+        lock (_lock)
+        {
+            _directLlmStatusPart.SetStatus(label, color);
+            Render();
+        }
+    }
+
+    public void SetDirectLlmLastCalled(DateTime? timestamp)
+    {
+        lock (_lock)
+        {
+            _directLlmStatusPart.SetLastCalled(timestamp);
             Render();
         }
     }
@@ -131,6 +153,7 @@ public sealed class StatusService : IStatusService, IDisposable
             _contextPart.Position = cfg.ContextPosition;
             _conversationNamePart.Position = cfg.ConversationNamePosition;
             _connectionStatusPart.Position = cfg.ConnectionStatusPosition;
+            _directLlmStatusPart.Position = cfg.DirectLlmPosition;
             Render();
         }
     }

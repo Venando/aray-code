@@ -9,6 +9,7 @@ using Xunit;
 
 namespace OpenClawPTT.Tests.Services;
 
+[Collection("ConversationNaming")]
 public class ConversationNamingServiceTests : IDisposable
 {
     private static AppConfig CreateDefaultConfig()
@@ -42,7 +43,6 @@ public class ConversationNamingServiceTests : IDisposable
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
 
         var name = service.GetCurrentConversationName();
-
         Assert.Null(name);
     }
 
@@ -76,23 +76,11 @@ public class ConversationNamingServiceTests : IDisposable
         var mockLlm = new Mock<IDirectLlmService>();
         mockLlm.Setup(x => x.IsConfigured).Returns(false);
 
-        using var ev = new ManualResetEventSlim(false);
-        // Use a counter to distinguish initialization events from naming events
-        int eventCount = 0;
-        string? lastName = null;
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
-        service.ConversationNameChanged += name =>
-        {
-            eventCount++;
-            lastName = name;
-        };
 
         service.OnMessageSent("Any message");
-        // Wait briefly — the naming event should not fire
         Thread.Sleep(500);
 
-        // The service may fire an initial null event from constructor wiring,
-        // but should NOT generate or fire a name event since DirectLLM is not configured
         Assert.Null(service.GetCurrentConversationName());
     }
 

@@ -10,6 +10,9 @@ public sealed class OpenAiRequest
     [JsonPropertyName("messages")]
     public OpenAiMessage[] Messages { get; set; } = Array.Empty<OpenAiMessage>();
     
+    [JsonPropertyName("max_tokens")]
+    public int? MaxTokens { get; set; }
+
     [JsonPropertyName("stream")]
     public bool Stream { get; set; }
 }

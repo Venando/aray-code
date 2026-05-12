@@ -15,6 +15,9 @@ public class ConfigurationService : IConfigurationService
     private readonly IConfigStorage _storage;
     private readonly ModularConfigurationWizard _wizard;
 
+    /// <inheritdoc />
+    public event Action<AppConfig>? ConfigSaved;
+
     public ConfigurationService()
         : this(new FileConfigStorage())
     {
@@ -38,6 +41,7 @@ public class ConfigurationService : IConfigurationService
 
             cfg = await _wizard.RunInitialSetupAsync(shellHost, ct);
             _storage.Save(cfg);
+            ConfigSaved?.Invoke(cfg);
             shellHost.AddMessage("[green]Configuration saved.[/]");
             return cfg;
         }
@@ -61,6 +65,7 @@ public class ConfigurationService : IConfigurationService
 
             cfg = await _wizard.RunInitialSetupAsync(shellHost, ct);
             _storage.Save(cfg);
+            ConfigSaved?.Invoke(cfg);
             shellHost.AddMessage("[green]Configuration updated.[/]");
         }
 
@@ -82,13 +87,18 @@ public class ConfigurationService : IConfigurationService
         }
 
         _storage.Save(newCfg);
+        ConfigSaved?.Invoke(newCfg);
         shellHost.AddMessage("[green]Configuration updated.[/]");
         return newCfg;
     }
 
     public AppConfig? Load() => _storage.Load();
 
-    public void Save(AppConfig cfg) => _storage.Save(cfg);
+    public void Save(AppConfig cfg)
+    {
+        _storage.Save(cfg);
+        ConfigSaved?.Invoke(cfg);
+    }
 
     public List<string> Validate(AppConfig? cfg)
     {

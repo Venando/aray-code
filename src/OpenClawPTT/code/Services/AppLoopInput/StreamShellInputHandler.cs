@@ -85,7 +85,14 @@ public sealed class StreamShellInputHandler : IDisposable
         _registry.Register(new AppConfigCommand(_host, _appConfig, _configService));
 
         // ── OpenClaw forwarded commands ───────────────────────────────────
+        // Registered regardless of connection state; execution-time guards handle
+        // the disconnected case (e.g. /reset without an active session shows a
+        // user-friendly message instead of crashing).
         _registry.RegisterOpenClawCommands(_textSender, _gatewayService, _console);
+
+        // ── Direct LLM command — only when the service is configured ─────────
+        if (_directLlmService != null && _directLlmService.IsConfigured)
+            _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig, _statusService));
 
         _host.UserInputSubmitted += OnUserInput;
 

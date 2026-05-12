@@ -9,6 +9,7 @@ public sealed class LlmCommand : ICommand
     private readonly IColorConsole _console;
     private readonly IDirectLlmService? _directLlmService;
     private readonly AppConfig _appConfig;
+    private readonly IStatusService? _statusService;
 
     public string Name => "llm";
     public string Description => "<message> Send message directly to configured LLM";
@@ -16,12 +17,13 @@ public sealed class LlmCommand : ICommand
     public ShellCommandType Type => ShellCommandType.DirectLlm;
     public string[]? Suggestions => null;
 
-    public LlmCommand(IStreamShellHost host, IColorConsole console, IDirectLlmService? directLlmService, AppConfig appConfig)
+    public LlmCommand(IStreamShellHost host, IColorConsole console, IDirectLlmService? directLlmService, AppConfig appConfig, IStatusService? statusService = null)
     {
         _host = host;
         _console = console;
         _directLlmService = directLlmService;
         _appConfig = appConfig;
+        _statusService = statusService;
     }
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
@@ -39,11 +41,14 @@ public sealed class LlmCommand : ICommand
             return;
         }
 
+        _statusService?.SetDirectLlmLastCalled(DateTime.Now);
+
         _host.AddMessage($"[grey]  Sending to LLM ({_appConfig.DirectLlmModelName})...[/]");
 
         try
         {
             var response = await _directLlmService.SendAsync(message, ct);
+            _statusService?.SetDirectLlmLastCalled(DateTime.Now);
             _console.PrintFormatted("[cyan]  LLM Response:[/] ", response);
         }
         catch (Exception ex)

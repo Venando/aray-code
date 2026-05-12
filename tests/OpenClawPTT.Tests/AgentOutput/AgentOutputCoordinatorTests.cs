@@ -3,10 +3,27 @@ using Xunit;
 using Moq;
 using OpenClawPTT.Services;
 
+
 namespace OpenClawPTT.Tests;
 
 public class AgentOutputCoordinatorTests
 {
+    static AgentOutputCoordinatorTests()
+    {
+        AgentSettingsPersistenceLegacy.Initialize(Mock.Of<IAgentSettingsPersistence>());
+        AgentRegistry.SetAgents(new[]
+        {
+            new AgentInfo
+            {
+                AgentId = "test",
+                Name = "TestAgent",
+                SessionKey = "test-session",
+                IsDefault = true
+            }
+        });
+    }
+
+
     /// <summary>
     /// Creates a coordinator with EnableWordWrap=false to avoid AgentReplyFormatter
     /// NRE in tests that don't exercise word wrapping.

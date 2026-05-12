@@ -51,6 +51,15 @@ public sealed class MockDirectLlmService : IDirectLlmService
     }
 
     /// <summary>
+    /// Always returns true in test mode — simulates a reachable endpoint.
+    /// </summary>
+    public Task<bool> ProbeAsync(CancellationToken ct = default)
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(MockDirectLlmService));
+        return Task.FromResult(true);
+    }
+
+    /// <summary>
     /// Generates a response based on the input message and scenario.
     /// </summary>
     private string GenerateResponse(string message)

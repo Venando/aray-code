@@ -37,12 +37,12 @@ public class AppRunner : IDisposable
         _errorLog = new ErrorLogStore(cfg.DataDir);
         _statusService = new StatusService(shellHost);
 
-        // Apply per-part display positions from config
-        _statusService.ApplyConfigPositions(cfg);
-
         // Wire agent status tracker if the factory provides one
         if (_factory.AgentStatusTracker != null)
             _statusService.SetAgentStatusTracker(_factory.AgentStatusTracker);
+
+        // Initialize status part positions from config
+        _statusService.ApplyConfigPositions(_cfg);
     }
 
     /// <summary>
@@ -79,11 +79,13 @@ public class AppRunner : IDisposable
         using var directLlmService = _factory.CreateDirectLlmService(_cfg);
         using var ttsSummarizer = _factory.CreateTtsSummarizer(directLlmService.IsConfigured ? directLlmService : null);
 
-        // ── Parallel init: TTS provider on background thread while we prepare the rest ──
+        // ── Parallel init: TTS and Direct LLM probing on background threads ──────────
         // TtsService constructor may block (e.g. Python provider initializes synchronously),
         // so we run it on a background thread to avoid delaying gateway connection.
+        // Direct LLM probing is also parallelized for the same reason.
         using var ttsInitCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var ttsInitTask = Task.Run(() => InitializeTtsProviderAsync(_cfg, ttsInitCts.Token), ttsInitCts.Token);
+        var llmProbeTask = Task.Run(() => ProbeAndUpdateDirectLlmAsync(directLlmService, ct), ct);
 
         // Create gateway service (fast — no longer blocks on TTS init).
         // GatewayService receives the TTS provider task and wires audio asynchronously
@@ -95,7 +97,10 @@ public class AppRunner : IDisposable
         if (gateway is GatewayService gw)
             gw.SetErrorLogStore(_errorLog);
 
-        // Gateway connect runs in parallel with TTS init — the TTS task is handled
+        // Subscribe to config changes so /appconfig DirectLlm* edits trigger re-probe
+        _configService.ConfigSaved += OnConfigSaved;
+
+        // Gateway connect runs in parallel with TTS/LLM init — the TTS task is handled
         // by GatewayService's internal continuation.
         var connectResult = await TryConnectWithGuidanceAsync(gateway, ct);
 
@@ -103,6 +108,79 @@ public class AppRunner : IDisposable
             return (int)AppLoopExitCode.Error;
 
         return await RunPttLoopAsync(gateway, pttStateMachine, directLlmService, ttsSummarizer, ct);
+    }
+
+    /// <summary>
+    /// Probes the Direct LLM endpoint and updates the status bar.
+    /// Called on startup and whenever the Direct LLM config changes via /appconfig.
+    /// </summary>
+    private async Task ProbeAndUpdateDirectLlmAsync(IDirectLlmService service, CancellationToken ct)
+    {
+        if (!service.IsConfigured)
+        {
+            _statusService.SetDirectLlmStatus("\u2014", StatusColor.Yellow);
+            return;
+        }
+
+        try
+        {
+            _statusService.SetDirectLlmStatus("Probing", StatusColor.Yellow);
+            var ok = await service.ProbeAsync(ct);
+
+            if (ok)
+            {
+                _statusService.SetDirectLlmStatus("OK", StatusColor.Green);
+                _console.LogOk("llm", $"Direct LLM probed successfully ({_cfg.DirectLlmModelName})");
+            }
+            else
+            {
+                _statusService.SetDirectLlmStatus("Failed", StatusColor.Red);
+                _console.Log("llm", $"Direct LLM probe failed — endpoint not reachable");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _statusService.SetDirectLlmStatus("\u2014", StatusColor.Yellow);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _statusService.SetDirectLlmStatus("Error", StatusColor.Red);
+            _console.LogError("llm", $"Direct LLM probe error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Re-probes the Direct LLM whenever the app config is saved (e.g. via /appconfig).
+    /// Filters to DirectLlmUrl/DirectLlmModelName changes to avoid unnecessary probes.
+    /// </summary>
+    private string? _lastKnownLlmUrl;
+    private string? _lastKnownLlmModel;
+
+    private async void OnConfigSaved(AppConfig newCfg)
+    {
+        var llmUrl = newCfg.DirectLlmUrl;
+        var llmModel = newCfg.DirectLlmModelName;
+
+        bool urlChanged = !string.Equals(_lastKnownLlmUrl, llmUrl, StringComparison.OrdinalIgnoreCase);
+        bool modelChanged = !string.Equals(_lastKnownLlmModel, llmModel, StringComparison.OrdinalIgnoreCase);
+
+        if (!urlChanged && !modelChanged)
+            return;
+
+        _lastKnownLlmUrl = llmUrl;
+        _lastKnownLlmModel = llmModel;
+
+        // Create a fresh service with the updated config and probe it
+        try
+        {
+            using var freshService = _factory.CreateDirectLlmService(newCfg);
+            await ProbeAndUpdateDirectLlmAsync(freshService, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _console.LogError("llm", $"LLM re-probe failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -178,7 +256,7 @@ public class AppRunner : IDisposable
             {
                 _console.PrintInfo("  Suggested actions:");
                 foreach (var action in classification.SuggestedActions)
-                    _console.PrintInfo($"    → {action}");
+                    _console.PrintInfo($"    \u2192 {action}");
             }
 
             _statusService.SetGatewayStatus("Connecting", StatusColor.Yellow);
@@ -248,7 +326,19 @@ public class AppRunner : IDisposable
             pttStateMachine, audioService, pttController, namingTextSender, inputHandler,
             requireConfirmBeforeSend: _cfg.RequireConfirmBeforeSend);
 
-        return (int)(await pttLoop.RunAsync(ct));
+        // Remember initial LLM config for change detection
+        _lastKnownLlmUrl = _cfg.DirectLlmUrl;
+        _lastKnownLlmModel = _cfg.DirectLlmModelName;
+
+        // Unsubscribe from config changes when the loop exits
+        try
+        {
+            return (int)(await pttLoop.RunAsync(ct));
+        }
+        finally
+        {
+            _configService.ConfigSaved -= OnConfigSaved;
+        }
     }
 
     /// <summary>Access the error log store (used by StreamShell commands).</summary>

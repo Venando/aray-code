@@ -301,7 +301,8 @@ public class GatewayAudioQaTests
             SampleRate = 16000,
             Channels = 1,
             BitsPerSample = 16,
-            MaxRecordSeconds = 30
+            MaxRecordSeconds = 30,
+            GroqApiKey = "test-key"
         };
 
         var audio = new AudioService(cfg, CreateMockConsole(), Mock.Of<IAgentSettingsPersistence>());
@@ -317,7 +318,8 @@ public class GatewayAudioQaTests
             SampleRate = 16000,
             Channels = 1,
             BitsPerSample = 16,
-            MaxRecordSeconds = 30
+            MaxRecordSeconds = 30,
+            GroqApiKey = "test-key"
         };
 
         var audio = new AudioService(cfg, CreateMockConsole(), Mock.Of<IAgentSettingsPersistence>());
@@ -339,7 +341,8 @@ public class GatewayAudioQaTests
             SampleRate = 16000,
             Channels = 1,
             BitsPerSample = 16,
-            MaxRecordSeconds = 30
+            MaxRecordSeconds = 30,
+            GroqApiKey = "test-key"
         };
 
         var audio = new AudioService(cfg, CreateMockConsole(), Mock.Of<IAgentSettingsPersistence>());
@@ -356,7 +359,8 @@ public class GatewayAudioQaTests
             SampleRate = 16000,
             Channels = 1,
             BitsPerSample = 16,
-            MaxRecordSeconds = 30
+            MaxRecordSeconds = 30,
+            GroqApiKey = "test-key"
         };
 
         var audio = new AudioService(cfg, CreateMockConsole(), Mock.Of<IAgentSettingsPersistence>());
@@ -374,7 +378,8 @@ public class GatewayAudioQaTests
             SampleRate = 16000,
             Channels = 1,
             BitsPerSample = 16,
-            MaxRecordSeconds = 30
+            MaxRecordSeconds = 30,
+            GroqApiKey = "test-key"
         };
 
         var audio = new AudioService(cfg, CreateMockConsole(), Mock.Of<IAgentSettingsPersistence>());

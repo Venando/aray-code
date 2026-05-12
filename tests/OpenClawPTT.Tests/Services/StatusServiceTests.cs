@@ -1,12 +1,19 @@
 using Xunit;
 using Moq;
 using OpenClawPTT.Services;
+using OpenClawPTT;
 using OpenClawPTT.Services.StatusParts;
 
 namespace OpenClawPTT.Tests;
 
+[Collection("ConversationNaming")]
 public class StatusServiceTests
 {
+    static StatusServiceTests()
+    {
+        AgentSettingsPersistenceLegacy.Initialize(Mock.Of<IAgentSettingsPersistence>());
+    }
+
     [Fact]
     public void SetGatewayStatus_UpdatesRenderedText()
     {
@@ -44,6 +51,33 @@ public class StatusServiceTests
 
         Assert.Contains("Connected", host.LastSeparatorRightText);
         Assert.Contains("Starting", host.LastSeparatorRightText);
+    }
+
+    [Fact]
+    public void SetDirectLlmStatus_UpdatesRenderedText()
+    {
+        var host = new FakeStreamShellHost();
+        var service = new StatusService(host);
+
+        service.SetDirectLlmStatus("OK", StatusColor.Green);
+
+        Assert.Contains("LLM:", host.LastSeparatorRightText);
+        Assert.Contains("OK", host.LastSeparatorRightText);
+        Assert.Contains("green", host.LastSeparatorRightText);
+    }
+
+    [Fact]
+    public void SetDirectLlmLastCalled_ShowsElapsedTime()
+    {
+        var host = new FakeStreamShellHost();
+        var service = new StatusService(host);
+
+        service.SetDirectLlmStatus("OK", StatusColor.Green);
+        service.SetDirectLlmLastCalled(DateTime.Now);
+
+        Assert.Contains("LLM:", host.LastSeparatorRightText);
+        Assert.Contains("OK", host.LastSeparatorRightText);
+        Assert.Contains("0s", host.LastSeparatorRightText);
     }
 
     [Fact]
@@ -533,6 +567,56 @@ public class StatusServiceTests
 
         part.MarkClean();
         part.SetGatewayStatus("Disconnected", StatusColor.Yellow);
+        Assert.True(part.IsDirty);
+    }
+
+    [Fact]
+    public void DirectLlmStatusPart_BuildsCorrectText()
+    {
+        var part = new DirectLlmStatusPart();
+        part.SetStatus("OK", StatusColor.Green);
+
+        string text = part.GetText();
+        Assert.Contains("LLM:", text);
+        Assert.Contains("OK", text);
+        Assert.Contains("green", text);
+    }
+
+    [Fact]
+    public void DirectLlmStatusPart_IsDirtyTracking_Works()
+    {
+        var part = new DirectLlmStatusPart();
+        part.SetStatus("OK", StatusColor.Green);
+        Assert.True(part.IsDirty); // starts dirty
+
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.SetStatus("OK", StatusColor.Green);
+        Assert.False(part.IsDirty); // no change, stays clean
+
+        part.SetStatus("Failed", StatusColor.Red);
+        Assert.True(part.IsDirty); // value changed
+    }
+
+    [Fact]
+    public void DirectLlmStatusPart_LastCalled_AlwaysMarksDirty()
+    {
+        var part = new DirectLlmStatusPart();
+        part.SetStatus("OK", StatusColor.Green);
+        part.GetText();
+        part.MarkClean();
+        Assert.False(part.IsDirty);
+
+        part.SetLastCalled(DateTime.Now);
+        Assert.True(part.IsDirty);
+
+        part.GetText();
+        part.MarkClean();
+
+        // Setting timestamp again (time changed) marks dirty
+        part.SetLastCalled(DateTime.Now);
         Assert.True(part.IsDirty);
     }
 
