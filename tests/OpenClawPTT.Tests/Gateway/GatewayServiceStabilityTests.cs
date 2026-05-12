@@ -18,7 +18,6 @@ public class GatewayServiceStabilityTests : IDisposable
         {
             GatewayUrl = "wss://test.example.com",
             AuthToken = "test-token",
-            AudioResponseMode = "text-only"
         };
     }
 

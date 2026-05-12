@@ -25,7 +25,6 @@ public sealed class ConfigurationWizard
         SampleRate,
         MaxRecordSeconds,
         RealTimeReplyOutput,
-        AgentName,
         HotkeyCombination,
         HoldToTalk,
         TranscriptionPromptPrefix,
@@ -48,7 +47,6 @@ public sealed class ConfigurationWizard
         [Step.HotkeyCombination] = new HotkeyCombinationHandler(),
         [Step.VisualFeedbackPosition] = new VisualFeedbackPositionHandler(),
         [Step.VisualFeedbackColor] = new VisualFeedbackColorHandler(),
-        [Step.AudioResponseMode] = new AudioResponseModeHandler(),
     };
 
     private static IWizardStepHandler? GetHandler(Step step)
@@ -213,7 +211,6 @@ public sealed class ConfigurationWizard
     private static bool IsClearableField(Step step) => step switch
     {
         Step.TranscriptionPromptPrefix => true,
-        Step.AgentName => true,
         _ => false
     };
 
@@ -253,7 +250,6 @@ public sealed class ConfigurationWizard
             Step.SampleRate => "Audio sample rate (8000–48000 Hz)",
             Step.MaxRecordSeconds => "Max recording length (5–600 seconds)",
             Step.RealTimeReplyOutput => "Real-time reply streaming (true/false)",
-            Step.AgentName => "Your name, shown as reply prefix (-- to clear)",
             Step.HoldToTalk => "Hold-to-talk (true = hold down, false = toggle)",
             Step.TranscriptionPromptPrefix => "Transcription context prefix (-- to clear)",
             Step.VisualFeedbackEnabled => "Show visual feedback indicator (true/false)",
@@ -279,7 +275,6 @@ public sealed class ConfigurationWizard
             Step.SampleRate => " Expected a number between 8000 and 48000",
             Step.MaxRecordSeconds => " Expected a number between 5 and 600",
             Step.RealTimeReplyOutput => " Expected true or false",
-            Step.AgentName => " Cannot be empty",
             Step.HoldToTalk => " Expected true or false",
             Step.TranscriptionPromptPrefix => "",
             Step.VisualFeedbackEnabled => " Expected true or false",
@@ -305,7 +300,6 @@ public sealed class ConfigurationWizard
             Step.SampleRate => _config.SampleRate.ToString(),
             Step.MaxRecordSeconds => _config.MaxRecordSeconds.ToString(),
             Step.RealTimeReplyOutput => _config.RealTimeReplyOutput.ToString(),
-            Step.AgentName => _config.AgentName,
             Step.HoldToTalk => _config.HoldToTalk.ToString(),
             Step.TranscriptionPromptPrefix => _config.TranscriptionPromptPrefix,
             Step.VisualFeedbackEnabled => _config.VisualFeedbackEnabled.ToString(),
@@ -340,8 +334,6 @@ public sealed class ConfigurationWizard
                 return int.TryParse(rawInput, out var n2) && n2 is >= 5 and <= 600;
             case Step.RealTimeReplyOutput:
                 return bool.TryParse(rawInput, out _);
-            case Step.AgentName:
-                return !string.IsNullOrWhiteSpace(rawInput);
             case Step.HoldToTalk:
                 return bool.TryParse(rawInput, out _);
             case Step.TranscriptionPromptPrefix:
@@ -387,12 +379,6 @@ public sealed class ConfigurationWizard
                 break;
             case Step.MaxRecordSeconds:
                 _config.MaxRecordSeconds = int.Parse(rawInput);
-                break;
-            case Step.RealTimeReplyOutput:
-                _config.RealTimeReplyOutput = bool.Parse(rawInput);
-                break;
-            case Step.AgentName:
-                _config.AgentName = rawInput;
                 break;
             case Step.HoldToTalk:
                 _config.HoldToTalk = bool.Parse(rawInput);

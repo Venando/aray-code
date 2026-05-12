@@ -20,9 +20,9 @@ public sealed class FakeInputHandler : IInputHandler
     public bool HasSelection => false;
     public bool TryGetSelection(out int start, out int length) { start = 0; length = 0; return false; }
     public int RightMargin { get; set; } = 80;
+    public bool WordWrap { get; set; } = true;
     public bool QuitRequested { get; set; }
     public List<Attachment> Attachments => _attachments;
-    public bool WordWrap { get; set; } = true;
     public int LargePasteThreshold { get; set; } = 300;
     public int LargePasteLineThreshold { get; set; } = 4;
 

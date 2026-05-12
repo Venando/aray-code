@@ -1,15 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using OpenClawPTT.ConfigWizard;
 using Spectre.Console;
 using System.Threading.Tasks;
+using StreamShell;
 
 namespace OpenClawPTT.Services;
 
 public class ConfigurationService : IConfigurationService
 {
+    public record Variant(string Name) : IVariant;
+
     private readonly IConfigStorage _storage;
-    private readonly ConfigurationWizard _wizard;
+    private readonly ModularConfigurationWizard _wizard;
 
     public ConfigurationService()
         : this(new FileConfigStorage())
@@ -19,7 +23,7 @@ public class ConfigurationService : IConfigurationService
     public ConfigurationService(IConfigStorage storage)
     {
         _storage = storage;
-        _wizard = new ConfigurationWizard();
+        _wizard = new ModularConfigurationWizard();
     }
 
     public async Task<AppConfig> LoadOrSetupAsync(IStreamShellHost shellHost, bool forceReconfigure = false, CancellationToken ct = default)
@@ -28,8 +32,11 @@ public class ConfigurationService : IConfigurationService
 
         if (cfg is null)
         {
-            shellHost.AddMessage("[cyan2]No configuration found — starting first-time setup.[/]");
-            cfg = await _wizard.RunSetupAsync(shellHost, ct: ct);
+            shellHost.AddMessage($"[bold cyan2]────● No configuration found — starting first-time setup.      [/]");
+
+            await shellHost.PromptSelection("Continue?", [new Variant("Yes") ]);
+
+            cfg = await _wizard.RunInitialSetupAsync(shellHost, ct);
             _storage.Save(cfg);
             shellHost.AddMessage("[green]Configuration saved.[/]");
             return cfg;
@@ -52,7 +59,7 @@ public class ConfigurationService : IConfigurationService
             else
                 shellHost.AddMessage("[cyan2]Starting setup wizard to fix missing/invalid fields...[/]");
 
-            cfg = await _wizard.RunSetupAsync(shellHost, cfg, ct);
+            cfg = await _wizard.RunInitialSetupAsync(shellHost, ct);
             _storage.Save(cfg);
             shellHost.AddMessage("[green]Configuration updated.[/]");
         }
@@ -62,12 +69,12 @@ public class ConfigurationService : IConfigurationService
 
     public async Task<AppConfig> ReconfigureAsync(IStreamShellHost shellHost, AppConfig existing, CancellationToken ct)
     {
-        shellHost.AddMessage("[cyan2]Starting setup wizard...[/]");
+        shellHost.AddMessage("[cyan2]Starting reconfiguration wizard...[/]");
 
         AppConfig newCfg;
         try
         {
-            newCfg = await _wizard.RunSetupAsync(shellHost, existing, ct);
+            newCfg = await _wizard.RunReconfigureAsync(shellHost, existing, ct);
         }
         catch (OperationCanceledException)
         {
@@ -83,9 +90,15 @@ public class ConfigurationService : IConfigurationService
 
     public void Save(AppConfig cfg) => _storage.Save(cfg);
 
-    public List<string> Validate(AppConfig cfg)
+    public List<string> Validate(AppConfig? cfg)
     {
         var issues = new List<string>();
+
+        if (cfg == null)
+        {
+            issues.Add("Configuration is null.");
+            return issues;
+        }
 
         if (string.IsNullOrWhiteSpace(cfg.GatewayUrl))
             issues.Add("Gateway URL is required.");
@@ -104,8 +117,8 @@ public class ConfigurationService : IConfigurationService
         if (cfg.ReconnectDelaySeconds <= 0)
             issues.Add("Reconnect delay must be positive.");
 
-        if (cfg.VisualMode < VisualMode.SolidDot || cfg.VisualMode > VisualMode.GlowDot)
-            issues.Add("VisualMode must be 1 (SolidDot) or 2 (GlowDot).");
+        if (!Enum.IsDefined(typeof(VisualMode), cfg.VisualMode))
+            issues.Add($"VisualMode must be a defined value (current: {cfg.VisualMode}).");
 
         return issues;
     }

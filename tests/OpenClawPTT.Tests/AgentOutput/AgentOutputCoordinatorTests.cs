@@ -15,7 +15,6 @@ public class AgentOutputCoordinatorTests
     {
         config ??= new AppConfig
         {
-            AudioResponseMode = "text-only",
             EnableWordWrap = false
         };
         var console = new Mock<IColorConsole>().Object;
@@ -120,8 +119,7 @@ public class AgentOutputCoordinatorTests
         var coordinator = CreateCoordinator();
         var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
         var jobRunner = new BackgroundJobRunner(msg => { });
-        var handler = new AudioResponseHandler(
-            new AppConfig { AudioResponseMode = "text-only" },
+        var handler = new AudioResponseHandler(new AppConfig(), 
             new Mock<IColorConsole>().Object,
             jobRunner,
             audioPlayer,
@@ -143,8 +141,7 @@ public class AgentOutputCoordinatorTests
         var coordinator = CreateCoordinator();
         var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
         var jobRunner = new BackgroundJobRunner(msg => { });
-        var handler = new AudioResponseHandler(
-            new AppConfig { AudioResponseMode = "text-only" },
+        var handler = new AudioResponseHandler(new AppConfig(), 
             new Mock<IColorConsole>().Object,
             jobRunner,
             audioPlayer,
@@ -166,8 +163,7 @@ public class AgentOutputCoordinatorTests
         var coordinator = CreateCoordinator();
         var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
         var jobRunner = new BackgroundJobRunner(msg => { });
-        var handler = new AudioResponseHandler(
-            new AppConfig { AudioResponseMode = "text-only" },
+        var handler = new AudioResponseHandler(new AppConfig(), 
             new Mock<IColorConsole>().Object,
             jobRunner,
             audioPlayer,
@@ -190,8 +186,7 @@ public class AgentOutputCoordinatorTests
         var coordinator = CreateCoordinator();
         var audioPlayer = new AudioPlayerService(new Mock<IColorConsole>().Object);
         var jobRunner = new BackgroundJobRunner(msg => { });
-        var handler = new AudioResponseHandler(
-            new AppConfig { AudioResponseMode = "text-only" },
+        var handler = new AudioResponseHandler(new AppConfig(), 
             new Mock<IColorConsole>().Object,
             jobRunner,
             audioPlayer,

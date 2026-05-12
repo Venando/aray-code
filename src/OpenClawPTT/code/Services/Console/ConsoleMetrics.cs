@@ -22,4 +22,21 @@ public static class ConsoleMetrics
             return fallback;
         }
     }
+
+    /// <summary>
+    /// Gets the console window height, returning <paramref name="fallback"/>
+    /// if the console is unavailable or in a redirected environment.
+    /// </summary>
+    internal static int GetWindowHeight(int fallback = 30)
+    {
+        try
+        {
+            int h = Console.WindowHeight;
+            return h > 0 ? h : fallback;
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
 }

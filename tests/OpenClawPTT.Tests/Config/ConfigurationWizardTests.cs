@@ -37,7 +37,6 @@ public class ConfigurationWizardTests
         host.SubmitInput("16000");                 // SampleRate
         host.SubmitInput("120");                   // MaxRecordSeconds
         host.SubmitInput("true");                  // RealTimeReplyOutput
-        host.SubmitInput("MyAgent");               // AgentName
         host.SubmitInput("Alt+=");                 // HotkeyCombination
         host.SubmitInput("false");                 // HoldToTalk
         host.SubmitInput("[Transcribe]:");         // TranscriptionPromptPrefix
@@ -47,7 +46,6 @@ public class ConfigurationWizardTests
         host.SubmitInput("1.0");                   // VisualFeedbackOpacity
         host.SubmitInput("#FF0000");               // VisualFeedbackColor
         host.SubmitInput("8");                     // VisualFeedbackRimThickness
-        host.SubmitInput("both");                  // AudioResponseMode
         host.SubmitInput("eleven-key");            // TtsApiKey
         host.SubmitInput("voice123");              // TtsVoiceId
 
@@ -62,7 +60,6 @@ public class ConfigurationWizardTests
         Assert.Equal(16000, config.SampleRate);
         Assert.Equal(120, config.MaxRecordSeconds);
         Assert.True(config.RealTimeReplyOutput);
-        Assert.Equal("MyAgent", config.AgentName);
         Assert.Equal("Alt+=", config.HotkeyCombination);
         Assert.False(config.HoldToTalk);
         Assert.Equal("[Transcribe]:", config.TranscriptionPromptPrefix);
@@ -72,7 +69,6 @@ public class ConfigurationWizardTests
         Assert.Equal(1.0, config.VisualFeedbackOpacity);
         Assert.Equal("#FF0000", config.VisualFeedbackColor);
         Assert.Equal(8, config.VisualFeedbackRimThickness);
-        Assert.Equal("both", config.AudioResponseMode);
         Assert.Equal("eleven-key", config.TtsApiKey);
         Assert.Equal("voice123", config.TtsVoiceId);
     }
@@ -114,8 +110,6 @@ public class ConfigurationWizardTests
         host.SubmitInput("60");
         // RealTimeReplyOutput
         host.SubmitInput("true");
-        // AgentName
-        host.SubmitInput("Agent");
         // HotkeyCombination
         host.SubmitInput("Alt+=");
         // HoldToTalk
@@ -134,7 +128,6 @@ public class ConfigurationWizardTests
         host.SubmitInput("#00FF00");
         // VisualFeedbackRimThickness
         host.SubmitInput("5");
-        // AudioResponseMode
         host.SubmitInput("text-only");
         // TtsApiKey
         host.SubmitInput("");
@@ -158,7 +151,6 @@ public class ConfigurationWizardTests
             Locale = "en-US",
             SampleRate = 16000,
             MaxRecordSeconds = 60,
-            AgentName = "MyAgent",
             HotkeyCombination = "Alt+=",
             HoldToTalk = false,
             TranscriptionPromptPrefix = "[It's a raw speech-to-text transcription]:",
@@ -173,7 +165,6 @@ public class ConfigurationWizardTests
         host.SubmitInput("16000");                 // SampleRate
         host.SubmitInput("60");                    // MaxRecordSeconds
         host.SubmitInput("true");                  // RealTimeReplyOutput
-        host.SubmitInput("--");                    // AgentName: clear
         host.SubmitInput("Alt+=");                 // HotkeyCombination
         host.SubmitInput("false");                 // HoldToTalk
         host.SubmitInput("--");                    // TranscriptionPromptPrefix: clear
@@ -183,14 +174,12 @@ public class ConfigurationWizardTests
         host.SubmitInput("0.5");                   // VisualFeedbackOpacity
         host.SubmitInput("#00FF00");               // VisualFeedbackColor
         host.SubmitInput("5");                     // VisualFeedbackRimThickness
-        host.SubmitInput("text-only");             // AudioResponseMode
         host.SubmitInput("");                      // TtsApiKey
         host.SubmitInput("");                      // TtsVoiceId
 
         var config = await task;
 
         Assert.NotNull(config);
-        Assert.Equal("", config.AgentName);
         Assert.Equal("", config.TranscriptionPromptPrefix);
     }
 }

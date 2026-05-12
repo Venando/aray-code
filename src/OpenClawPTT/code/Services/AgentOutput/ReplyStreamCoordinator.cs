@@ -114,7 +114,7 @@ public sealed class ReplyStreamCoordinator : IDisposable
         if (_prefixPrinted) return;
         _prefixPrinted = true;
 
-        AgentRegistry.GetActiveNameAndEmoji(out var agentName, out var emoji, _config.AgentName);
+        AgentRegistry.GetActiveNameAndEmoji(out var agentName, out var emoji, null);
         var color = AgentRegistry.GetActiveColor();
         var effectiveColor = color ?? AgentPersistedSettings.DefaultColor;
         var agentNameStr = agentName.ToString();
