@@ -239,20 +239,8 @@ public class AppRunner : IDisposable
         );
         shellCommands.CommandExecuted += namingService.OnCommandExecuted;
 
-        // When /reset or /new is issued, clear the stale agent status
-        // snapshot for the active session so the status panel doesn't
-        // display stale token/context counts from the previous session.
-        shellCommands.CommandExecuted += (_, e) =>
-        {
-            if (e.Type == ShellCommandType.SessionControl &&
-                (e.Name.Equals("reset", StringComparison.OrdinalIgnoreCase) ||
-                 e.Name.Equals("new", StringComparison.OrdinalIgnoreCase)))
-            {
-                var sessionKey = AgentRegistry.ActiveSessionKey;
-                if (sessionKey != null)
-                    _factory.AgentStatusTracker?.Remove(sessionKey);
-            }
-        };
+        using var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentStatusTracker);
+        shellCommands.CommandExecuted += snapshotCleaner.Handle;
 
         await shellCommands.RegisterAsync();
 
