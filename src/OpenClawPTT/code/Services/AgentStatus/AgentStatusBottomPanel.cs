@@ -24,6 +24,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     private readonly IAgentStatusTracker _tracker;
     private readonly StringBuilder _builder = new(256);
     private readonly string[] _lines;
+    private readonly string[] _emptyLines; 
     private readonly object _sync = new();
 
     // Reusable list for visible agents — avoids per-render allocation
@@ -69,6 +70,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         _tracker = tracker;
         _lineCount = Math.Max(2, maxLineCount);
         _lines = new string[_lineCount];
+        _emptyLines = new string[_lineCount];
         _cachedConsoleWidth = ConsoleMetrics.GetWindowWidth();
 
         // Set version before subscribing so event handlers can safely increment it
@@ -82,6 +84,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
     public void Dispose()
     {
+        return; // Ignore disposion until StreamShell version bump from (2025.5.12) has bug with default panel being disposed. (If you read this, check StreamShell version (https://www.nuget.org/packages/StreamShell/) and update it in .csproj and remove this return statement)
+
         lock (_sync)
         {
             if (_disposed)
@@ -135,7 +139,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
     public IReadOnlyList<string> GetLines(string currentInput)
     {
-        IReadOnlyList<string> result;
         int agentListPrintIndex = _lineCount - 1;
         int capPrintIndex = _lineCount - 2;
 
@@ -143,8 +146,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         {
             if (_disposed)
             {
-                result = Array.Empty<string>();
-                return result;
+                return _emptyLines;
             }
 
             CheckRegistryVersionBump();

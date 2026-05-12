@@ -32,11 +32,9 @@ public sealed class CommandRegistry
         if (command == null) throw new ArgumentNullException(nameof(command));
         _commands.Add(command);
 
-        var underlined = $"[underline]{Markup.Escape(command.Description)}[/]";
-
         _host.AddCommand(new Command(
-            command.Name,
-            underlined,
+            command.Source == CommandSource.Native ? command.Name : command.Name, // TODO: make native command yellow: $"[yellow]{command.Name}[/]"
+            Markup.Escape(command.Description),
             (args, named) => WrapHandler(command, args, named),
             command.Suggestions));
     }
@@ -49,8 +47,7 @@ public sealed class CommandRegistry
     {
         foreach (var name in OpenClawCommandMetadata.Names)
         {
-            var description = Markup.Escape(
-                OpenClawCommandMetadata.GetDescription(name) ?? "OpenClaw command");
+            var description = OpenClawCommandMetadata.GetDescription(name) ?? "OpenClaw command";
             var suggestions = OpenClawCommandSuggestions.Get(name);
 
             var cmd = new OpenClawForwardCommand(
