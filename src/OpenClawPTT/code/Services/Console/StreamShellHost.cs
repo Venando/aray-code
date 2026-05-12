@@ -9,6 +9,9 @@ namespace OpenClawPTT.Services;
 public sealed class StreamShellHost : IStreamShellHost, IDisposable
 {
     private readonly ConsoleAppHost _host;
+    // Tracks commands added by overload shortcuts so RemoveCommand can overwrite them.
+    // ConsoleAppHost itself has no RemoveCommand — we replace with a no-op.
+    private readonly HashSet<string> _trackedCommands = new();
 
     public StreamShellHost()
     {
@@ -22,10 +25,33 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
 
     public void AddCommand(StreamShell.Command command) => _host.AddCommand(command);
 
+    public void AddCommand(string name, string description,
+        Func<string[], Dictionary<string, string>, Task> handler,
+        string[]? argumentSuggestions = null)
+    {
+        _host.AddCommand(name, description, handler, argumentSuggestions ?? []);
+        _trackedCommands.Add(name);
+    }
+
+    public void RemoveCommand(string name)
+    {
+        if (_trackedCommands.Remove(name))
+        {
+            // ConsoleAppHost has no RemoveCommand, so overwrite with a no-op handler.
+            _host.AddCommand(name, string.Empty, (_, _) => Task.CompletedTask, []);
+        }
+    }
+
     public event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted
     {
         add => _host.UserInputSubmitted += value;
         remove => _host.UserInputSubmitted -= value;
+    }
+
+    public event EventHandler<StreamShell.BottomPanelChangedEventArgs>? BottomPanelChanged
+    {
+        add => _host.BottomPanelChanged += value;
+        remove => _host.BottomPanelChanged -= value;
     }
 
     public async Task Run(CancellationToken cancellationToken = default) => await _host.Run(cancellationToken);
@@ -43,7 +69,7 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         _host.SetTopSeparator(leftText, rightText, repeatedCharacter, repeatedCharMarkup);
     }
 
-    /// <summary>Sets the top separator line (between message feed and input block).</summary>
+    /// <summary>Sets the bottom separator line (between input block and bottom panel).</summary>
     public void SetBottomSeparator(string? leftText = null, string? rightText = null,
         char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null)
     {
@@ -56,6 +82,10 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
     public void SetInputPrefix(string prefix) => _host.Settings.InputPrefix = prefix;
     public void SetContinuationPrefix(string prefix) => _host.Settings.ContinuationPrefix = prefix;
     public void SetDefaultPanel(StreamShell.IBottomPanel panel) => _host.SetDefaultPanel(panel);
+
+    public void SetBottomPanel(StreamShell.IBottomPanel panel) => _host.SetBottomPanel(panel);
+
+    public void ResetBottomPanel() => _host.ResetBottomPanel();
 
     public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariant[] variants, StreamShell.SelectionInfo? info = null)
         => _host.PromptSelection(title, variants, info);

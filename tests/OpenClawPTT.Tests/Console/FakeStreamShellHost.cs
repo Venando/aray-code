@@ -22,6 +22,15 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
 
     public void AddCommand(StreamShell.Command command) => Commands.Add(command);
 
+    public void AddCommand(string name, string description,
+        Func<string[], Dictionary<string, string>, Task> handler,
+        string[]? argumentSuggestions = null)
+    {
+        Commands.Add(new StreamShell.Command(name, description, handler, argumentSuggestions ?? []));
+    }
+
+    public void RemoveCommand(string name) { /* no-op */ }
+
     public Task Run(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public void Clear() { Messages.Clear(); }
@@ -47,6 +56,10 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
     public void SetInputPrefix(string prefix) { /* no-op */ }
     public void SetContinuationPrefix(string prefix) { /* no-op */ }
     public void SetDefaultPanel(IBottomPanel panel) { /* no-op */ }
+    public void SetBottomPanel(IBottomPanel panel) { /* no-op */ }
+    public void ResetBottomPanel() { /* no-op */ }
+
+    public event EventHandler<BottomPanelChangedEventArgs>? BottomPanelChanged { add { } remove { } }
 
     public Task<IVariant[]?> PromptSelection(string title, IVariant[] variants, SelectionInfo? info = null)
         => Task.FromResult<IVariant[]?>(null);

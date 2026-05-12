@@ -12,6 +12,14 @@ public interface IStreamShellHost
     void AddCommand(StreamShell.Command command);
     void Clear();
 
+    /// <summary>Adds a command by its constituent parts (convenience overload).</summary>
+    void AddCommand(string name, string description,
+        Func<string[], Dictionary<string, string>, Task> handler,
+        string[]? argumentSuggestions = null);
+
+    /// <summary>Removes a previously registered command by name.</summary>
+    void RemoveCommand(string name);
+
     /// <summary>
     /// Sets the top separator line (between message feed and input block).
     /// LeftText/RightText support Spectre markup. Called frequently to update status info.
@@ -26,6 +34,7 @@ public interface IStreamShellHost
         char repeatedCharacter = '─', string? repeatedCharMarkup = null);
 
     event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted;
+    event EventHandler<StreamShell.BottomPanelChangedEventArgs>? BottomPanelChanged;
     Task Run(CancellationToken cancellationToken = default);
     void Stop();
 
@@ -40,6 +49,12 @@ public interface IStreamShellHost
 
     /// <summary>Sets the default bottom panel (shown when no command is active).</summary>
     void SetDefaultPanel(StreamShell.IBottomPanel panel);
+
+    /// <summary>Sets a temporary bottom panel (overrides the default until ResetBottomPanel is called).</summary>
+    void SetBottomPanel(StreamShell.IBottomPanel panel);
+
+    /// <summary>Resets to the default bottom panel after a temporary override.</summary>
+    void ResetBottomPanel();
 
     /// <summary>
     /// Opens an interactive selection panel. Returns selected variants, or null if cancelled.

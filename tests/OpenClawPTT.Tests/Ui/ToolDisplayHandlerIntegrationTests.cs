@@ -35,6 +35,13 @@ public class ToolDisplayHandlerIntegrationTests
 
         public void AddMessage(string markup) => Messages.Add(markup);
         public void AddCommand(StreamShell.Command command) => Commands.Add(command);
+        public void AddCommand(string name, string description,
+            Func<string[], Dictionary<string, string>, Task> handler,
+            string[]? argumentSuggestions = null)
+        {
+            Commands.Add(new StreamShell.Command(name, description, handler, argumentSuggestions ?? []));
+        }
+        public void RemoveCommand(string name) { }
         public Task Run(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void Clear() { Messages.Clear(); }
         public void SetTopSeparator(string? leftText = null, string? rightText = null,
@@ -46,6 +53,9 @@ public class ToolDisplayHandlerIntegrationTests
         public void SetInputPrefix(string prefix) { }
         public void SetContinuationPrefix(string prefix) { }
         public void SetDefaultPanel(StreamShell.IBottomPanel panel) { }
+        public void SetBottomPanel(StreamShell.IBottomPanel panel) { }
+        public void ResetBottomPanel() { }
+        public event EventHandler<StreamShell.BottomPanelChangedEventArgs>? BottomPanelChanged { add { } remove { } }
         public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariant[] variants, StreamShell.SelectionInfo? info = null)
             => Task.FromResult<StreamShell.IVariant[]?>(null);
         public void Dispose() { }
