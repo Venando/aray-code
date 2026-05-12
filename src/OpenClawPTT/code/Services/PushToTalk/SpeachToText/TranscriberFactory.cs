@@ -1,5 +1,6 @@
 using System;
 using OpenClawPTT;
+using OpenClawPTT.Services;
 
 namespace OpenClawPTT.Transcriber;
 
@@ -8,7 +9,7 @@ namespace OpenClawPTT.Transcriber;
 /// </summary>
 public static class TranscriberFactory
 {
-    public static ITranscriber Create(AppConfig config)
+    public static ITranscriber Create(AppConfig config, IColorConsole colorConsole)
     {
         return config.SttProvider?.ToLowerInvariant() switch
         {
@@ -23,7 +24,7 @@ public static class TranscriberFactory
                 config.OpenAiApiKey ?? throw new ArgumentNullException(nameof(config.OpenAiApiKey), "OpenAI API key is required for OpenAI provider"),
                 config.OpenAiModel ?? "whisper-1"),
 
-            "whisper-cpp" => CreateWhisperCpp(config),
+            "whisper-cpp" => CreateWhisperCpp(config, colorConsole.GetStreamShellHost()),
 
             null or "" => new GroqTranscriberAdapter(
                 config.GroqApiKey,
@@ -40,9 +41,9 @@ public static class TranscriberFactory
     /// Creates a WhisperCppTranscriberAdapter using the WhisperCppModelManager
     /// and the configured model name. The model must be downloaded before use.
     /// </summary>
-    private static ITranscriber CreateWhisperCpp(AppConfig config)
+    private static ITranscriber CreateWhisperCpp(AppConfig config, IStreamShellHost host)
     {
-        var modelManager = new WhisperCppModelManager(config.CustomDataDir ?? config.DataDir);
+        var modelManager = new WhisperCppModelManager(host, config.CustomDataDir ?? config.DataDir);
         var modelName = config.WhisperCppModel ?? "base";
 
         // If the model isn't downloaded yet, this will throw on first transcription

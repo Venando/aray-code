@@ -135,7 +135,7 @@ public sealed class SttConfigSection : ConfigSectionBase
     private async Task<bool> RunWhisperCppFlowAsync(
         IStreamShellHost host, AppConfig config, CancellationToken ct)
     {
-        var modelManager = new WhisperCppModelManager(config.CustomDataDir ?? config.DataDir);
+        var modelManager = new WhisperCppModelManager(host, config.CustomDataDir ?? config.DataDir);
         var currentModel = config.WhisperCppModel;
 
         while (true)
@@ -166,7 +166,7 @@ public sealed class SttConfigSection : ConfigSectionBase
                     var info = WhisperCppModelManager.AvailableModels
                         .FirstOrDefault(m => m.Name == model);
                     var desc = info != null ? $" [grey]({info.Description})[/]" : "";
-                    var isActive = model == currentModel ? " [cyan][active][/]" : "";
+                    var isActive = model == currentModel ? " [cyan][[active]][/]" : "";
                     host.AddMessage($"    [green]● {model}[/]{desc}{isActive}");
                 }
             }

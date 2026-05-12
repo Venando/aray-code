@@ -37,7 +37,7 @@ public sealed class AudioService : IAudioService
         _console = console ?? throw new ArgumentNullException(nameof(console));
         _agentSettingsPersistence = agentSettingsPersistence ?? throw new ArgumentNullException(nameof(agentSettingsPersistence));
         _recorder = recorder ?? new AudioRecorder(config.SampleRate, config.Channels, config.BitsPerSample, config.MaxRecordSeconds);
-        _transcriber = TranscriberFactory.Create(config);
+        _transcriber = TranscriberFactory.Create(config, console);
         _visualFeedback = VisualFeedbackFactory.Create(config);
         _hotkeyCombination = config.HotkeyCombination;
         _holdToTalk = config.HoldToTalk;

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenClawPTT.Services;
 
 namespace OpenClawPTT.Transcriber;
 
@@ -34,9 +35,11 @@ public sealed class WhisperCppModelManager
     };
 
     private readonly string _modelsDir;
+    private readonly IStreamShellHost _host;
 
-    public WhisperCppModelManager(string? dataDir = null)
+    public WhisperCppModelManager(IStreamShellHost host, string? dataDir = null)
     {
+        _host = host;
         var baseDir = dataDir
             ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -105,37 +108,42 @@ public sealed class WhisperCppModelManager
 
         try
         {
-            await using var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
-
-            using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            var buffer = new byte[8192];
             long totalRead = 0;
-            int bytesRead;
-            var lastReportTime = Environment.TickCount64;
-
-            while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+            
+            // 1. Create a nested scope for the FileStream
             {
-                await fs.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
-                totalRead += bytesRead;
+                await using var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
 
-                // Throttle progress updates to ~10 per second
-                var now = Environment.TickCount64;
-                if (now - lastReportTime >= 100)
+                var buffer = new byte[8192];
+                int bytesRead;
+                var lastReportTime = Environment.TickCount64;
+
+                while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                 {
-                    progressCallback?.Invoke(fileName, "Downloading...", totalRead, totalBytes, false);
-                    lastReportTime = now;
+                    await fs.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
+                    totalRead += bytesRead;
+
+                    var now = Environment.TickCount64;
+                    if (now - lastReportTime >= 100)
+                    {
+                        progressCallback?.Invoke(fileName, "Downloading...", totalRead, totalBytes, false);
+                        lastReportTime = now;
+                    }
                 }
             }
 
-            // Move temp file to final location
+            // 2. Now that the lock is released, you can move the file
             if (File.Exists(destPath))
                 File.Delete(destPath);
+
             File.Move(tempPath, destPath);
 
             progressCallback?.Invoke(fileName, "Download complete", totalRead, totalRead, true);
         }
-        catch
+        catch (Exception ex)
         {
+            _host.AddMessage($"[red][download] failed to download: {ex.Message} [/]");
             // Clean up temp file on failure
             try { File.Delete(tempPath); } catch { /* best effort */ }
             throw;
