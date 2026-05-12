@@ -120,7 +120,7 @@ public class GatewayAudioQaTests
     [Fact]
     public void AgentOutputCoordinator_Dispose_CanBeCalledMultipleTimes()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only", AgentName = "TestBot" };
+        var cfg = new AppConfig { AudioResponseMode = "text-only" };
         var console = CreateMockConsole();
         var coordinator = new AgentOutputCoordinator(
             new ReplyStreamCoordinator(cfg, console),
@@ -135,7 +135,7 @@ public class GatewayAudioQaTests
     [Fact]
     public void AgentOutputCoordinator_OnAgentReplyAudio_WithNullHandler_DoesNotCrash()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only", AgentName = "TestBot" };
+        var cfg = new AppConfig { AudioResponseMode = "text-only" };
         var console = CreateMockConsole();
         var coordinator = new AgentOutputCoordinator(
             new ReplyStreamCoordinator(cfg, console),

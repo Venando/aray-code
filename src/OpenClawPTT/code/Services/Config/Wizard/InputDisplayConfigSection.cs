@@ -46,13 +46,6 @@ public sealed class InputDisplayConfigSection : ConfigSectionBase
                 fieldName: nameof(AppConfig.ReplyDisplayMode)),
 
             ConfigSetupItem.ForString(
-                title: "Your name / agent display prefix",
-                fieldName: nameof(AppConfig.AgentName),
-                validator: v => !string.IsNullOrWhiteSpace(v),
-                validationHint: "Cannot be empty",
-                allowClear: true),
-
-            ConfigSetupItem.ForString(
                 title: "Transcription context prefix",
                 fieldName: nameof(AppConfig.TranscriptionPromptPrefix),
                 isEmptyToDefault: true,

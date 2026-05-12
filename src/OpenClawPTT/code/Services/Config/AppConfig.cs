@@ -49,7 +49,7 @@ public sealed class AppConfig
     public string? LastActiveAgentId { get; set; }
     public bool RequireConfirmBeforeSend { get; set; } = false;
 
-    public string AgentName { get; set; } = "Agent";
+
     public string TranscriptionPromptPrefix { get; set; } = "[It's a raw speech-to-text transcription]: ";
     // AudioWrapPrompt and IsAudioEnabled removed — no longer needed
     public int GroqRetryCount { get; set; } = 0;
@@ -166,7 +166,7 @@ public sealed class AppConfig
         ["LastActiveAgentId"] = "Last active agent ID to restore on reconnect or restart",
         ["HistoryDisplayCount"] = "Number of previous messages to show on connect",
         ["RequireConfirmBeforeSend"] = "Ask for confirmation before sending messages",
-        ["AgentName"] = "Default agent display name",
+
         ["TranscriptionPromptPrefix"] = "Prefix for STT transcription text sent to agent",
         ["GroqRetryCount"] = "STT retry attempts on failure",
         ["GroqRetryDelayMs"] = "Delay between STT retries in ms",
