@@ -8,6 +8,7 @@ public interface IGatewayEventSource
     event Action<string, JsonElement>? EventReceived;
     event Action<string>? AgentReplyFull;
     event Action<string>? AgentReplyDelta;
+    event Action<string>? AgentReplyFinal;
     event Action? AgentReplyDeltaStart;
     event Action? AgentReplyDeltaEnd;
     event Action<string>? AgentThinking;
@@ -21,6 +22,7 @@ public interface IGatewayEventSource
     void RaiseAgentReplyDeltaStart();
     void RaiseAgentReplyDeltaEnd();
     void RaiseAgentReplyFull(string text);
+    void RaiseAgentReplyFinal(string text);
     void RaiseAgentReplyDelta(string chunk);
     void RaiseEventReceived(string eventName, JsonElement payload);
 }

@@ -136,6 +136,7 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
                         _events.RaiseAgentReplyDeltaStart();
                         startFired = true;
                     }
+
                     if (hasText)
                         _events.RaiseAgentReplyFull(textContent);
                     else if (hasAudio)
@@ -312,9 +313,7 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
         var text = ExtractFullText(contentEl);
         if (!string.IsNullOrEmpty(text))
         {
-            _events.RaiseAgentReplyDeltaStart();
-            _events.RaiseAgentReplyFull(text);
-            _events.RaiseAgentReplyDeltaEnd();
+            _events.RaiseAgentReplyFinal(text);
         }
     }
 
