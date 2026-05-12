@@ -166,21 +166,21 @@ public sealed class ExecToolRenderer : ToolRendererBase
         }
     }
 
-    private static ConsoleColor GetExecutableColor(CommandType type)
+    private static ConsoleColor GetExecutableColor(ShellCommandType type)
     {
         return type switch
         {
-            CommandType.FileSystem => ConsoleColor.Green,
-            CommandType.FileContent => ConsoleColor.Blue,
-            CommandType.Build => ConsoleColor.Magenta,
-            CommandType.PackageManager => ConsoleColor.Red,
-            CommandType.Network => ConsoleColor.Cyan,
-            CommandType.Scripting => ConsoleColor.Yellow,
-            CommandType.Process => ConsoleColor.DarkYellow,
-            CommandType.HereDoc => ConsoleColor.DarkCyan,
-            CommandType.Vcs => ConsoleColor.DarkYellow,
-            CommandType.Pipe => ConsoleColor.Gray,
-            CommandType.Chain => ConsoleColor.Gray,
+            ShellCommandType.FileSystem => ConsoleColor.Green,
+            ShellCommandType.FileContent => ConsoleColor.Blue,
+            ShellCommandType.Build => ConsoleColor.Magenta,
+            ShellCommandType.PackageManager => ConsoleColor.Red,
+            ShellCommandType.Network => ConsoleColor.Cyan,
+            ShellCommandType.Scripting => ConsoleColor.Yellow,
+            ShellCommandType.Process => ConsoleColor.DarkYellow,
+            ShellCommandType.HereDoc => ConsoleColor.DarkCyan,
+            ShellCommandType.Vcs => ConsoleColor.DarkYellow,
+            ShellCommandType.Pipe => ConsoleColor.Gray,
+            ShellCommandType.Chain => ConsoleColor.Gray,
             _ => ConsoleColor.White,
         };
     }

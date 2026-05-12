@@ -16,7 +16,7 @@ public sealed class CommandMetadata
     public IReadOnlyList<string> Positionals { get; init; } = [];
 
     /// <summary>Classified type of command.</summary>
-    public CommandType Type { get; init; }
+    public ShellCommandType Type { get; init; }
 
     /// <summary>Working-directory hint when the command is prefixed with cd X &&.</summary>
     public string? WorkingDirectory { get; init; }

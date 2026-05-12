@@ -158,7 +158,7 @@ public sealed class AgentHotkeyService : IDisposable
     /// <summary>
     /// Optional delegate for printing session history after an agent switch.
     /// When set, used instead of the local duplicate logic.
-    /// Wired by AppRunner to point at AgentSwitchingCommands.PrintSessionHistory.
+    /// Wired by AppRunner to point at StreamShellInputHandler.PrintSessionHistory.
     /// </summary>
     public Func<string, Task>? PrintSessionHistoryAsync { get; set; }
 

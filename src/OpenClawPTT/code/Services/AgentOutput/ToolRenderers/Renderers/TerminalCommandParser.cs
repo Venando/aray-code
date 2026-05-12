@@ -5,82 +5,82 @@ using System.Text.RegularExpressions;
 
 public static class TerminalCommandParser
 {
-    // Executables → CommandType lookup
-    private static readonly Dictionary<string, CommandType> ExecutableMap =
+    // Executables → ShellCommandType lookup
+    private static readonly Dictionary<string, ShellCommandType> ExecutableMap =
         new(StringComparer.OrdinalIgnoreCase)
         {
             // FileSystem
-            ["rm"] = CommandType.FileSystem,
-            ["cp"] = CommandType.FileSystem,
-            ["mv"] = CommandType.FileSystem,
-            ["mkdir"] = CommandType.FileSystem,
-            ["rmdir"] = CommandType.FileSystem,
-            ["ls"] = CommandType.FileSystem,
-            ["cd"] = CommandType.FileSystem,
-            ["chmod"] = CommandType.FileSystem,
-            ["chown"] = CommandType.FileSystem,
-            ["find"] = CommandType.FileSystem,
-            ["touch"] = CommandType.FileSystem,
-            ["ln"] = CommandType.FileSystem,
+            ["rm"] = ShellCommandType.FileSystem,
+            ["cp"] = ShellCommandType.FileSystem,
+            ["mv"] = ShellCommandType.FileSystem,
+            ["mkdir"] = ShellCommandType.FileSystem,
+            ["rmdir"] = ShellCommandType.FileSystem,
+            ["ls"] = ShellCommandType.FileSystem,
+            ["cd"] = ShellCommandType.FileSystem,
+            ["chmod"] = ShellCommandType.FileSystem,
+            ["chown"] = ShellCommandType.FileSystem,
+            ["find"] = ShellCommandType.FileSystem,
+            ["touch"] = ShellCommandType.FileSystem,
+            ["ln"] = ShellCommandType.FileSystem,
             // FileContent
-            ["cat"] = CommandType.FileContent,
-            ["echo"] = CommandType.FileContent,
-            ["grep"] = CommandType.FileContent,
-            ["sed"] = CommandType.FileContent,
-            ["awk"] = CommandType.FileContent,
-            ["head"] = CommandType.FileContent,
-            ["tail"] = CommandType.FileContent,
-            ["tee"] = CommandType.FileContent,
-            ["diff"] = CommandType.FileContent,
-            ["wc"] = CommandType.FileContent,
-            ["sort"] = CommandType.FileContent,
-            ["uniq"] = CommandType.FileContent,
-            ["cut"] = CommandType.FileContent,
-            ["tr"] = CommandType.FileContent,
+            ["cat"] = ShellCommandType.FileContent,
+            ["echo"] = ShellCommandType.FileContent,
+            ["grep"] = ShellCommandType.FileContent,
+            ["sed"] = ShellCommandType.FileContent,
+            ["awk"] = ShellCommandType.FileContent,
+            ["head"] = ShellCommandType.FileContent,
+            ["tail"] = ShellCommandType.FileContent,
+            ["tee"] = ShellCommandType.FileContent,
+            ["diff"] = ShellCommandType.FileContent,
+            ["wc"] = ShellCommandType.FileContent,
+            ["sort"] = ShellCommandType.FileContent,
+            ["uniq"] = ShellCommandType.FileContent,
+            ["cut"] = ShellCommandType.FileContent,
+            ["tr"] = ShellCommandType.FileContent,
             // Process
-            ["kill"] = CommandType.Process,
-            ["ps"] = CommandType.Process,
-            ["top"] = CommandType.Process,
-            ["nohup"] = CommandType.Process,
-            ["bg"] = CommandType.Process,
-            ["fg"] = CommandType.Process,
-            ["jobs"] = CommandType.Process,
+            ["kill"] = ShellCommandType.Process,
+            ["ps"] = ShellCommandType.Process,
+            ["top"] = ShellCommandType.Process,
+            ["nohup"] = ShellCommandType.Process,
+            ["bg"] = ShellCommandType.Process,
+            ["fg"] = ShellCommandType.Process,
+            ["jobs"] = ShellCommandType.Process,
             // Network
-            ["curl"] = CommandType.Network,
-            ["wget"] = CommandType.Network,
-            ["ssh"] = CommandType.Network,
-            ["scp"] = CommandType.Network,
-            ["ping"] = CommandType.Network,
-            ["netstat"] = CommandType.Network,
+            ["curl"] = ShellCommandType.Network,
+            ["wget"] = ShellCommandType.Network,
+            ["ssh"] = ShellCommandType.Network,
+            ["scp"] = ShellCommandType.Network,
+            ["ping"] = ShellCommandType.Network,
+            ["netstat"] = ShellCommandType.Network,
             // PackageManager
-            ["apt"] = CommandType.PackageManager,
-            ["apt-get"] = CommandType.PackageManager,
-            ["brew"] = CommandType.PackageManager,
-            ["npm"] = CommandType.PackageManager,
-            ["yarn"] = CommandType.PackageManager,
-            ["pip"] = CommandType.PackageManager,
-            ["pip3"] = CommandType.PackageManager,
-            ["cargo"] = CommandType.PackageManager,
-            ["gem"] = CommandType.PackageManager,
+            ["apt"] = ShellCommandType.PackageManager,
+            ["apt-get"] = ShellCommandType.PackageManager,
+            ["brew"] = ShellCommandType.PackageManager,
+            ["npm"] = ShellCommandType.PackageManager,
+            ["yarn"] = ShellCommandType.PackageManager,
+            ["pip"] = ShellCommandType.PackageManager,
+            ["pip3"] = ShellCommandType.PackageManager,
+            ["cargo"] = ShellCommandType.PackageManager,
+            ["gem"] = ShellCommandType.PackageManager,
             // Build / dotnet
-            ["make"] = CommandType.Build,
-            ["cmake"] = CommandType.Build,
-            ["msbuild"] = CommandType.Build,
-            ["dotnet"] = CommandType.Build,
-            ["csc"] = CommandType.Build,
-            ["mcs"] = CommandType.Build,
+            ["make"] = ShellCommandType.Build,
+            ["cmake"] = ShellCommandType.Build,
+            ["msbuild"] = ShellCommandType.Build,
+            ["dotnet"] = ShellCommandType.Build,
+            ["csc"] = ShellCommandType.Build,
+            ["mcs"] = ShellCommandType.Build,
             // VCS
-            ["git"] = CommandType.Vcs,
-            ["svn"] = CommandType.Vcs,
-            ["hg"] = CommandType.Vcs,
+            ["git"] = ShellCommandType.Vcs,
+            ["svn"] = ShellCommandType.Vcs,
+            ["hg"] = ShellCommandType.Vcs,
             // Scripting / runtime
-            ["sh"] = CommandType.Scripting,
-            ["bash"] = CommandType.Scripting,
-            ["zsh"] = CommandType.Scripting,
-            ["python"] = CommandType.Scripting,
-            ["python3"] = CommandType.Scripting,
-            ["node"] = CommandType.Scripting,
-            ["mono"] = CommandType.Scripting,
+            ["sh"] = ShellCommandType.Scripting,
+            ["bash"] = ShellCommandType.Scripting,
+            ["zsh"] = ShellCommandType.Scripting,
+            ["python"] = ShellCommandType.Scripting,
+            ["python3"] = ShellCommandType.Scripting,
+            ["node"] = ShellCommandType.Scripting,
+            ["mono"] = ShellCommandType.Scripting,
         };
 
     // Regex for inline env vars: KEY=value  (before the executable)
@@ -374,7 +374,7 @@ public static class TerminalCommandParser
                             .ToList();
 
         // ── Classify type ─────────────────────────────────────────────────
-        CommandType type = ClassifyCommand(execName, hereDoc, seg, positionals, flags);
+        ShellCommandType type = ClassifyCommand(execName, hereDoc, seg, positionals, flags);
 
         return new CommandMetadata
         {
@@ -394,12 +394,12 @@ public static class TerminalCommandParser
         };
     }
 
-    private static CommandType ClassifyCommand(
+    private static ShellCommandType ClassifyCommand(
         string execName, HereDocInfo? hereDoc,
         Segment seg, List<string> positionals, List<string> flags)
     {
         if (hereDoc != null)
-            return CommandType.HereDoc;
+            return ShellCommandType.HereDoc;
 
         if (ExecutableMap.TryGetValue(execName, out var mapped))
         {
@@ -407,14 +407,14 @@ public static class TerminalCommandParser
             if (execName.Equals("dotnet", StringComparison.OrdinalIgnoreCase) &&
                 positionals.Count > 0 &&
                 positionals[0] is "add" or "restore" or "nuget")
-                return CommandType.PackageManager;
+                return ShellCommandType.PackageManager;
 
             return mapped;
         }
 
-        if (seg.IsPiped) return CommandType.Pipe;
-        if (seg.IsChained) return CommandType.Chain;
-        return CommandType.Unknown;
+        if (seg.IsPiped) return ShellCommandType.Pipe;
+        if (seg.IsChained) return ShellCommandType.Chain;
+        return ShellCommandType.Unknown;
     }
 
     /// <summary>

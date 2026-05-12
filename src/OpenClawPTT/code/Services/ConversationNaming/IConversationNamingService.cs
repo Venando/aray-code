@@ -1,3 +1,5 @@
+using OpenClawPTT.Services.Commands;
+
 namespace OpenClawPTT.Services;
 
 /// <summary>
@@ -18,10 +20,10 @@ public interface IConversationNamingService : IDisposable
     void OnMessageSent(string messageText);
 
     /// <summary>
-    /// Called when any command is sent. The service checks whether the command
+    /// Called when any command is executed. The service checks whether the command
     /// should reset the conversation name (e.g. /reset, /new).
     /// </summary>
-    void OnCommandSent(string commandName);
+    void OnCommandExecuted(object? sender, CommandExecutedEventArgs e);
 
     /// <summary>
     /// Event raised when the conversation name changes (including when cleared on agent switch).

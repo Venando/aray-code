@@ -10,7 +10,7 @@ public class TerminalCommandParserTests
         var result = TerminalCommandParser.Parse("ls");
         Assert.Single(result);
         Assert.Equal("ls", result[0].Executable);
-        Assert.Equal(CommandType.FileSystem, result[0].Type);
+        Assert.Equal(ShellCommandType.FileSystem, result[0].Type);
         Assert.Empty(result[0].Flags);
         Assert.Empty(result[0].Positionals);
     }
@@ -32,7 +32,7 @@ public class TerminalCommandParserTests
         var result = TerminalCommandParser.Parse("grep \"Markup\\.\" file.txt");
         Assert.Single(result);
         Assert.Equal("grep", result[0].Executable);
-        Assert.Equal(CommandType.FileContent, result[0].Type);
+        Assert.Equal(ShellCommandType.FileContent, result[0].Type);
         // Both the regex pattern and file are positionals
         Assert.Equal(2, result[0].Positionals.Count);
         Assert.Contains("file.txt", result[0].Positionals);
@@ -70,7 +70,7 @@ public class TerminalCommandParserTests
         var result = TerminalCommandParser.Parse("python3 -c \"print('hello')\"");
         Assert.Single(result);
         Assert.Equal("python3", result[0].Executable);
-        Assert.Equal(CommandType.Scripting, result[0].Type);
+        Assert.Equal(ShellCommandType.Scripting, result[0].Type);
         Assert.Equal("print('hello')", result[0].ScriptBody);
     }
 
@@ -81,7 +81,7 @@ public class TerminalCommandParserTests
         var result = TerminalCommandParser.Parse(cmd);
         Assert.Single(result);
         Assert.Equal("python3", result[0].Executable);
-        Assert.Equal(CommandType.Scripting, result[0].Type);
+        Assert.Equal(ShellCommandType.Scripting, result[0].Type);
         Assert.NotNull(result[0].ScriptBody);
         Assert.Contains("import re, sys", result[0].ScriptBody!);
     }
@@ -92,7 +92,7 @@ public class TerminalCommandParserTests
         var result = TerminalCommandParser.Parse("dotnet build -v q");
         Assert.Single(result);
         Assert.Equal("dotnet", result[0].Executable);
-        Assert.Equal(CommandType.Build, result[0].Type);
+        Assert.Equal(ShellCommandType.Build, result[0].Type);
         Assert.Contains("build", result[0].Positionals);
         Assert.Contains("-v", result[0].Flags);
         Assert.Contains("q", result[0].Positionals);
@@ -116,7 +116,7 @@ public class TerminalCommandParserTests
         var result = TerminalCommandParser.Parse("node -e \"console.log('hello')\"");
         Assert.Single(result);
         Assert.Equal("node", result[0].Executable);
-        Assert.Equal(CommandType.Scripting, result[0].Type);
+        Assert.Equal(ShellCommandType.Scripting, result[0].Type);
         Assert.Equal("console.log('hello')", result[0].ScriptBody);
     }
 

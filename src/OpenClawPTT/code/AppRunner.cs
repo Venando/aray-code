@@ -233,7 +233,7 @@ public class AppRunner : IDisposable
             errorLogStore: _errorLog,
             statusService: _statusService
         );
-        shellCommands.CommandExecuted += namingService.OnCommandSent;
+        shellCommands.CommandExecuted += namingService.OnCommandExecuted;
         await shellCommands.RegisterAsync();
 
         // Wire agent hotkey history printing to the canonical shared method

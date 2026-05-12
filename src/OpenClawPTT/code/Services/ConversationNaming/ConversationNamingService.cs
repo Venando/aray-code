@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using OpenClawPTT.Services.Commands;
+using CommandType = OpenClawPTT.Services.Commands.CommandType;
 
 namespace OpenClawPTT.Services;
 
@@ -10,12 +12,6 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 {
     private readonly IDirectLlmService? _directLlm;
     private readonly IColorConsole? _console;
-    // Commands that reset the conversation name when executed
-    private static readonly HashSet<string> ResetCommands = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "reset",
-        "new",
-    };
 
     private readonly ConcurrentDictionary<string, string> _conversationNames = new();
     private readonly HashSet<string> _pendingSessions = new();
@@ -35,8 +31,7 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 
     public string? GetCurrentConversationName()
     {
-        if (_currentSessionKey == null)
-            return null;
+        if (_currentSessionKey == null) return null;
         _conversationNames.TryGetValue(_currentSessionKey, out var name);
         return name;
     }
@@ -50,35 +45,39 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 
         lock (_lock)
         {
-            // Only process if we haven't already named this session and aren't currently naming it
             if (_conversationNames.ContainsKey(sessionKey) || _pendingSessions.Contains(sessionKey))
                 return;
 
             _pendingSessions.Add(sessionKey);
         }
 
-        // Fire off naming asynchronously — don't block the message send
         _ = GenerateNameAsync(sessionKey, messageText);
     }
 
-    public void OnCommandSent(string commandName)
+    public void OnCommandExecuted(object? sender, CommandExecutedEventArgs e)
     {
         if (_disposed) return;
-        if (string.IsNullOrWhiteSpace(commandName)) return;
-        if (!ResetCommands.Contains(commandName)) return;
+        if (string.IsNullOrWhiteSpace(e.Name)) return;
+
+        // Clear conversation name on session reset commands
+        // Check both the name and the type for robustness
+        var isResetCommand = e.Type == CommandType.SessionControl &&
+            (e.Name.Equals("reset", StringComparison.OrdinalIgnoreCase) ||
+             e.Name.Equals("new", StringComparison.OrdinalIgnoreCase));
+
+        if (!isResetCommand) return;
 
         var sessionKey = AgentRegistry.ActiveSessionKey;
         if (sessionKey == null) return;
 
         _conversationNames.TryRemove(sessionKey, out _);
 
-        // Only fire event if this is still the active session
         if (AgentRegistry.ActiveSessionKey == sessionKey)
         {
             ConversationNameChanged?.Invoke(null);
         }
 
-        _console?.Log("naming", $"Conversation name cleared by /{commandName}", LogLevel.Debug);
+        _console?.Log("naming", $"Conversation name cleared by /{e.Name}", LogLevel.Debug);
     }
 
     private async Task GenerateNameAsync(string sessionKey, string messageText)
@@ -101,7 +100,6 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
             {
                 _conversationNames[sessionKey] = name;
 
-                // Only fire event if this is still the active session
                 if (AgentRegistry.ActiveSessionKey == sessionKey)
                 {
                     ConversationNameChanged?.Invoke(name);
@@ -125,7 +123,6 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 
     private static string BuildNamingPrompt(string messageText)
     {
-        // Truncate very long messages to keep the prompt reasonable
         const int maxMessageLength = 500;
         var truncated = messageText.Length > maxMessageLength
             ? messageText[..maxMessageLength] + "..."
@@ -139,30 +136,24 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
         if (string.IsNullOrWhiteSpace(name))
             return string.Empty;
 
-        // Remove common wrapper text the LLM might add
         var cleaned = name.Trim();
 
-        // Strip outer quotes first (the prefix may be inside quotes)
         for (int i = 0; i < 3; i++)
         {
             if (cleaned.StartsWith('"') && cleaned.EndsWith('"'))
                 cleaned = cleaned[1..^1].Trim();
-            else if (cleaned.StartsWith('\u201C') && cleaned.EndsWith('\u201D')) // smart quotes
+            else if (cleaned.StartsWith('\u201C') && cleaned.EndsWith('\u201D'))
                 cleaned = cleaned[1..^1].Trim();
             else
                 break;
         }
 
-        // Remove prefixes
         if (cleaned.StartsWith("Name:", StringComparison.OrdinalIgnoreCase))
             cleaned = cleaned["Name:".Length..].Trim();
         if (cleaned.StartsWith("Conversation:", StringComparison.OrdinalIgnoreCase))
             cleaned = cleaned["Conversation:".Length..].Trim();
 
-        // Remove any remaining quote characters (inner quotes around the actual name)
         cleaned = cleaned.Replace("\"", "").Replace("\u201C", "").Replace("\u201D", "").Trim();
-
-        // Remove trailing punctuation
         cleaned = cleaned.TrimEnd('.', '!', '?', ':', ';');
 
         return cleaned;
