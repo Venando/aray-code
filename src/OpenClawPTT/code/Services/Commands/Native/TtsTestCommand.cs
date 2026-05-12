@@ -12,7 +12,7 @@ public sealed class TtsTestCommand : ICommand
     public string Name => "tts-test";
     public string Description => "Test TTS summarization pipeline with sample file";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.DirectLlm;
+    public ShellCommandType Type => ShellCommandType.DirectLlm;
     public string[]? Suggestions => null;
 
     public TtsTestCommand(IStreamShellHost host, ITtsSummarizer? ttsSummarizer, AppConfig appConfig)

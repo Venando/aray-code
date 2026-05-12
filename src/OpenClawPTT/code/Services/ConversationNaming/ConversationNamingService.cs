@@ -60,7 +60,7 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
 
         // Clear conversation name on session reset commands
         // Check both the name and the type for robustness
-        var isResetCommand = e.Type == OpenClawPTT.Services.Commands.CommandType.SessionControl &&
+        var isResetCommand = e.Type == OpenClawPTT.Services.Commands.ShellCommandType.SessionControl &&
             (e.Name.Equals("reset", StringComparison.OrdinalIgnoreCase) ||
              e.Name.Equals("new", StringComparison.OrdinalIgnoreCase));
 

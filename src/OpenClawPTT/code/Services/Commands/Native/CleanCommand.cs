@@ -8,7 +8,7 @@ public sealed class CleanCommand : ICommand
     public string Name => "clean";
     public string Description => "Clear the terminal screen";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.System;
+    public ShellCommandType Type => ShellCommandType.System;
     public string[]? Suggestions => null;
 
     public CleanCommand(IStreamShellHost host)

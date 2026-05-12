@@ -16,7 +16,7 @@ public interface ICommand
     CommandSource Source { get; }
 
     /// <summary>Functional classification of the command.</summary>
-    CommandType Type { get; }
+    ShellCommandType Type { get; }
 
     /// <summary>Optional argument suggestions for tab completion. Null when none.</summary>
     string[]? Suggestions { get; }

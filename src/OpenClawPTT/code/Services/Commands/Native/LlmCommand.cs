@@ -13,7 +13,7 @@ public sealed class LlmCommand : ICommand
     public string Name => "llm";
     public string Description => "<message> Send message directly to configured LLM";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.DirectLlm;
+    public ShellCommandType Type => ShellCommandType.DirectLlm;
     public string[]? Suggestions => null;
 
     public LlmCommand(IStreamShellHost host, IColorConsole console, IDirectLlmService? directLlmService, AppConfig appConfig)

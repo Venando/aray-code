@@ -14,7 +14,7 @@ public sealed class ChatCommand : ICommand
     public string Name => "chat";
     public string Description => "<name|id> Switch active agent by name or ID";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.AgentManagement;
+    public ShellCommandType Type => ShellCommandType.AgentManagement;
     public string[]? Suggestions => null;
 
     public ChatCommand(

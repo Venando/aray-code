@@ -4,7 +4,7 @@ namespace OpenClawPTT.Services.Commands;
 /// Classifies commands by their functional domain.
 /// Applies to both native and OpenClaw commands.
 /// </summary>
-public enum CommandType
+public enum ShellCommandType
 {
     /// <summary>System-level commands: quit, clean screen.</summary>
     System,

@@ -12,7 +12,7 @@ public sealed class ErrorsCommand : ICommand
     public string Name => "errors";
     public string Description => "[N] Show recent gateway errors";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.Diagnostics;
+    public ShellCommandType Type => ShellCommandType.Diagnostics;
     public string[]? Suggestions => null;
 
     public ErrorsCommand(IStreamShellHost host, ErrorLogStore errorLog)

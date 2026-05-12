@@ -14,7 +14,7 @@ public sealed class HistoryCommand : ICommand
     public string Name => "history";
     public string Description => "[[N]] Load N session history entries";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.History;
+    public ShellCommandType Type => ShellCommandType.History;
     public string[]? Suggestions => null;
 
     public HistoryCommand(

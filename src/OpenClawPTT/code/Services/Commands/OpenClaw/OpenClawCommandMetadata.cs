@@ -109,100 +109,100 @@ public static class OpenClawCommandMetadata
 
     // ── Type classifications ─────────────────────────────────────────────
 
-    public static readonly IReadOnlyDictionary<string, CommandType> CommandTypes =
-        new Dictionary<string, CommandType>(StringComparer.OrdinalIgnoreCase)
+    public static readonly IReadOnlyDictionary<string, ShellCommandType> ShellCommandTypes =
+        new Dictionary<string, ShellCommandType>(StringComparer.OrdinalIgnoreCase)
         {
             // Session control
-            ["new"] = CommandType.SessionControl,
-            ["reset"] = CommandType.SessionControl,
-            ["compact"] = CommandType.SessionControl,
-            ["stop"] = CommandType.SessionControl,
-            ["session"] = CommandType.SessionControl,
-            ["export-session"] = CommandType.SessionControl,
-            ["export"] = CommandType.SessionControl,
-            ["export-trajectory"] = CommandType.SessionControl,
-            ["trajectory"] = CommandType.SessionControl,
+            ["new"] = ShellCommandType.SessionControl,
+            ["reset"] = ShellCommandType.SessionControl,
+            ["compact"] = ShellCommandType.SessionControl,
+            ["stop"] = ShellCommandType.SessionControl,
+            ["session"] = ShellCommandType.SessionControl,
+            ["export-session"] = ShellCommandType.SessionControl,
+            ["export"] = ShellCommandType.SessionControl,
+            ["export-trajectory"] = ShellCommandType.SessionControl,
+            ["trajectory"] = ShellCommandType.SessionControl,
 
             // Model directives
-            ["think"] = CommandType.ModelDirective,
-            ["thinking"] = CommandType.ModelDirective,
-            ["t"] = CommandType.ModelDirective,
-            ["verbose"] = CommandType.ModelDirective,
-            ["v"] = CommandType.ModelDirective,
-            ["trace"] = CommandType.ModelDirective,
-            ["fast"] = CommandType.ModelDirective,
-            ["reasoning"] = CommandType.ModelDirective,
-            ["reason"] = CommandType.ModelDirective,
-            ["elevated"] = CommandType.ModelDirective,
-            ["elev"] = CommandType.ModelDirective,
-            ["exec"] = CommandType.ModelDirective,
-            ["model"] = CommandType.ModelDirective,
-            ["models"] = CommandType.ModelDirective,
-            ["queue"] = CommandType.ModelDirective,
+            ["think"] = ShellCommandType.ModelDirective,
+            ["thinking"] = ShellCommandType.ModelDirective,
+            ["t"] = ShellCommandType.ModelDirective,
+            ["verbose"] = ShellCommandType.ModelDirective,
+            ["v"] = ShellCommandType.ModelDirective,
+            ["trace"] = ShellCommandType.ModelDirective,
+            ["fast"] = ShellCommandType.ModelDirective,
+            ["reasoning"] = ShellCommandType.ModelDirective,
+            ["reason"] = ShellCommandType.ModelDirective,
+            ["elevated"] = ShellCommandType.ModelDirective,
+            ["elev"] = ShellCommandType.ModelDirective,
+            ["exec"] = ShellCommandType.ModelDirective,
+            ["model"] = ShellCommandType.ModelDirective,
+            ["models"] = ShellCommandType.ModelDirective,
+            ["queue"] = ShellCommandType.ModelDirective,
 
             // Discovery
-            ["help"] = CommandType.Discovery,
-            ["commands"] = CommandType.Discovery,
-            ["tools"] = CommandType.Discovery,
-            ["status"] = CommandType.Discovery,
-            ["diagnostics"] = CommandType.Discovery,
-            ["tasks"] = CommandType.Discovery,
-            ["context"] = CommandType.Discovery,
-            ["whoami"] = CommandType.Discovery,
-            ["id"] = CommandType.Discovery,
-            ["usage"] = CommandType.Discovery,
-            ["crestodian"] = CommandType.Discovery,
+            ["help"] = ShellCommandType.Discovery,
+            ["commands"] = ShellCommandType.Discovery,
+            ["tools"] = ShellCommandType.Discovery,
+            ["status"] = ShellCommandType.Discovery,
+            ["diagnostics"] = ShellCommandType.Discovery,
+            ["tasks"] = ShellCommandType.Discovery,
+            ["context"] = ShellCommandType.Discovery,
+            ["whoami"] = ShellCommandType.Discovery,
+            ["id"] = ShellCommandType.Discovery,
+            ["usage"] = ShellCommandType.Discovery,
+            ["crestodian"] = ShellCommandType.Discovery,
 
             // Skills / approvals
-            ["skill"] = CommandType.Skill,
-            ["allowlist"] = CommandType.Admin,
-            ["approve"] = CommandType.Admin,
+            ["skill"] = ShellCommandType.Skill,
+            ["allowlist"] = ShellCommandType.Admin,
+            ["approve"] = ShellCommandType.Admin,
 
             // Subagents
-            ["subagents"] = CommandType.Subagent,
-            ["acp"] = CommandType.Subagent,
-            ["focus"] = CommandType.Subagent,
-            ["unfocus"] = CommandType.Subagent,
-            ["agents"] = CommandType.Subagent,
-            ["kill"] = CommandType.Subagent,
-            ["steer"] = CommandType.Subagent,
-            ["tell"] = CommandType.Subagent,
+            ["subagents"] = ShellCommandType.Subagent,
+            ["acp"] = ShellCommandType.Subagent,
+            ["focus"] = ShellCommandType.Subagent,
+            ["unfocus"] = ShellCommandType.Subagent,
+            ["agents"] = ShellCommandType.Subagent,
+            ["kill"] = ShellCommandType.Subagent,
+            ["steer"] = ShellCommandType.Subagent,
+            ["tell"] = ShellCommandType.Subagent,
 
             // Admin
-            ["config"] = CommandType.Admin,
-            ["mcp"] = CommandType.Admin,
-            ["plugins"] = CommandType.Admin,
-            ["plugin"] = CommandType.Admin,
-            ["debug"] = CommandType.Admin,
-            ["restart"] = CommandType.Admin,
-            ["send"] = CommandType.Admin,
+            ["config"] = ShellCommandType.Admin,
+            ["mcp"] = ShellCommandType.Admin,
+            ["plugins"] = ShellCommandType.Admin,
+            ["plugin"] = ShellCommandType.Admin,
+            ["debug"] = ShellCommandType.Admin,
+            ["restart"] = ShellCommandType.Admin,
+            ["send"] = ShellCommandType.Admin,
 
             // Voice
-            ["tts"] = CommandType.Voice,
-            ["activation"] = CommandType.Voice,
-            ["bash"] = CommandType.Voice,
-            ["voice"] = CommandType.Voice,
+            ["tts"] = ShellCommandType.Voice,
+            ["activation"] = ShellCommandType.Voice,
+            ["bash"] = ShellCommandType.Voice,
+            ["voice"] = ShellCommandType.Voice,
 
             // Utility
-            ["btw"] = CommandType.Utility,
-            ["dreaming"] = CommandType.Utility,
-            ["pair"] = CommandType.Utility,
-            ["phone"] = CommandType.Utility,
-            ["codex"] = CommandType.Utility,
-            ["card"] = CommandType.Utility,
+            ["btw"] = ShellCommandType.Utility,
+            ["dreaming"] = ShellCommandType.Utility,
+            ["pair"] = ShellCommandType.Utility,
+            ["phone"] = ShellCommandType.Utility,
+            ["codex"] = ShellCommandType.Utility,
+            ["card"] = ShellCommandType.Utility,
 
             // Docking
-            ["dock-discord"] = CommandType.Dock,
-            ["dock_discord"] = CommandType.Dock,
-            ["dock-mattermost"] = CommandType.Dock,
-            ["dock_mattermost"] = CommandType.Dock,
-            ["dock-slack"] = CommandType.Dock,
-            ["dock_slack"] = CommandType.Dock,
-            ["dock-telegram"] = CommandType.Dock,
-            ["dock_telegram"] = CommandType.Dock,
+            ["dock-discord"] = ShellCommandType.Dock,
+            ["dock_discord"] = ShellCommandType.Dock,
+            ["dock-mattermost"] = ShellCommandType.Dock,
+            ["dock_mattermost"] = ShellCommandType.Dock,
+            ["dock-slack"] = ShellCommandType.Dock,
+            ["dock_slack"] = ShellCommandType.Dock,
+            ["dock-telegram"] = ShellCommandType.Dock,
+            ["dock_telegram"] = ShellCommandType.Dock,
 
             // Discord native
-            ["vc"] = CommandType.Voice,
+            ["vc"] = ShellCommandType.Voice,
         };
 
     /// <summary>All known OpenClaw slash command names (without leading /).</summary>
@@ -213,7 +213,7 @@ public static class OpenClawCommandMetadata
     public static string? GetDescription(string commandName) =>
         Descriptions.TryGetValue(commandName, out var desc) ? desc : null;
 
-    /// <summary>Look up a command type. Returns <see cref="CommandType.Unknown"/> if unmapped.</summary>
-    public static CommandType GetCommandType(string commandName) =>
-        CommandTypes.TryGetValue(commandName, out var type) ? type : CommandType.Unknown;
+    /// <summary>Look up a command type. Returns <see cref="ShellCommandType.Unknown"/> if unmapped.</summary>
+    public static ShellCommandType GetShellCommandType(string commandName) =>
+        ShellCommandTypes.TryGetValue(commandName, out var type) ? type : ShellCommandType.Unknown;
 }

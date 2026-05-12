@@ -13,7 +13,7 @@ public sealed class AppConfigCommand : ICommand
     public string Name => "appconfig";
     public string Description => "<key> [value] Get or set app config value";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.Configuration;
+    public ShellCommandType Type => ShellCommandType.Configuration;
     public string[]? Suggestions { get; }
 
     public AppConfigCommand(

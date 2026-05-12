@@ -20,7 +20,7 @@ public sealed class OpenClawForwardCommand : ICommand
     public string Name => _name;
     public string Description { get; }
     public CommandSource Source => CommandSource.OpenClaw;
-    public CommandType Type => OpenClawCommandMetadata.GetCommandType(_name);
+    public ShellCommandType Type => OpenClawCommandMetadata.GetShellCommandType(_name);
     public string[]? Suggestions { get; }
 
     public OpenClawForwardCommand(

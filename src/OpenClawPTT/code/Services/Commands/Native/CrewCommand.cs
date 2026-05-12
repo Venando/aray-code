@@ -15,7 +15,7 @@ public sealed class CrewCommand : ICommand
     public string Name => "crew";
     public string Description => "List available agents. \"/crew config\" to config";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.AgentManagement;
+    public ShellCommandType Type => ShellCommandType.AgentManagement;
     public string[]? Suggestions => null;
 
     public CrewCommand(

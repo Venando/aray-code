@@ -11,7 +11,7 @@ public sealed class ReconfigureCommand : ICommand
     public string Name => "reconfigure";
     public string Description => "Run reconfiguration wizard";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.Configuration;
+    public ShellCommandType Type => ShellCommandType.Configuration;
     public string[]? Suggestions => null;
 
     public ReconfigureCommand(IStreamShellHost host, IConfigurationService configService)

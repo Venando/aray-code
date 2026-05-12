@@ -16,7 +16,7 @@ public sealed class ReconnectCommand : ICommand
     public string Name => "reconnect";
     public string Description => "Reconnect to the gateway";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.GatewayControl;
+    public ShellCommandType Type => ShellCommandType.GatewayControl;
     public string[]? Suggestions => null;
 
     public ReconnectCommand(

@@ -125,7 +125,7 @@ public class ConversationNamingServiceTests : IDisposable
         Assert.Equal("Test Name", service.GetCurrentConversationName());
 
         service.OnCommandExecuted(null, new CommandExecutedEventArgs(
-            "reset", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.CommandType.SessionControl,
+            "reset", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.ShellCommandType.SessionControl,
             Array.Empty<string>(), new Dictionary<string, string>()));
 
         Assert.Null(service.GetCurrentConversationName());
@@ -146,7 +146,7 @@ public class ConversationNamingServiceTests : IDisposable
         Assert.Equal("Test Name", service.GetCurrentConversationName());
 
         service.OnCommandExecuted(null, new CommandExecutedEventArgs(
-            "new", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.CommandType.SessionControl,
+            "new", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.ShellCommandType.SessionControl,
             Array.Empty<string>(), new Dictionary<string, string>()));
 
         Assert.Null(service.GetCurrentConversationName());
@@ -166,7 +166,7 @@ public class ConversationNamingServiceTests : IDisposable
         Assert.Equal("Test Name", service.GetCurrentConversationName());
 
         service.OnCommandExecuted(null, new CommandExecutedEventArgs(
-            "config", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.CommandType.Admin,
+            "config", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.ShellCommandType.Admin,
             Array.Empty<string>(), new Dictionary<string, string>()));
 
         Assert.Equal("Test Name", service.GetCurrentConversationName());
@@ -185,7 +185,7 @@ public class ConversationNamingServiceTests : IDisposable
         Thread.Sleep(200);
 
         service.OnCommandExecuted(null, new CommandExecutedEventArgs(
-            "RESET", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.CommandType.SessionControl,
+            "RESET", CommandSource.OpenClaw, OpenClawPTT.Services.Commands.ShellCommandType.SessionControl,
             Array.Empty<string>(), new Dictionary<string, string>()));
 
         Assert.Null(service.GetCurrentConversationName());
@@ -206,7 +206,7 @@ public class ConversationNamingServiceTests : IDisposable
 
         // A native "reset" command that is NOT SessionControl should not clear
         service.OnCommandExecuted(null, new CommandExecutedEventArgs(
-            "reset", CommandSource.Native, OpenClawPTT.Services.Commands.CommandType.Unknown,
+            "reset", CommandSource.Native, OpenClawPTT.Services.Commands.ShellCommandType.Unknown,
             Array.Empty<string>(), new Dictionary<string, string>()));
 
         // Still named because type check fails

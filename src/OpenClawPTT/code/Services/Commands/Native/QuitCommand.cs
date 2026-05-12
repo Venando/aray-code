@@ -9,7 +9,7 @@ public sealed class QuitCommand : ICommand
     public string Name => "quit";
     public string Description => "Exit the application";
     public CommandSource Source => CommandSource.Native;
-    public CommandType Type => CommandType.System;
+    public ShellCommandType Type => ShellCommandType.System;
     public string[]? Suggestions => null;
 
     public QuitCommand(IStreamShellHost host, Action onQuit)

@@ -13,7 +13,7 @@ public sealed class CommandExecutedEventArgs : EventArgs
     public CommandSource Source { get; }
 
     /// <summary>The functional classification of the command.</summary>
-    public CommandType Type { get; }
+    public ShellCommandType Type { get; }
 
     /// <summary>Positional arguments passed to the command.</summary>
     public string[] Args { get; }
@@ -24,7 +24,7 @@ public sealed class CommandExecutedEventArgs : EventArgs
     public CommandExecutedEventArgs(
         string name,
         CommandSource source,
-        CommandType type,
+        ShellCommandType type,
         string[] args,
         Dictionary<string, string> namedArgs)
     {
