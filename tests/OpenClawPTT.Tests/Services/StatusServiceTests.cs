@@ -817,6 +817,48 @@ public sealed class FakeAgentStatusTracker : IAgentStatusTracker
         _snapshots.Remove(sessionKey);
     }
 
+    public void Reset(string sessionKey)
+    {
+        if (!_snapshots.TryGetValue(sessionKey, out var existing))
+            return;
+
+        var reset = existing with
+        {
+            RunId = null,
+            Phase = null,
+            Stream = null,
+            EventReason = null,
+            Seq = null,
+            Status = null,
+            StopReason = null,
+            AbortedLastRun = null,
+            SubagentRunState = null,
+            HasActiveSubagentRun = null,
+            InputTokens = null,
+            OutputTokens = null,
+            TotalTokens = null,
+            TotalTokensFresh = null,
+            ContextTokens = null,
+            EstimatedCostUsd = null,
+            StartedAt = null,
+            EndedAt = null,
+            RuntimeMs = null,
+            UpdatedAt = null,
+            SubagentRole = null,
+            SpawnDepth = null,
+            SubagentControlScope = null,
+            SpawnedWorkspaceDir = null,
+            ChildSessions = Array.Empty<string>(),
+            CompactionCheckpointCount = null,
+            LatestCompactionCheckpointId = null,
+            LatestCompactionCheckpointCreatedAt = null,
+            SystemSent = null,
+            ThinkingDefault = null,
+        };
+
+        _snapshots[sessionKey] = reset;
+    }
+
     public AgentStatusSnapshot? Get(string sessionKey)
     {
         return _snapshots.TryGetValue(sessionKey, out var s) ? s : null;

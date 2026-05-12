@@ -12,6 +12,16 @@ public interface IAgentStatusTracker
     /// <summary>Removes a session from tracking (e.g. subagent finished).</summary>
     void Remove(string sessionKey);
 
+    /// <summary>
+    /// Resets the operational state of a tracked session — clears status,
+    /// tokens, timing, child sessions, and compaction/context metadata
+    /// while preserving identity fields (session key, model, display name, etc.).
+    ///
+    /// Used on <c>/reset</c> and <c>/new</c> to restore the agent to a clean
+    /// green-ready state without removing it from tracking entirely.
+    /// </summary>
+    void Reset(string sessionKey);
+
     /// <summary>Gets a snapshot by session key, or null.</summary>
     AgentStatusSnapshot? Get(string sessionKey);
 
