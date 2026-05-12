@@ -41,13 +41,12 @@ public sealed class ModularConfigurationWizard
 
     // ── Initial setup ────────────────────────────────────────────────
 
-    // Sentinel used for the "Continue" option in the post-section review.
-    private const string ContinueSentinel = "__continue__";
+    private const string RedoSentinel = "__redo__";
 
     /// <summary>
     /// Runs all sections sequentially for first-time setup.
-    /// After each section, displays the settings summary and lets the user
-    /// review or re-run individual items before moving on.
+    /// After each section, displays the settings summary and offers Continue / Redo entire section.
+    /// Choosing Redo clears the screen and runs the section again from scratch.
     /// </summary>
     public async Task<AppConfig> RunInitialSetupAsync(IStreamShellHost host, CancellationToken ct = default)
     {
@@ -58,20 +57,47 @@ public sealed class ModularConfigurationWizard
 
             foreach (var section in _sections)
             {
-                ct.ThrowIfCancellationRequested();
-                
-                for (int i = 0; i < ConsoleMetrics.GetWindowHeight(); i++)
-                    host.AddMessage("");
-
-                host.AddMessage($"[bold cyan2]──────────● [underline]{section.Name}[/]      [/]");
-                host.AddMessage($"[grey]{ section.Description} [/]");
-                var sectionResult = await section.RunAsync(host, config, isInitialSetup: true, ct);
-
-                // ── Post-section review ──
-                if (section is ConfigSectionBase cfgBase && sectionResult.Settings.Count > 0)
+                bool redo;
+                do
                 {
-                    await ReviewAndRerunAsync(host, cfgBase, config, sectionResult, ct);
-                }
+                    redo = false;
+                    ct.ThrowIfCancellationRequested();
+
+                    for (int i = 0; i < ConsoleMetrics.GetWindowHeight(); i++)
+                        host.AddMessage("");
+
+                    host.AddMessage($"[bold cyan2]──────────● [underline]{section.Name}[/]      [/]");
+                    host.AddMessage($"[grey]{ section.Description} [/]");
+                    var sectionResult = await section.RunAsync(host, config, isInitialSetup: true, ct);
+
+                    // Skip review if no settings to show
+                    if (sectionResult.Settings.Count == 0)
+                        continue;
+
+                    // ── Display settings summary ──
+                    host.AddMessage("");
+                    host.AddMessage("[bold]  Settings:[/]");
+                    foreach (var setting in sectionResult.Settings)
+                    {
+                        var escapedValue = Markup.Escape(setting.DisplayValue);
+                        host.AddMessage($"    [grey]{Markup.Escape(setting.Name)}[/] → [cyan]{escapedValue}[/]");
+                    }
+
+                    // ── Continue or Redo the whole section ──
+                    host.AddMessage("");
+                    var options = new (string Name, string Value)[]
+                    {
+                        ("Continue", "continue"),
+                        ("Redo this section", RedoSentinel),
+                    };
+
+                    var choice = await PromptSelectionHelper.PromptStringAsync(
+                        host, "Continue to next section or redo this one?", options,
+                        defaultValue: "continue", allowCancel: false, cancellationToken: ct);
+
+                    redo = choice == RedoSentinel;
+
+                } while (redo);
             }
 
             host.AddMessage("");
@@ -81,74 +107,6 @@ public sealed class ModularConfigurationWizard
         finally
         {
             IsActive = false;
-        }
-    }
-
-    /// <summary>
-    /// Displays the settings summary for a section and offers the user a chance
-    /// to either Continue or re-run any individual item.
-    /// Loops until the user chooses Continue.
-    /// </summary>
-    private static async Task ReviewAndRerunAsync(
-        IStreamShellHost host, ConfigSectionBase cfgBase, AppConfig config,
-        ConfigSectionResult sectionResult, CancellationToken ct)
-    {
-        while (true)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            // ── Display settings summary ──
-            host.AddMessage("");
-            host.AddMessage("[bold]  Settings:[/]");
-            foreach (var setting in sectionResult.Settings)
-            {
-                var escapedValue = Markup.Escape(setting.DisplayValue);
-                host.AddMessage($"    [grey]{Markup.Escape(setting.Name)}[/] → [cyan]{escapedValue}[/]");
-            }
-
-            // ── Build choice options ──
-            var options = new List<(string Name, string Value)>
-            {
-                ("Continue", ContinueSentinel),
-            };
-
-            foreach (var setting in sectionResult.Settings)
-            {
-                options.Add((Markup.Escape(setting.Name), setting.Name));
-            }
-
-            host.AddMessage("");
-            var choice = await PromptSelectionHelper.PromptStringAsync(
-                host, "Review settings — continue or edit an item:", options.ToArray(),
-                defaultValue: ContinueSentinel, allowCancel: false, cancellationToken: ct);
-
-            if (choice == ContinueSentinel || choice == null)
-                break;
-
-            // ── Re-run the selected item ──
-            host.AddMessage($"[grey]  Editing: {Markup.Escape(choice)}[/]");
-            var itemChanged = await cfgBase.TryRerunItemAsync(
-                choice, host, config, isInitialSetup: true, ct);
-
-            // Update the display value in the stored result for the next loop iteration
-            var targetSetting = sectionResult.Settings.FirstOrDefault(s => s.Name == choice);
-            if (targetSetting != null)
-            {
-                // The list is immutable-by-reference; replace the entry
-                var idx = sectionResult.Settings.IndexOf(targetSetting);
-                if (idx >= 0)
-                {
-                    var updated = new ConfigSectionResult.SettingRecord(
-                        targetSetting.Name,
-                        cfgBase.TryGetItemDisplayValue(choice, config) ?? targetSetting.DisplayValue);
-                    sectionResult.Settings[idx] = updated;
-                }
-            }
-
-            if (itemChanged)
-                host.AddMessage("[green]  ✓ Updated.[/]");
-            else
-                host.AddMessage("[grey]  → No change.[/]");
         }
     }
 
