@@ -28,8 +28,8 @@ public sealed class AppConfig
     public int MaxRecordSeconds { get; set; } = 120;
     /// <summary>Controls diagnostic log output verbosity. Default = Error (only errors shown).</summary>
     public LogLevel DebugLevel { get; set; } = LogLevel.Error;
-    public string GroqApiKey { get; set; } = "gsk_";
-    public bool RealTimeReplyOutput { get; set; } = true;
+    public string GroqApiKey { get; set; } = "";
+    public bool RealTimeReplyOutput => ReplyDisplayMode is ReplyDisplayMode.Delta or ReplyDisplayMode.Both;
     public ReplyDisplayMode ReplyDisplayMode { get; set; } = ReplyDisplayMode.Both;
 
     // STT Provider configuration
@@ -49,8 +49,8 @@ public sealed class AppConfig
     public string? LastActiveAgentId { get; set; }
     public bool RequireConfirmBeforeSend { get; set; } = false;
 
-    public string AgentName { get; set; } = "Agent";
-    public string TranscriptionPromptPrefix { get; set; } = "[It's a raw speech-to-text transcription]: ";
+
+    public string TranscriptionPromptPrefix { get; set; } = "";
     // AudioWrapPrompt and IsAudioEnabled removed — no longer needed
     public int GroqRetryCount { get; set; } = 0;
     public int GroqRetryDelayMs { get; set; } = 1000;
@@ -112,7 +112,7 @@ public sealed class AppConfig
     public string DirectLlmApiType { get; set; } = "openai-completions"; // "openai-completions" or "anthropic-messages"
 
     // Audio response settings
-    public string AudioResponseMode { get; set; } = "text-only"; // text-only, audio-only, both
+
     public string? TtsApiKey { get; set; } // Optional ElevenLabs API key
     public string? TtsVoiceId { get; set; } // Default ElevenLabs voice
 
@@ -166,7 +166,7 @@ public sealed class AppConfig
         ["LastActiveAgentId"] = "Last active agent ID to restore on reconnect or restart",
         ["HistoryDisplayCount"] = "Number of previous messages to show on connect",
         ["RequireConfirmBeforeSend"] = "Ask for confirmation before sending messages",
-        ["AgentName"] = "Default agent display name",
+
         ["TranscriptionPromptPrefix"] = "Prefix for STT transcription text sent to agent",
         ["GroqRetryCount"] = "STT retry attempts on failure",
         ["GroqRetryDelayMs"] = "Delay between STT retries in ms",
@@ -201,7 +201,7 @@ public sealed class AppConfig
         ["DirectLlmUrl"] = "API URL for direct LLM",
         ["DirectLlmModelName"] = "Model name for direct LLM",
         ["DirectLlmApiType"] = "LLM API type: openai-completions or anthropic-messages",
-        ["AudioResponseMode"] = "Agent output: text-only, audio-only, both",
+
         ["TtsApiKey"] = "ElevenLabs TTS API key",
         ["TtsVoiceId"] = "ElevenLabs voice ID",
         ["TtsOutputMode"] = "TTS mode: always-on, siso (single-in-single-out), off",

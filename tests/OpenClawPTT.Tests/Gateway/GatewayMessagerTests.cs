@@ -31,7 +31,7 @@ public class GatewayMessagerTests : IDisposable
             CustomDataDir = Path.GetTempPath(),
             GatewayUrl = "wss://127.0.0.1:9999/test",
             AuthToken = "test-token",
-            RealTimeReplyOutput = false
+            ReplyDisplayMode = ReplyDisplayMode.Full
         };
         _mockWs = new Mock<IClientWebSocket>();
         _mockWs.Setup(x => x.State).Returns(WebSocketState.Open);

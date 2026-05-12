@@ -149,7 +149,7 @@ public class SessionMessageHandlerFallbackTests
             CustomDataDir = Path.GetTempPath(),
             GatewayUrl = "wss://127.0.0.1:9999/test",
             AuthToken = "test-token",
-            RealTimeReplyOutput = false
+            ReplyDisplayMode = ReplyDisplayMode.Full
         };
         _handler = new SessionMessageHandler(
             _mockEvents.Object,

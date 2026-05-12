@@ -52,7 +52,6 @@ public static class TestFixtureBuilder
             GatewayUrl = Defaults.GatewayUrl,
             AuthToken = Defaults.AuthToken,
             DeviceToken = Defaults.DeviceToken,
-            AudioResponseMode = "text-only"
         };
 
         configure?.Invoke(config);

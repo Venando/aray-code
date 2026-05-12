@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenClawPTT.ConfigWizard;
 using OpenClawPTT.Services;
 using OpenClawPTT.Services.Commands;
 using OpenClawPTT.Services.Diagnostics;
@@ -130,6 +131,12 @@ public sealed class StreamShellInputHandler : IDisposable
         if (e.InputType == StreamShell.InputType.Command)
             return;
 
+        // Skip if a configuration wizard is active (it handles its own input)
+        if (ModularConfigurationWizard.IsActive)
+            return;
+
+        // Reject plain-text messages that start with "/" — they look like commands
+        // but weren't recognized by StreamShell. Don't send them to the gateway.
         if (e.RawOutput.StartsWith("/", StringComparison.Ordinal))
         {
             var commandName = e.RawOutput.Split(' ')[0];

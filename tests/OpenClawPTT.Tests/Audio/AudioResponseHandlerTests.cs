@@ -16,7 +16,7 @@ public class AudioResponseHandlerTests
     public async Task HandleAudioMarkerAsync_TextOnlyConfig_DoesNothing()
     {
         // Arrange: text-only config — AudioResponseHandler should skip audio handling
-        var cfg = new AppConfig { AudioResponseMode = "text-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
             var jobRunner = new BackgroundJobRunner(msg => { });
             var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
@@ -33,7 +33,7 @@ public class AudioResponseHandlerTests
     public async Task HandleAudioMarkerAsync_AudioEnabled_DoesNotThrow()
     {
         // Arrange: audio-enabled config without real API keys — will fail gracefully
-        var cfg = new AppConfig { AudioResponseMode = "audio-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
             var jobRunner = new BackgroundJobRunner(msg => { });
             var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
@@ -49,10 +49,10 @@ public class AudioResponseHandlerTests
     [Fact]
     public void AudioResponseHandler_Dispose_DoesNotThrow()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
-            var jobRunner = new BackgroundJobRunner(msg => { });
-            var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
+        var jobRunner = new BackgroundJobRunner(msg => { });
+        var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
                 summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         handler.Dispose(); // should not throw

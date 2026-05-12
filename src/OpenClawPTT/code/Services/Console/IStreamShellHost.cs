@@ -40,4 +40,9 @@ public interface IStreamShellHost
 
     /// <summary>Sets the default bottom panel (shown when no command is active).</summary>
     void SetDefaultPanel(StreamShell.IBottomPanel panel);
+
+    /// <summary>
+    /// Opens an interactive selection panel. Returns selected variants, or null if cancelled.
+    /// </summary>
+    Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariant[] variants, StreamShell.SelectionInfo? info = null);
 }

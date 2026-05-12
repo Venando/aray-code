@@ -48,6 +48,9 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
     public void SetContinuationPrefix(string prefix) { /* no-op */ }
     public void SetDefaultPanel(IBottomPanel panel) { /* no-op */ }
 
+    public Task<IVariant[]?> PromptSelection(string title, IVariant[] variants, SelectionInfo? info = null)
+        => Task.FromResult<IVariant[]?>(null);
+
     public void Dispose() { /* no-op */ }
 
     /// <summary>Simulate user submitting plain text input.</summary>

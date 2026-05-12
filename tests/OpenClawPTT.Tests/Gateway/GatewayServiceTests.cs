@@ -22,7 +22,6 @@ public class GatewayServiceTests
     {
         GatewayUrl = "wss://test.example.com",
         AuthToken = "test-token",
-        AudioResponseMode = "text-only"
     };
 
     [Fact]

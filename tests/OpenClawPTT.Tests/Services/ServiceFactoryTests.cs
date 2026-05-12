@@ -19,7 +19,6 @@ public class ServiceFactoryTests
     {
         HotkeyCombination = "Alt+=",
         HoldToTalk = false,
-        AudioResponseMode = "both"
     };
 
     private static ServiceFactory CreateFactory()

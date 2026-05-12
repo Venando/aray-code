@@ -87,6 +87,8 @@ public class StreamShellCapturingConsoleTests
         public void SetInputPrefix(string prefix) { }
         public void SetContinuationPrefix(string prefix) { }
         public void SetDefaultPanel(StreamShell.IBottomPanel panel) { }
+        public System.Threading.Tasks.Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariant[] variants, StreamShell.SelectionInfo? info = null)
+            => System.Threading.Tasks.Task.FromResult<StreamShell.IVariant[]?>(null);
         public void Dispose() { }
     }
 }

@@ -61,7 +61,6 @@ public class GatewayAudioQaTests
         {
             GatewayUrl = "wss://test.example.com",
             AuthToken = "test-token",
-            AudioResponseMode = "text-only"
         };
 
         var coordinator = new AgentOutputCoordinator(
@@ -76,7 +75,6 @@ public class GatewayAudioQaTests
         {
             GatewayUrl = "wss://new.example.com",
             AuthToken = "new-token",
-            AudioResponseMode = "text-only"
         };
 
         service.RecreateWithConfig(newCfg);
@@ -90,7 +88,6 @@ public class GatewayAudioQaTests
         {
             GatewayUrl = "wss://test.example.com",
             AuthToken = "test-token",
-            AudioResponseMode = "text-only"
         };
 
         var coordinator = new AgentOutputCoordinator(
@@ -120,7 +117,7 @@ public class GatewayAudioQaTests
     [Fact]
     public void AgentOutputCoordinator_Dispose_CanBeCalledMultipleTimes()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only", AgentName = "TestBot" };
+        var cfg = new AppConfig();
         var console = CreateMockConsole();
         var coordinator = new AgentOutputCoordinator(
             new ReplyStreamCoordinator(cfg, console),
@@ -135,7 +132,7 @@ public class GatewayAudioQaTests
     [Fact]
     public void AgentOutputCoordinator_OnAgentReplyAudio_WithNullHandler_DoesNotCrash()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only", AgentName = "TestBot" };
+        var cfg = new AppConfig();
         var console = CreateMockConsole();
         var coordinator = new AgentOutputCoordinator(
             new ReplyStreamCoordinator(cfg, console),
@@ -154,7 +151,7 @@ public class GatewayAudioQaTests
     [Fact]
     public async Task HandleAudioMarkerAsync_TextOnly_ReturnsCompletedTask()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
         var jobRunner = new BackgroundJobRunner(msg => { });
         var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
@@ -170,7 +167,7 @@ public class GatewayAudioQaTests
     [Fact]
     public void AudioResponseHandler_Dispose_CalledTwice_Safe()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
         var jobRunner = new BackgroundJobRunner(msg => { });
         var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
@@ -183,7 +180,7 @@ public class GatewayAudioQaTests
     [Fact]
     public void AudioResponseHandler_AfterDispose_HandleAudioMarker_ThrowsObjectDisposed()
     {
-        var cfg = new AppConfig { AudioResponseMode = "text-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
         var jobRunner = new BackgroundJobRunner(msg => { });
         var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
@@ -198,7 +195,7 @@ public class GatewayAudioQaTests
     [Fact]
     public async Task HandleAudioMarkerAsync_EmptyText_ReturnsCompleted()
     {
-        var cfg = new AppConfig { AudioResponseMode = "audio-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
         var jobRunner = new BackgroundJobRunner(msg => { });
         var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
@@ -213,7 +210,7 @@ public class GatewayAudioQaTests
     [Fact]
     public async Task HandleAudioMarkerAsync_WhitespaceText_ReturnsCompleted()
     {
-        var cfg = new AppConfig { AudioResponseMode = "audio-only" };
+        var cfg = new AppConfig();
         var audioPlayer = new AudioPlayerService(CreateMockConsole());
         var jobRunner = new BackgroundJobRunner(msg => { });
         var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,

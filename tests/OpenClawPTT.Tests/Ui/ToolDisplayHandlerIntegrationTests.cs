@@ -46,6 +46,8 @@ public class ToolDisplayHandlerIntegrationTests
         public void SetInputPrefix(string prefix) { }
         public void SetContinuationPrefix(string prefix) { }
         public void SetDefaultPanel(StreamShell.IBottomPanel panel) { }
+        public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariant[] variants, StreamShell.SelectionInfo? info = null)
+            => Task.FromResult<StreamShell.IVariant[]?>(null);
         public void Dispose() { }
     }
 
