@@ -16,6 +16,12 @@ public abstract class StatusPartBase : IStatusPart
     private bool _dirty = true;
     private DisplayPosition _position;
 
+    /// <summary>
+    /// When true, <see cref="GetText()"/> always rebuilds the rendered text
+    /// instead of using the cached value (used for animations).
+    /// </summary>
+    protected bool AlwaysRebuild { get; set; }
+
     /// <summary>Reusable StringBuilder for rendering subclasses.</summary>
     protected readonly StringBuilder Builder = new(128);
 
@@ -28,12 +34,14 @@ public abstract class StatusPartBase : IStatusPart
     /// <inheritdoc />
     public string GetText()
     {
-        if (!_dirty && _cachedText is not null)
+        if (!AlwaysRebuild && !_dirty && _cachedText is not null)
             return _cachedText;
 
         Builder.Clear();
         BuildText();
         _cachedText = Builder.ToString();
+        if (AlwaysRebuild)
+            _dirty = true;
         // _dirty stays true until MarkClean() is called by the owner
         return _cachedText;
     }

@@ -78,6 +78,8 @@ public sealed class AppConfig
     public DisplayPosition ContextPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
     public DisplayPosition ConversationNamePosition { get; set; } = DisplayPosition.TopSeparatorLeft;
     public DisplayPosition ConnectionStatusPosition { get; set; } = DisplayPosition.TopSeparatorRight;
+    public DisplayPosition TtsStatusPosition { get; set; } = DisplayPosition.TopSeparatorRight;
+    public DisplayPosition SttStatusPosition { get; set; } = DisplayPosition.TopSeparatorRight;
     public DisplayPosition DirectLlmPosition { get; set; } = DisplayPosition.TopSeparatorRight;
     public DisplayPosition MainAgentsPosition { get; set; } = DisplayPosition.AppStatusPanelLeft;
 

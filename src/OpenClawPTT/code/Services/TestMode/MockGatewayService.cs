@@ -17,6 +17,7 @@ public sealed class MockGatewayService : IGatewayService
     private readonly TestScenarioSession _session;
     private bool _disposed;
 
+    public event Action? Connected;
     public event Action<string>? AgentReplyFull;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;

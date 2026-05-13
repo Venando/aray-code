@@ -13,6 +13,9 @@ public interface IStatusService
     /// <summary>Update the TTS service status displayed on the separator bar.</summary>
     void SetTtsStatus(string label, StatusColor color);
 
+    /// <summary>Update the STT (speech-to-text) service status displayed on the separator bar.</summary>
+    void SetSttStatus(string label, StatusColor color);
+
     /// <summary>Update the direct LLM status displayed on the separator bar.</summary>
     void SetDirectLlmStatus(string label, StatusColor color);
 
