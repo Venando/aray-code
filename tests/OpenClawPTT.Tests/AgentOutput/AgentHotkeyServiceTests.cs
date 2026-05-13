@@ -6,7 +6,7 @@ using Xunit;
 
 namespace OpenClawPTT.Tests.AgentOutput;
 
-[Collection("AgentHotkeyService")]
+[Collection("AgentRegistryCollection")]
 public class AgentHotkeyServiceTests : IDisposable
 {
     private sealed class NoOpHotkeyHook : IGlobalHotkeyHook

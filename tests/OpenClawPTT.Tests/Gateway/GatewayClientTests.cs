@@ -5,6 +5,7 @@ using Xunit;
 
 namespace OpenClawPTT.Tests.Gateway;
 
+[Collection("AgentRegistryCollection")]
 public class GatewayClientTests
 {
     private static Mock<IColorConsole> CreateMockConsole() => new();

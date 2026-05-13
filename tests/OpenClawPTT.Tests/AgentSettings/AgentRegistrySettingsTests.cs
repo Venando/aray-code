@@ -7,7 +7,7 @@ using OpenClawPTT.Services;
 
 namespace OpenClawPTT.Tests.AgentSettings;
 
-[Collection("AgentSettingsRegistry")]
+[Collection("AgentRegistryCollection")]
 public class AgentRegistrySettingsTests : IDisposable
 {
     private readonly string _tempDir;

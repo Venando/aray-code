@@ -5,6 +5,7 @@ using OpenClawPTT.Services;
 
 namespace OpenClawPTT.Tests;
 
+[Collection("AgentRegistryCollection")]
 public class ReplyStreamCoordinatorTests
 {
     static ReplyStreamCoordinatorTests()

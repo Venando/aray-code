@@ -6,6 +6,7 @@ using OpenClawPTT.Services;
 
 namespace OpenClawPTT.Tests;
 
+[Collection("AgentRegistryCollection")]
 public class AgentOutputCoordinatorTests
 {
     static AgentOutputCoordinatorTests()
