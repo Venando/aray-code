@@ -35,6 +35,9 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     /// <summary>Fires when the reconnection loop begins after an unexpected disconnect.</summary>
     public event Action? Reconnecting;
 
+    /// <summary>Fires when the reconnection loop exhausts all retries without success.</summary>
+    public event Action? ReconnectFailed;
+
     public GatewayConnectionLifecycle(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource events, IColorConsole console,
         Func<IClientWebSocket>? socketFactory = null, ISnapshotProcessor? snapshotProcessor = null, IAgentStatusTracker? agentStatusTracker = null)
     {
@@ -49,9 +52,10 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
         // Wire reconnector events to lifecycle relay
         _gatewayReconnector.ReconnectStarted += () => Reconnecting?.Invoke();
-        // On permanent reconnect failure, signal the final disconnected state through the event source
-        // so StatusService (via GatewayService) can update the status dot from Yellow back to Red.
-        _gatewayReconnector.ReconnectFailed += () => _events.RaiseDisconnected();
+        // On permanent reconnect failure, fire ReconnectFailed (not Disconnected).
+        // Disconnected already fired from ReceiveLoop when the connection first dropped.
+        // ReconnectFailed signals the terminal state after all retries are exhausted.
+        _gatewayReconnector.ReconnectFailed += () => ReconnectFailed?.Invoke();
 
         _agentStatusTracker = agentStatusTracker;
     }
@@ -120,11 +124,30 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         finally { linkCts.Dispose(); }
     }
 
+    /// <summary>Default timeout for the TCP + TLS + WS upgrade phase.</summary>
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(15);
+
     private async Task ConnectWebSocketAsync(CancellationToken linkedCt)
     {
         var uri = new Uri(_cfg.GatewayUrl);
         _console.Log("gateway", $"Connecting to {uri} ...");
-        await _ws.ConnectAsync(uri, linkedCt);
+
+        // ClientWebSocket.ConnectAsync may not respect CancellationToken during
+        // the TCP/TLS phase. Wrap with a timeout to prevent indefinite hangs
+        // when the gateway is unreachable (e.g. firewall silently dropping packets).
+        using var timeoutCts = new CancellationTokenSource(ConnectTimeout);
+        using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(linkedCt, timeoutCts.Token);
+
+        try
+        {
+            await _ws.ConnectAsync(uri, combinedCts.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !linkedCt.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Timed out connecting to {uri.Host}:{uri.Port} after {(int)ConnectTimeout.TotalSeconds}s.");
+        }
+
         _console.Log("gateway", "WebSocket open.");
     }
 

@@ -21,6 +21,7 @@ public sealed class MockGatewayService : IGatewayService
     public event Action? Connected;
     public event Action? Disconnected;
     public event Action? Reconnecting;
+    public event Action? ReconnectFailed;
 #pragma warning restore CS0067
     public event Action<string>? AgentReplyFull;
     public event Action? AgentReplyDeltaStart;

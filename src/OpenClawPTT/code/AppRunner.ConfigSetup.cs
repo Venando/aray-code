@@ -30,14 +30,17 @@ public partial class AppRunner
         {
             gateway.RecreateWithConfig(e.NewConfig);
 
-            // Fire-and-forget reconnect: don't block the event loop
+            // Fire-and-forget reconnect: don't block the event loop.
+            // On success, the Connected event chain (ConnectionSucceeded → Connected)
+            // already sets Green via the AppRunner subscription.
+            // On failure, ConnectAsync throws without firing any event, so we
+            // must set Red directly — no event covers the initial-connect-failure path.
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await gateway.ConnectAsync(CancellationToken.None);
                     _console.LogOk("gateway", "Reconnected with new configuration.");
-                    _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
                 }
                 catch (Exception reconnectEx)
                 {

@@ -33,6 +33,9 @@ public sealed class GatewayClient : IGatewayClient
     /// <summary>Fires when the reconnection loop begins after an unexpected disconnect.</summary>
     public event Action? Reconnecting;
 
+    /// <summary>Fires when the reconnection loop exhausts all retries without success.</summary>
+    public event Action? ReconnectFailed;
+
     public GatewayClient(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource eventSource, IColorConsole console,
         Func<IGatewayConnectionLifecycle>? lifecycleFactory = null, IAgentStatusTracker? agentStatusTracker = null)
     {
@@ -46,6 +49,7 @@ public sealed class GatewayClient : IGatewayClient
         {
             _lifecycle.ConnectionSucceeded += () => ConnectionSucceeded?.Invoke();
             _lifecycle.Reconnecting += () => Reconnecting?.Invoke();
+            _lifecycle.ReconnectFailed += () => ReconnectFailed?.Invoke();
         }
         _agentStatusTracker = agentStatusTracker;
     }

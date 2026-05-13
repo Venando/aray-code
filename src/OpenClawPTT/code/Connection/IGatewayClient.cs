@@ -23,6 +23,9 @@ public interface IGatewayClient : IDisposable
     /// <summary>Fires when the reconnection loop begins after an unexpected disconnect.</summary>
     event Action? Reconnecting;
 
+    /// <summary>Fires when the reconnection loop exhausts all retries without success.</summary>
+    event Action? ReconnectFailed;
+
     Task ConnectAsync(CancellationToken ct);
     Task DisconnectAsync(CancellationToken ct);
     Task<JsonElement> SendTextAsync(string body, CancellationToken ct);

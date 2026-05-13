@@ -100,10 +100,11 @@ public partial class AppRunner : IDisposable
             ttsProviderTask: ttsInitTask);
 
         // Subscribe to gateway connection lifecycle events for the status bar.
-        // The Disconnected event fires both on initial connect failure (via ReceiveLoop detection)
-        // and on permanent reconnect failure (via GatewayReconnector -> lifecycle relay).
         gateway.Connected += () => _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
+        // Disconnected: fires when the WebSocket drops (ReceiveLoop catches it).
+        // ReconnectFailed: fires only after all reconnection attempts are exhausted.
         gateway.Disconnected += () => _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
+        gateway.ReconnectFailed += () => _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
         gateway.Reconnecting += () => _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Yellow);
 
         // Wire ErrorLogStore into GatewayService so SendTextAsync/SendRpcAsync failures are logged

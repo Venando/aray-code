@@ -195,6 +195,7 @@ internal sealed class TestableGatewayService : IGatewayService
     public event Action? Connected;
     public event Action? Disconnected;
     public event Action? Reconnecting;
+    public event Action? ReconnectFailed;
     public event Action<string>? AgentReplyFull;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;

@@ -26,6 +26,7 @@ public sealed class GatewayService : IGatewayService
     public event Action? Connected;
     public event Action? Disconnected;
     public event Action? Reconnecting;
+    public event Action? ReconnectFailed;
     public event Action<string>? AgentReplyFull;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;
@@ -95,8 +96,9 @@ public sealed class GatewayService : IGatewayService
 
     public async Task ConnectAsync(CancellationToken ct)
     {
+        // Connected event is fired via the ConnectionSucceeded relay
+        // in InitGatewayClient — no need for an explicit second fire here.
         await _gatewayClient.ConnectAsync(ct);
-        Connected?.Invoke();
     }
 
     public async Task SendTextAsync(string text, CancellationToken ct)
@@ -221,6 +223,7 @@ public sealed class GatewayService : IGatewayService
         {
             gc.ConnectionSucceeded += () => Connected?.Invoke();
             gc.Reconnecting += () => Reconnecting?.Invoke();
+            gc.ReconnectFailed += () => ReconnectFailed?.Invoke();
         }
 
         return client;

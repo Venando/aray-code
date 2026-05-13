@@ -19,6 +19,9 @@ public interface IGatewayUIEvents
     /// <summary>Fires when the reconnection loop begins after an unexpected disconnect.</summary>
     event Action? Reconnecting;
 
+    /// <summary>Fires when the reconnection loop exhausts all retries without success.</summary>
+    event Action? ReconnectFailed;
+
     event Action<string>? AgentReplyFull;
     event Action? AgentReplyDeltaStart;
     event Action<string>? AgentReplyDelta;
