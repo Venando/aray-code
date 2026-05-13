@@ -2,6 +2,12 @@ namespace OpenClawPTT.Services;
 
 public interface IAudioService : IDisposable
 {
+    /// <summary>
+    /// Optional callback invoked during transcription lifecycle.
+    /// Phase is the current stage; errorMessage is non-null only for Failed/TimedOut.
+    /// </summary>
+    Action<TranscriptionPhase, string?>? TranscriptionStatusCallback { get; set; }
+
     bool IsRecording { get; }
     void StartRecording();
     Task<string?> StopAndTranscribeAsync(CancellationToken ct = default);

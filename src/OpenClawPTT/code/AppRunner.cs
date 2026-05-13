@@ -207,6 +207,25 @@ public partial class AppRunner : IDisposable
     private async Task<int> RunPttLoopAsync(IGatewayService gateway, IPttStateMachine pttStateMachine, IDirectLlmService directLlmService, ITtsSummarizer ttsSummarizer, bool gatewayConnected, CancellationToken ct)
     {
         using var audioService = _factory.CreateAudioService(_cfg);
+
+        // Wire transcription lifecycle to STT status bar
+        audioService.TranscriptionStatusCallback = (phase, _) =>
+        {
+            switch (phase)
+            {
+                case TranscriptionPhase.Started:
+                    _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Yellow);
+                    break;
+                case TranscriptionPhase.Succeeded:
+                    _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
+                    break;
+                case TranscriptionPhase.Failed:
+                case TranscriptionPhase.TimedOut:
+                    _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Red);
+                    break;
+            }
+        };
+
         // AudioService constructor succeeded — but the transcriber hasn't been
         // verified yet. Set Yellow and verify on a background thread so the
         // animated transitioning state is visible during verification.
@@ -215,8 +234,12 @@ public partial class AppRunner : IDisposable
         {
             try
             {
-                await audioService.VerifyTranscriberAsync(_cfg, _console, CancellationToken.None);
+                await audioService.VerifyTranscriberAsync(_cfg, _console, ct);
                 _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
+            }
+            catch (OperationCanceledException)
+            {
+                // App shutting down — verification cancelled, leave status as-is
             }
             catch (Exception ex)
             {

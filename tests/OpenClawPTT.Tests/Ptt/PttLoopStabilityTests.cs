@@ -106,6 +106,7 @@ public class PttLoopStabilityTests : IDisposable
         public bool IsRecording_Value { get; set; }
         public int StartRecording_Count { get; private set; }
         public int Dispose_Count { get; private set; }
+        public Action<TranscriptionPhase, string?>? TranscriptionStatusCallback { get; set; }
 
         public bool IsRecording => IsRecording_Value;
         public void StartRecording() => StartRecording_Count++;

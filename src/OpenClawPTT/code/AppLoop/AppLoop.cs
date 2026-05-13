@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Spectre.Console;
 
 namespace OpenClawPTT.Services;
 
@@ -152,6 +153,10 @@ public sealed class AppLoop : IAppLoop
         catch (Exception ex)
         {
             _console.LogError("ptt", $"Failed to send: {ex.GetType().Name}: {ex.Message}");
+            // Preserve transcribed text so the user can re-send manually
+            // (escape brackets to prevent Spectre markup injection from transcribed speech)
+            var safe = Markup.Escape(transcribed);
+            _console.PrintMarkup($"[yellow][dim]  Transcribed: [/][/][yellow]{safe}[/]");
         }
     }
 

@@ -13,12 +13,15 @@ public sealed class AudioService : IAudioService
     private readonly IColorConsole _console;
     private IAudioRecorder _recorder;
     private ITranscriber _transcriber;
+    /// <inheritdoc />
+    public Action<TranscriptionPhase, string?>? TranscriptionStatusCallback { get; set; }
     private readonly IVisualFeedback _visualFeedback;
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     
     private readonly string _hotkeyCombination;
     private readonly bool _holdToTalk;
     private readonly int _rightMarginIndent;
+    private readonly int _transcriptionTimeoutSeconds;
     private readonly object _transcriberLock = new();
     private readonly object _recorderLock = new();
     private int _disposedFlag; // 0 = not disposed, 1 = disposed
@@ -38,6 +41,7 @@ public sealed class AudioService : IAudioService
         _hotkeyCombination = config.HotkeyCombination;
         _holdToTalk = config.HoldToTalk;
         _rightMarginIndent = config.RightMarginIndent;
+        _transcriptionTimeoutSeconds = config.TranscriptionTimeoutSeconds;
     }
     
     public bool IsRecording
@@ -51,7 +55,16 @@ public sealed class AudioService : IAudioService
         
         IAudioRecorder recorder;
         lock (_recorderLock) { recorder = _recorder; }
-        recorder.StartRecording();
+        try
+        {
+            recorder.StartRecording();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.PrintError($"Cannot start recording: {ex.Message}");
+            _console.PrintInfo("  Install 'sox' (Linux/macOS) or ensure NAudio is available (Windows).");
+            return;
+        }
         // Use per-agent hotkey if set, else fall back to global config default
         var activeAgentId = AgentRegistry.ActiveAgentId;
         var effectiveHotkey = activeAgentId != null
@@ -98,24 +111,39 @@ public sealed class AudioService : IAudioService
         
         if (wav.Length < 1024)
         {
-            _console.PrintWarning("Too short (<1KB), skipped.");
+            _console.PrintWarning("Recording too short — hold the hotkey for at least 0.5 seconds.");
             return null;
         }
+
+        TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Started, null);
 
         try
         {
             // Capture transcriber under lock to prevent use-after-dispose (C3)
             ITranscriber transcriber;
             lock (_transcriberLock) { transcriber = _transcriber; }
-            var transcribed = await transcriber.TranscribeAsync(wav, ct: ct);
+
+            // Wrap the caller's ct with a transcription timeout
+            using var timeoutCts = new CancellationTokenSource(
+                TimeSpan.FromSeconds(_transcriptionTimeoutSeconds));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            var transcribed = await transcriber.TranscribeAsync(wav, ct: linkedCts.Token);
             var shellHost = _console.GetStreamShellHost();
             var prefix = $"Transcribed ({wav.Length / 1024.0:F1} KB): ";
             _console.PrintMarkup($"[green][dim]  ✓ {Markup.Escape(prefix)}[/][/] [green]{Markup.Escape(transcribed)}[/]");
+            TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Succeeded, transcribed);
             return transcribed;
+        }
+        catch (OperationCanceledException)
+        {
+            _console.PrintWarning($"  Transcription timed out ({_transcriptionTimeoutSeconds}s)");
+            TranscriptionStatusCallback?.Invoke(TranscriptionPhase.TimedOut, "Transcription timed out");
+            return null;
         }
         catch (Exception ex)
         {
             _console.PrintError($"Transcription failed ({wav.Length / 1024.0:F1} KB): {ex.Message}");
+            TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Failed, ex.Message);
             return null;
         }
     }

@@ -17,7 +17,7 @@ public sealed class GroqTranscriberAdapter : ITranscriber
 
     public async Task<string> TranscribeAsync(byte[] wavBytes, string fileName = "audio.wav", CancellationToken ct = default)
     {
-        return await _inner.TranscribeAsync(wavBytes, fileName).ConfigureAwait(false);
+        return await _inner.TranscribeAsync(wavBytes, fileName, ct).ConfigureAwait(false);
     }
 
     public void Dispose()

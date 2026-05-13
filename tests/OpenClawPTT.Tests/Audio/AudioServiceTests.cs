@@ -35,14 +35,23 @@ public sealed class MockTranscriber : ITranscriber
     public Exception? ThrowException { get; set; }
     public int CallCount { get; private set; }
     public byte[]? LastBytes { get; private set; }
+    public bool BlockForever { get; set; }
 
-    public void Reset() { CallCount = 0; ThrowException = null; TranscribeFunc = null; LastBytes = null; }
+    public void Reset() { CallCount = 0; ThrowException = null; TranscribeFunc = null; LastBytes = null; BlockForever = false; }
 
     public async Task<string> TranscribeAsync(byte[] wav, string fileName = "audio.wav", CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         CallCount++;
         LastBytes = wav;
         if (ThrowException != null) throw ThrowException;
+        if (BlockForever)
+        {
+            // Block until cancelled (simulates hung API call)
+            var tcs = new TaskCompletionSource<string>();
+            using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
+            return await tcs.Task;
+        }
         return await Task.FromResult(TranscribeFunc != null ? TranscribeFunc(wav) : string.Empty);
     }
 
@@ -78,6 +87,8 @@ sealed class FakeAudioService : IAudioService
     private readonly IVisualFeedback _visual;
     private bool _recording;
     private bool _disposed;
+
+    public Action<TranscriptionPhase, string?>? TranscriptionStatusCallback { get; set; }
 
     public bool IsRecording => _recording;
 
@@ -491,5 +502,77 @@ public class FakeAudioServiceTests : IDisposable
 
         await _service.SimulateStopWithBytesAsync(new byte[2048], default);
         Assert.False(_service.IsRecording);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Tests for VerifyTranscriberAsync cancellation
+// ═══════════════════════════════════════════════════════════════
+
+public class AudioServiceCancellationTests : IDisposable
+{
+    private AudioService? _service;
+    private MockAudioRecorder? _recorder;
+    private MockTranscriber? _transcriber;
+    private AppConfig? _config;
+    private readonly Mock<IColorConsole> _mockConsole = new();
+
+    private void Setup(AppConfig? overrideConfig = null)
+    {
+        _service?.Dispose();
+        _recorder = new MockAudioRecorder();
+        _transcriber = new MockTranscriber();
+        _config = overrideConfig ?? new AppConfig
+        {
+            GroqApiKey = "test-key",
+        };
+        _service = new AudioService(_config, _mockConsole.Object, Mock.Of<IAgentSettingsPersistence>(), _recorder);
+
+        // Replace the factory-created transcriber with our mock
+        var transcriberField = typeof(AudioService)
+            .GetField("_transcriber", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        transcriberField.SetValue(_service, _transcriber);
+    }
+
+    public void Dispose() => _service?.Dispose();
+
+    [Fact]
+    public async Task VerifyTranscriberAsync_PreCancelledToken_ThrowsOperationCanceledException()
+    {
+        Setup();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _service!.VerifyTranscriberAsync(_config!, _mockConsole.Object, cts.Token));
+    }
+
+    [Fact]
+    public async Task VerifyTranscriberAsync_ValidToken_Succeeds()
+    {
+        Setup();
+        _transcriber!.TranscribeFunc = _ => "";
+
+        // Should not throw
+        await _service!.VerifyTranscriberAsync(_config!, _mockConsole.Object, CancellationToken.None);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task StopAndTranscribeAsync_HungTranscriber_TimesOut()
+    {
+        var config = new AppConfig
+        {
+            GroqApiKey = "test-key",
+            TranscriptionTimeoutSeconds = 1,
+        };
+        Setup(config);
+        _transcriber!.BlockForever = true;
+        _recorder!.StopRecordingResult = new byte[2048];
+
+        _service!.StartRecording();
+
+        // Timeout should be caught and return null (graceful handling, no crash)
+        var result = await _service.StopAndTranscribeAsync(CancellationToken.None);
+        Assert.Null(result);
     }
 }

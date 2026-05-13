@@ -16,6 +16,9 @@ public sealed class MockAudioService : IAudioService
     private DateTime _recordingStartTime;
     private bool _disposed;
 
+    /// <inheritdoc />
+    public Action<TranscriptionPhase, string?>? TranscriptionStatusCallback { get; set; }
+
     public bool IsRecording => _isRecording;
 
     public MockAudioService(string scenario, IColorConsole console)
