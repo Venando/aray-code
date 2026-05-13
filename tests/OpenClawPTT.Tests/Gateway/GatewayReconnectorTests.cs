@@ -128,8 +128,9 @@ public class GatewayReconnectorTests : IDisposable
     {
         // Arrange: connector fails with auth error
         var callCount = 0;
+        var connectCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => callCount++)
+            .Callback(() => { callCount++; connectCalled.TrySetResult(); })
             .ThrowsAsync(new GatewayException("Authentication failed: invalid token",
                 JsonDocument.Parse(/* lang=json */ """
                     {"error":{"code":"UNAUTHORIZED","details":{"code":"UNAUTHORIZED","recommendedNextStep":"Generate a new token and set it in config."}}}
@@ -141,8 +142,8 @@ public class GatewayReconnectorTests : IDisposable
         // Act: start reconnection
         var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
 
-        // Give it time to fail once
-        await Task.Delay(500);
+        // Wait for the connect attempt to complete
+        await connectCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert: should have attempted only once, logged error + suggestion, and stopped
         Assert.Equal(1, callCount);
@@ -162,8 +163,13 @@ public class GatewayReconnectorTests : IDisposable
     {
         // Arrange: connector fails with network error first, then succeeds
         var attemptCount = 0;
+        var secondAttempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => attemptCount++)
+            .Callback(() =>
+            {
+                attemptCount++;
+                if (attemptCount == 2) secondAttempt.TrySetResult();
+            })
             .Returns(() =>
             {
                 if (attemptCount == 1)
@@ -177,8 +183,10 @@ public class GatewayReconnectorTests : IDisposable
         // Act: start reconnection
         var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
 
-        // Give it time to fail, delay, then succeed
-        await Task.Delay(2000);
+        // Wait for the retry attempt (second call to ConnectAsync)
+        await secondAttempt.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        // Small yield for async logging to complete
+        await Task.Delay(50);
 
         // Assert: should have attempted twice (fail once, succeed once)
         Assert.Equal(2, attemptCount);
@@ -192,8 +200,9 @@ public class GatewayReconnectorTests : IDisposable
     public async Task ReconnectLoop_OnDeviceTokenMismatch_LogsSuggestionAndDoesNotRetry()
     {
         var callCount = 0;
+        var connectCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => callCount++)
+            .Callback(() => { callCount++; connectCalled.TrySetResult(); })
             .ThrowsAsync(new GatewayException("Device token mismatch",
                 JsonDocument.Parse(/* lang=json */ """
                     {"error":{"code":"AUTH_DEVICE_TOKEN_MISMATCH","details":{"code":"AUTH_DEVICE_TOKEN_MISMATCH","recommendedNextStep":"Run: openclaw device token rotate"}}}
@@ -203,7 +212,7 @@ public class GatewayReconnectorTests : IDisposable
         _mockConsole.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<string>()));
 
         var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
-        await Task.Delay(500);
+        await connectCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Equal(1, callCount);
         _mockConsole.Verify(x => x.Log("gateway",
@@ -218,8 +227,9 @@ public class GatewayReconnectorTests : IDisposable
     {
         // Arrange: connector fails with a non-GatewayException that's not network-related
         var callCount = 0;
+        var connectCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => callCount++)
+            .Callback(() => { callCount++; connectCalled.TrySetResult(); })
             .ThrowsAsync(new InvalidOperationException("Something went terribly wrong"));
 
         _mockConsole.Setup(x => x.Log(It.IsAny<string>(), It.IsAny<string>()));
@@ -228,7 +238,8 @@ public class GatewayReconnectorTests : IDisposable
         // Act: start reconnection
         var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
 
-        await Task.Delay(500);
+        // Wait for the connect attempt to complete
+        await connectCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         // Assert: only attempted once, logged fatal message
         Assert.Equal(1, callCount);
@@ -243,8 +254,9 @@ public class GatewayReconnectorTests : IDisposable
     public async Task ReconnectLoop_OnPairingRequired_LogsSuggestionAndDoesNotRetry()
     {
         var callCount = 0;
+        var connectCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => callCount++)
+            .Callback(() => { callCount++; connectCalled.TrySetResult(); })
             .ThrowsAsync(new GatewayException("Pairing required",
                 JsonDocument.Parse(/* lang=json */ """
                     {"error":{"code":"PAIRING_REQUIRED","details":{"code":"PAIRING_REQUIRED"}}}
@@ -254,7 +266,7 @@ public class GatewayReconnectorTests : IDisposable
         _mockConsole.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<string>()));
 
         var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
-        await Task.Delay(500);
+        await connectCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Equal(1, callCount);
         _mockConsole.Verify(x => x.LogError("gateway",

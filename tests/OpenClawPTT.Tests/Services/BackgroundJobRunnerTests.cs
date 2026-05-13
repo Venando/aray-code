@@ -192,10 +192,12 @@ public class BackgroundJobRunnerTests
     [Fact]
     public void Constructor_AcceptsLogCallback()
     {
-        var messages = new List<string>();
-        var runner = new BackgroundJobRunner(msg => messages.Add(msg));
+        using var completed = new ManualResetEventSlim(false);
+        var messages = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var runner = new BackgroundJobRunner(msg => { messages.Add(msg); completed.Set(); });
 
         runner.RunAndForget(() => { }, "logged-job");
+        Assert.True(completed.Wait(1000), "Timed out waiting for log callback");
         Assert.NotEmpty(messages);
         Assert.Contains(messages, m => m.Contains("Fire-and-forget started: logged-job"));
     }

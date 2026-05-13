@@ -71,7 +71,7 @@ public class ConversationNamingServiceTests : IDisposable
     }
 
     [Fact]
-    public void OnMessageSent_DoesNothing_WhenDirectLlmNotConfigured()
+    public async Task OnMessageSent_DoesNothing_WhenDirectLlmNotConfigured()
     {
         var mockLlm = new Mock<IDirectLlmService>();
         mockLlm.Setup(x => x.IsConfigured).Returns(false);
@@ -79,7 +79,7 @@ public class ConversationNamingServiceTests : IDisposable
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
 
         service.OnMessageSent("Any message");
-        Thread.Sleep(500);
+        await Task.Delay(50); // small yield for any async processing
 
         Assert.Null(service.GetCurrentConversationName());
     }
