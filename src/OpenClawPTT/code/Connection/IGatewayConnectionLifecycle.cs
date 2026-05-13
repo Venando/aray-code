@@ -1,7 +1,5 @@
-using System.Net.WebSockets;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace OpenClawPTT;
 
@@ -10,6 +8,8 @@ namespace OpenClawPTT;
 /// </summary>
 public interface IGatewayConnectionLifecycle : IDisposable
 {
+    /// <summary>Fires after a successful connection to the gateway.</summary>
+    event Action? ConnectionSucceeded;
     bool IsConnected { get; }
     IMessageFraming? GetFraming();
     Task<JsonElement> SendRequestAsync(string method, object? parameters, CancellationToken ct, TimeSpan? timeout = null);

@@ -27,6 +27,9 @@ public sealed class GatewayClient : IGatewayClient
 
     private bool _isDisposed;
 
+    /// <summary>Fires after a successful connection to the gateway (initial or reconnection).</summary>
+    public event Action? ConnectionSucceeded;
+
     public GatewayClient(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource eventSource, IColorConsole console,
         Func<IGatewayConnectionLifecycle>? lifecycleFactory = null, IAgentStatusTracker? agentStatusTracker = null)
     {
@@ -36,6 +39,8 @@ public sealed class GatewayClient : IGatewayClient
         _console = console;
         _lifecycleFactory = lifecycleFactory ?? (() => new GatewayConnectionLifecycle(_cfg, _dev, _eventSource, console, agentStatusTracker: agentStatusTracker));
         _lifecycle = _lifecycleFactory();
+        if (_lifecycle != null)
+            _lifecycle.ConnectionSucceeded += () => ConnectionSucceeded?.Invoke();
         _agentStatusTracker = agentStatusTracker;
     }
 

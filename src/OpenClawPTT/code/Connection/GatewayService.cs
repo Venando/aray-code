@@ -22,6 +22,7 @@ public sealed class GatewayService : IGatewayService
     private Task? _ttsWireTask;
     private bool _disposed;
 
+    public event Action? Connected;
     public event Action<string>? AgentReplyFull;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;
@@ -89,6 +90,7 @@ public sealed class GatewayService : IGatewayService
     public async Task ConnectAsync(CancellationToken ct)
     {
         await _gatewayClient.ConnectAsync(ct);
+        Connected?.Invoke();
     }
 
     public async Task SendTextAsync(string text, CancellationToken ct)
@@ -169,6 +171,10 @@ public sealed class GatewayService : IGatewayService
 
         if (events != null)
             WireEventHandlers(events);
+
+        // Relay connection events to the public Connected event
+        if (client is GatewayClient gc)
+            gc.ConnectionSucceeded += () => Connected?.Invoke();
 
         return client;
     }

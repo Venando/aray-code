@@ -10,6 +10,8 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public interface IGatewayUIEvents
 {
+    /// <summary>Fires after a successful connection to the gateway (initial or reconnection).</summary>
+    event Action? Connected;
     event Action<string>? AgentReplyFull;
     event Action? AgentReplyDeltaStart;
     event Action<string>? AgentReplyDelta;

@@ -31,6 +31,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     private GatewayReconnector _gatewayReconnector;
     private readonly IBackgroundJobRunner _jobRunner;
 
+    public event Action? ConnectionSucceeded;
+
     public GatewayConnectionLifecycle(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource events, IColorConsole console,
         Func<IClientWebSocket>? socketFactory = null, ISnapshotProcessor? snapshotProcessor = null, IAgentStatusTracker? agentStatusTracker = null)
     {
@@ -83,6 +85,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
             var linkCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _disposeCts.Token);
             try { await CompleteAuthenticationAsync(tickMs, linkCts.Token); }
             finally { linkCts.Dispose(); }
+
+            ConnectionSucceeded?.Invoke();
         }
         finally { _gatewayReconnector.ReconnectLock.Release(); }
     }

@@ -98,6 +98,10 @@ public class AppRunner : IDisposable
         using var gateway = _factory.CreateGatewayService(_cfg, ttsSummarizer, pttStateMachine,
             ttsProviderTask: ttsInitTask);
 
+        // Subscribe to gateway connection events so the status dot updates
+        // on every successful connection (initial, manual reconnect, auto-reconnect).
+        gateway.Connected += () => _statusService.SetGatewayStatus("Connected", StatusColor.Green);
+
         // Wire ErrorLogStore into GatewayService so SendTextAsync/SendRpcAsync failures are logged
         if (gateway is GatewayService gw)
             gw.SetErrorLogStore(_errorLog);
