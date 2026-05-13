@@ -69,7 +69,7 @@ public sealed class GatewayClient : IGatewayClient
         ThrowIfDisposed();
 
         // lifecycle was created in constructor for testability.
-        // ConnectAsync internally manages keepalive (reads tickIntervalMs from server hello).
+        // ConnectAsync handles WebSocket handshake and session subscription.
         if (_lifecycle == null)
             throw new InvalidOperationException("Lifecycle not initialized.");
         await _lifecycle.ConnectAsync(ct);

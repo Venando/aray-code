@@ -241,50 +241,6 @@ public class GatewayConnectionLifecycleTests : IDisposable
         lifecycle.Dispose();
     }
 
-    // ─── ExtractTickIntervalMs ───────────────────────────────────────
-
-    [Fact]
-    public void ExtractTickIntervalMs_WithPolicy_ReturnsValue()
-    {
-        var lifecycle = CreateWithMockSocket();
-        var json = JsonDocument.Parse(/* lang=json */ """
-            {"policy":{"tickIntervalMs":30000}}
-            """).RootElement;
-
-        var result = InvokePrivate<int>(lifecycle, "ExtractTickIntervalMs", json);
-
-        Assert.Equal(30_000, result);
-        lifecycle.Dispose();
-    }
-
-    [Fact]
-    public void ExtractTickIntervalMs_NoPolicy_ReturnsDefault()
-    {
-        var lifecycle = CreateWithMockSocket();
-        var json = JsonDocument.Parse(/* lang=json */ """
-            {}
-            """).RootElement;
-
-        var result = InvokePrivate<int>(lifecycle, "ExtractTickIntervalMs", json);
-
-        Assert.Equal(15_000, result);
-        lifecycle.Dispose();
-    }
-
-    [Fact]
-    public void ExtractTickIntervalMs_PolicyWithoutTickInterval_ReturnsDefault()
-    {
-        var lifecycle = CreateWithMockSocket();
-        var json = JsonDocument.Parse(/* lang=json */ """
-            {"policy":{"otherField":"value"}}
-            """).RootElement;
-
-        var result = InvokePrivate<int>(lifecycle, "ExtractTickIntervalMs", json);
-
-        Assert.Equal(15_000, result);
-        lifecycle.Dispose();
-    }
-
     // ─── PersistDeviceTokenIfIssued ─────────────────────────────────
 
     [Fact]
@@ -334,7 +290,7 @@ public class GatewayConnectionLifecycleTests : IDisposable
     // ─── ProcessHelloPayload ─────────────────────────────────────────
 
     [Fact]
-    public void ProcessHelloPayload_ReturnsTickIntervalFromPolicy()
+    public void ProcessHelloPayload_WithPolicy_ProcessesSnapshotAndPersistsToken()
     {
         var mockSnapshotProcessor = new Mock<ISnapshotProcessor>();
         var lifecycle = CreateWithMockSocketAndSnapshotProcessor(mockSnapshotProcessor.Object);
@@ -348,16 +304,15 @@ public class GatewayConnectionLifecycleTests : IDisposable
             }
             """).RootElement;
 
-        var tickMs = InvokePrivate<int>(lifecycle, "ProcessHelloPayload", json);
+        InvokeVoid(lifecycle, "ProcessHelloPayload", json);
 
-        Assert.Equal(20_000, tickMs);
         Assert.Equal("tok", _cfg.DeviceToken);
         mockSnapshotProcessor.Verify(x => x.ProcessSnapshot(json), Times.Once);
         lifecycle.Dispose();
     }
 
     [Fact]
-    public void ProcessHelloPayload_WithoutOptionalFields_ReturnsDefaultTickMs()
+    public void ProcessHelloPayload_WithoutOptionalFields_DoesNotThrow()
     {
         var mockSnapshotProcessor = new Mock<ISnapshotProcessor>();
         var lifecycle = CreateWithMockSocketAndSnapshotProcessor(mockSnapshotProcessor.Object);
@@ -366,9 +321,8 @@ public class GatewayConnectionLifecycleTests : IDisposable
             {"type":"hello-ok"}
             """).RootElement;
 
-        var tickMs = InvokePrivate<int>(lifecycle, "ProcessHelloPayload", json);
-
-        Assert.Equal(15_000, tickMs);
+        var exception = Record.Exception(() => InvokeVoid(lifecycle, "ProcessHelloPayload", json));
+        Assert.Null(exception);
         mockSnapshotProcessor.Verify(x => x.ProcessSnapshot(json), Times.Once);
         lifecycle.Dispose();
     }

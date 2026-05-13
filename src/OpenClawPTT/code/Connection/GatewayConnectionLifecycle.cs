@@ -19,7 +19,6 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     private readonly IAgentStatusTracker? _agentStatusTracker;
 
     private IClientWebSocket _ws = null!;
-    private CancellationTokenSource? _tickCts;
     private Task? _recvTask;
 
     private readonly CancellationTokenSource _disposeCts = new CancellationTokenSource();
@@ -90,10 +89,10 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         try
         {
             await DisposeConnection(ct);
-            var tickMs = await ConnectWebSocketAndHandshakeAsync(ct);
+            await ConnectWebSocketAndHandshakeAsync(ct);
 
             var linkCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _disposeCts.Token);
-            try { await CompleteAuthenticationAsync(tickMs, linkCts.Token); }
+            try { await CompleteAuthenticationAsync(linkCts.Token); }
             finally { linkCts.Dispose(); }
 
             ConnectionSucceeded?.Invoke();
@@ -101,7 +100,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         finally { _gatewayReconnector.ReconnectLock.Release(); }
     }
 
-    private async Task<int> ConnectWebSocketAndHandshakeAsync(CancellationToken ct)
+    private async Task ConnectWebSocketAndHandshakeAsync(CancellationToken ct)
     {
         _ws = _socketFactory();
 
@@ -116,7 +115,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
             _recvTask = Task.Run(() => _gatewayMessager.ReceiveLoop(linkedCt), linkedCt);
 
             var nonce = await WaitForChallengeNonceAsync(linkedCt);
-            return await SendConnectRequestAndValidateAsync(nonce, linkedCt);
+            await SendConnectRequestAndValidateAsync(nonce, linkedCt);
         }
         finally { linkCts.Dispose(); }
     }
@@ -138,7 +137,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         return challenge.GetProperty("nonce").GetString()!;
     }
 
-    private async Task<int> SendConnectRequestAndValidateAsync(string nonce, CancellationToken linkedCt)
+    private async Task SendConnectRequestAndValidateAsync(string nonce, CancellationToken linkedCt)
     {
         var connectParams = BuildConnectParams(nonce);
 
@@ -148,7 +147,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         ValidateHelloOk(hello);
         _console.LogOk("gateway", "Authenticated — hello-ok received.");
 
-        return ProcessHelloPayload(hello);
+        ProcessHelloPayload(hello);
     }
 
     private Dictionary<string, object?> BuildConnectParams(string nonce)
@@ -215,7 +214,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
             throw new Exception($"Server returned hello-ok with error: {err}");
     }
 
-    private int ProcessHelloPayload(JsonElement hello)
+    private void ProcessHelloPayload(JsonElement hello)
     {
         var options = new JsonSerializerOptions { WriteIndented = true };
         string prettyHello = JsonSerializer.Serialize(hello, options);
@@ -224,7 +223,6 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         foreach (var line in lines) _console.Log("ws", line, LogLevel.Verbose);
 
         PersistDeviceTokenIfIssued(hello);
-        var tickMs = ExtractTickIntervalMs(hello);
 
         // Save last active agent before snapshot resets agents
         var previousAgentId = AgentRegistry.ActiveAgentId;
@@ -240,8 +238,6 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         {
             AgentRegistry.SetActiveAgent(restoreId);
         }
-
-        return tickMs;
     }
 
     private void PersistDeviceTokenIfIssued(JsonElement hello)
@@ -254,11 +250,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         }
     }
 
-    private async Task CompleteAuthenticationAsync(int tickMs, CancellationToken linkedCt)
+    private async Task CompleteAuthenticationAsync(CancellationToken linkedCt)
     {
-        StartKeepalive(tickMs, linkedCt);
-        _console.Log("gateway", $"Keepalive every {tickMs}ms.");
-
         await SubscribeToSessionAsync(linkedCt);
 
         // When the user switches active agent via StreamShell command, resubscribe
@@ -285,14 +278,6 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         });
     }
 
-    private int ExtractTickIntervalMs(JsonElement hello)
-    {
-        if (hello.TryGetProperty("policy", out var pol)
-            && pol.TryGetProperty("tickIntervalMs", out var tEl))
-            return tEl.GetInt32();
-        return 15_000;
-    }
-
     private async Task SubscribeToSessionAsync(CancellationToken linkedCt)
     {
         var sessionKey = AgentRegistry.ActiveSessionKey ?? "main";
@@ -304,37 +289,10 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         await SendRequestAsync("sessions.subscribe", subscribeParams, linkedCt);
     }
 
-    // ─── keepalive ──────────────────────────────────────────────────
-
-    private void StartKeepalive(int intervalMs, CancellationToken ct)
-    {
-        _tickCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var tickCt = _tickCts.Token;
-
-        _ = Task.Run(async () =>
-        {
-            while (!tickCt.IsCancellationRequested)
-            {
-                await Task.Delay(intervalMs, tickCt);
-                try
-                {
-                    if (_ws.State == WebSocketState.Open)
-                        await SendRequestAsync("tick", null, tickCt, TimeSpan.FromSeconds(5));
-                }
-                catch (OperationCanceledException) { break; }
-                catch (Exception ex) { _console.LogError("gateway", $"Tick failed: {ex.Message}"); }
-            }
-        }, tickCt);
-    }
-
     // ─── connection resilience ───────────────────────────────────────
 
     private async Task DisconnectInternalAsync(CancellationToken ct)
     {
-        _tickCts?.Cancel();
-        _tickCts?.Dispose();
-        _tickCts = null;
-
         if (_ws.State == WebSocketState.Open)
         {
             try
@@ -368,13 +326,6 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
     private async Task DisposeConnection(CancellationToken ct)
     {
-        if (_tickCts != null)
-        {
-            await _tickCts.CancelAsync();
-            _tickCts.Dispose();
-            _tickCts = null;
-        }
-
         _gatewayMessager?.Dispose();
         _gatewayMessager = null;
 
@@ -410,8 +361,6 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     {
         try { _disposeCts.Cancel(); } catch (ObjectDisposedException) { /* already disposed */ }
 
-        _tickCts?.Cancel();
-        _tickCts?.Dispose();
         _recvTask?.Wait(TimeSpan.FromSeconds(3));
 
         if (_ws != null && _ws.State == WebSocketState.Open)
