@@ -27,7 +27,7 @@ public enum TtsProviderType
 /// <summary>
 /// TTS service - manages TTS providers and configuration
 /// </summary>
-public sealed class TtsService : IDisposable
+public sealed class TtsService : ITtsService
 {
     private ITextToSpeech? _provider;
     private readonly TtsProviderType _providerType;

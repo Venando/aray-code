@@ -61,15 +61,24 @@ public class ServiceFactory : IServiceFactory
         var coordinator = new AgentOutputCoordinator(
             replyCoordinator, toolHandler, thinkingHandler, audioHandler);
 
+        // Create dependencies for DI injection into GatewayService
+        var audioPlayer = new AudioPlayerService(_colorConsole);
+        var device = new DeviceIdentity(cfg.DataDir);
+        device.EnsureKeypair();
+        var gatewayClient = new GatewayClient(cfg, device, new GatewayEventSource(), _colorConsole,
+            agentStatusTracker: _agentStatusTracker);
+
         return new GatewayService(cfg, _colorConsole, coordinator, summarizer, pttStateMachine,
-            agentStatusTracker: _agentStatusTracker, ttsProviderTask: ttsProviderTask);
+            agentStatusTracker: _agentStatusTracker, ttsProviderTask: ttsProviderTask,
+            audioPlayer: audioPlayer, initialGatewayClient: gatewayClient);
     }
 
     public virtual IAudioService CreateAudioService(AppConfig cfg)
     {
         if (_agentSettingsPersistence == null)
             throw new InvalidOperationException("AgentSettingsPersistence not initialized. Call InitializeAgentSettingsPersistence first.");
-        return new AudioService(cfg, _colorConsole, _agentSettingsPersistence);
+        var recorder = new AudioRecorder(cfg.SampleRate, cfg.Channels, cfg.BitsPerSample, cfg.MaxRecordSeconds);
+        return new AudioService(cfg, _colorConsole, _agentSettingsPersistence, recorder);
     }
 
     public IPttController CreatePttController(AppConfig cfg, IAudioService audioService, IHotkeyHookFactory? hotkeyHookFactory = null)
@@ -102,6 +111,11 @@ public class ServiceFactory : IServiceFactory
     {
         return new AppLoop(stateMachine, audioService, textSender, inputHandler, pttController, _colorConsole,
             requireConfirmBeforeSend);
+    }
+
+    public ITtsService CreateTtsService(AppConfig cfg, IColorConsole console)
+    {
+        return new TtsService(cfg, console);
     }
 
     public ITtsSummarizer CreateTtsSummarizer(IDirectLlmService? directLlm)

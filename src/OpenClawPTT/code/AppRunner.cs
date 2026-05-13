@@ -131,7 +131,7 @@ public class AppRunner : IDisposable
         try
         {
             _console.Log("tts", "Initializing TTS...");
-            using var ttsService = new TtsService(cfg, _console);
+            using var ttsService = _factory.CreateTtsService(cfg, _console);
             ct.ThrowIfCancellationRequested();
 
             if (ttsService.Provider != null)

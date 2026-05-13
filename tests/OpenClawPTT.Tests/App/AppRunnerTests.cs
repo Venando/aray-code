@@ -31,6 +31,7 @@ public class AppRunnerTests
 
         public IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
             IPttStateMachine? pttStateMachine = null, Task<ITextToSpeech?>? ttsProviderTask = null) => Gateway.Object;
+        public ITtsService CreateTtsService(AppConfig cfg, IColorConsole console) => Mock.Of<ITtsService>();
         public IAudioService CreateAudioService(AppConfig cfg) => Audio.Object;
         public IPttController CreatePttController(AppConfig cfg, IAudioService audioService, IHotkeyHookFactory? hotkeyHookFactory = null) => PttController.Object;
         public ITextMessageSender CreateTextMessageSender(IGatewayService gateway) => TextSender.Object;

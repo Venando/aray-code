@@ -24,17 +24,10 @@ public sealed class AudioService : IAudioService
     private int _disposedFlag; // 0 = not disposed, 1 = disposed
     
     /// <summary>
-    /// Creates an AudioService with a real AudioRecorder.
+    /// Creates an AudioService. Uses <paramref name="recorder"/> if provided,
+    /// otherwise creates a real <see cref="AudioRecorder"/> from config.
     /// </summary>
-    public AudioService(AppConfig config, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence)
-        : this(config, console, agentSettingsPersistence, recorder: null)
-    {
-    }
-    
-    /// <summary>
-    /// Creates an AudioService with an injected recorder (for testing).
-    /// </summary>
-    internal AudioService(AppConfig config, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IAudioRecorder? recorder)
+    public AudioService(AppConfig config, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IAudioRecorder? recorder = null)
     {
         _console = console ?? throw new ArgumentNullException(nameof(console));
         _agentSettingsPersistence = agentSettingsPersistence ?? throw new ArgumentNullException(nameof(agentSettingsPersistence));

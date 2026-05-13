@@ -40,6 +40,8 @@ public interface IServiceFactory
         IInputHandler inputHandler,
         bool requireConfirmBeforeSend = false);
 
+    ITtsService CreateTtsService(AppConfig cfg, IColorConsole console);
+
     ITtsSummarizer CreateTtsSummarizer(IDirectLlmService? directLlm);
 
     IConversationNamingService CreateConversationNamingService(IDirectLlmService? directLlm, AppConfig cfg);
