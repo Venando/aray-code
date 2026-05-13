@@ -142,6 +142,8 @@ sealed class FakeAudioService : IAudioService
     public void Dispose() { if (!_disposed) _disposed = true; }
 
     public void RecreateTranscriber(AppConfig config, IColorConsole console) { /* no-op for tests */ }
+
+    public void RecreateRecorder(AppConfig config, IColorConsole console) { /* no-op for tests */ }
 }
 
 // ─── Tests using real AudioService ─────────────────────────────

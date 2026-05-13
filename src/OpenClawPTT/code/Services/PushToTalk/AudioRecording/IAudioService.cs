@@ -13,4 +13,11 @@ public interface IAudioService : IDisposable
     /// Re-creates the transcriber after a config change (e.g. STT provider/model switched).
     /// </summary>
     void RecreateTranscriber(AppConfig config, IColorConsole console);
+
+    /// <summary>
+    /// Re-creates the audio recorder after a config change (e.g. SampleRate, Channels).
+    /// Skips if a recording is in progress — the new configuration applies on the next
+    /// recording cycle.
+    /// </summary>
+    void RecreateRecorder(AppConfig config, IColorConsole console);
 }

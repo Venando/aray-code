@@ -312,12 +312,15 @@ public class AppRunner : IDisposable
         // AudioService constructor creates a transcriber synchronously — mark STT as ready
         _statusService.SetSttStatus("Connected", StatusColor.Green);
 
-        // Re-create transcriber when config changes (e.g. STT provider/model switched via /reconfigure)
+        // Re-create transcriber and recorder when config changes
+        // (e.g. STT provider/model switched or SampleRate changed via /reconfigure)
         void OnConfigSaved(AppConfig newCfg)
         {
             _statusService.SetSttStatus("Reconfiguring", StatusColor.Yellow);
             try
             {
+                // Recorder first (so new params are in place before transcriber is recreated)
+                audioService.RecreateRecorder(newCfg, _console);
                 audioService.RecreateTranscriber(newCfg, _console);
                 _statusService.SetSttStatus("Connected", StatusColor.Green);
             }

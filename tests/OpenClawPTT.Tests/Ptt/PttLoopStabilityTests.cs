@@ -113,6 +113,7 @@ public class PttLoopStabilityTests : IDisposable
             => Task.FromResult<string?>(null);
         public void StopDiscard() { }
         public void RecreateTranscriber(AppConfig config, IColorConsole console) { /* no-op for tests */ }
+        public void RecreateRecorder(AppConfig config, IColorConsole console) { /* no-op for tests */ }
         public void Dispose() => Dispose_Count++;
     }
 
