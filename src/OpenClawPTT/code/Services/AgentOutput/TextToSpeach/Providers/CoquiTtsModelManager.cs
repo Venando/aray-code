@@ -186,21 +186,27 @@ public sealed class CoquiTtsModelManager
         CoquiUvEnvironment.EnsureVenvPythonMatches(projectDir);
 
         var uvPath = CoquiUvEnvironment.FindUv() ?? "uv";
+        // Use class method (no instance) — TTS() without model_name fails in 0.22.0
         var cmd = "import json; from TTS.api import TTS; " +
-                  "models = TTS().list_models(); " +
+                  "models = TTS.list_models(); " +
+                  // Defensive: wrap non-list returns (e.g. ModelManager in some versions)
+                  "if not isinstance(models, list): models = list(models) if hasattr(models,'__iter__') else []; " +
                   "print(json.dumps(models))";
 
         var psi = new ProcessStartInfo
         {
             FileName = uvPath,
-            Arguments = $"run --directory \"{projectDir}\" python -c \"{cmd}\"",
+            Arguments = $"run{CoquiUvEnvironment.GetPythonArg()} --directory \"{projectDir}\" python -c \"{cmd}\"",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
 
-        host.AddMessage("[grey]    Fetching model list from coqui/TTS on HuggingFace...[/]");
+        var pythonInfo = CoquiUvEnvironment.ValidatedPythonPath != null
+            ? $" (Python: {CoquiUvEnvironment.ValidatedPythonPath})"
+            : "";
+        host.AddMessage($"[grey]    Fetching model list from coqui/TTS on HuggingFace{pythonInfo}...[/]");
         progressCallback?.Invoke("Resolving packages", "uv setting up Python environment...", null);
 
         // First-run dep resolution can take minutes (Python + TTS + torch + pandas + ...)
