@@ -79,7 +79,7 @@ public sealed class ServiceStatusPart : StatusPartBase
             : "\u25CF"; // ●
 
         Builder.Append('[');
-        Builder.Append(ToMarkupColor(_color));
+        Builder.Append(_color.ToMarkupColor());
         Builder.Append(']');
         Builder.Append(dot);
         Builder.Append("[/]");
@@ -104,11 +104,4 @@ public sealed class ServiceStatusPart : StatusPartBase
         }
     }
 
-    private static string ToMarkupColor(StatusColor color) => color switch
-    {
-        StatusColor.Green => "green",
-        StatusColor.Yellow => "yellow",
-        StatusColor.Red => "red",
-        _ => "yellow",
-    };
 }

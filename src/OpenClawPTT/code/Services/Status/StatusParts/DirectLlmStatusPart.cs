@@ -51,7 +51,7 @@ public sealed class DirectLlmStatusPart : StatusPartBase
     protected override void BuildText()
     {
         Builder.Append(LlmPrefix);
-        Builder.Append(ToMarkupColor(_color));
+        Builder.Append(_color.ToMarkupColor());
         Builder.Append(StatusPrefix);
         Builder.Append(_label);
 
