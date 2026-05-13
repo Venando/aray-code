@@ -94,7 +94,22 @@ public sealed class AppConfigCommand : ICommand
                     return Task.CompletedTask;
                 }
 
+                // Apply the change to a clone for validation before save
+                var originalValue = property.GetValue(_appConfig);
+
+                // Set on the live config (AppConfigCommand owns this reference)
                 property.SetValue(_appConfig, convertedValue);
+
+                // Validate before persisting
+                var issues = _configService.Validate(_appConfig);
+                if (issues.Count > 0)
+                {
+                    _host.AddMessage("[yellow]  Validation warnings:[/]");
+                    foreach (var issue in issues)
+                        _host.AddMessage($"    [grey]• {Markup.Escape(issue)}[/]");
+                    _host.AddMessage("[grey]  The value will be saved despite warnings.[/]");
+                }
+
                 _configService.Save(_appConfig);
                 _host.AddMessage($"[green]  {key} set to: {convertedValue}[/]");
             }

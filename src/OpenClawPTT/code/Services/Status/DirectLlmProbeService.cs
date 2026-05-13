@@ -89,24 +89,19 @@ public sealed class DirectLlmProbeService : IDisposable
     /// Re-probes the Direct LLM whenever the app config is saved (e.g. via /appconfig).
     /// Filters to <c>DirectLlmUrl</c> / <c>DirectLlmModelName</c> changes only.
     /// </summary>
-    private async void OnConfigSaved(AppConfig newCfg)
+    private async void OnConfigSaved(ConfigChangedEventArgs e)
     {
-        var llmUrl = newCfg.DirectLlmUrl;
-        var llmModel = newCfg.DirectLlmModelName;
-
-        bool urlChanged = !string.Equals(_lastKnownLlmUrl, llmUrl, StringComparison.OrdinalIgnoreCase);
-        bool modelChanged = !string.Equals(_lastKnownLlmModel, llmModel, StringComparison.OrdinalIgnoreCase);
-
-        if (!urlChanged && !modelChanged)
+        bool llmChanged = e.AnyChanged(nameof(AppConfig.DirectLlmUrl), nameof(AppConfig.DirectLlmModelName));
+        if (!llmChanged)
             return;
 
-        _lastKnownLlmUrl = llmUrl;
-        _lastKnownLlmModel = llmModel;
+        _lastKnownLlmUrl = e.NewConfig.DirectLlmUrl;
+        _lastKnownLlmModel = e.NewConfig.DirectLlmModelName;
 
         try
         {
-            using var freshService = _factory.CreateDirectLlmService(newCfg);
-            await ProbeAndUpdateAsync(freshService, newCfg, CancellationToken.None);
+            using var freshService = _factory.CreateDirectLlmService(e.NewConfig);
+            await ProbeAndUpdateAsync(freshService, e.NewConfig, CancellationToken.None);
         }
         catch (Exception ex)
         {

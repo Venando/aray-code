@@ -6,6 +6,7 @@ namespace OpenClawPTT.Services.Commands;
 public sealed class ReconfigureCommand : ICommand
 {
     private readonly IStreamShellHost _host;
+    private readonly IConfigWizardOrchestrator _wizard;
     private readonly IConfigurationService _configService;
 
     public string Name => "reconfigure";
@@ -14,9 +15,10 @@ public sealed class ReconfigureCommand : ICommand
     public ShellCommandType Type => ShellCommandType.Configuration;
     public string[]? Suggestions => null;
 
-    public ReconfigureCommand(IStreamShellHost host, IConfigurationService configService)
+    public ReconfigureCommand(IStreamShellHost host, IConfigWizardOrchestrator wizard, IConfigurationService configService)
     {
         _host = host;
+        _wizard = wizard;
         _configService = configService;
     }
 
@@ -32,7 +34,7 @@ public sealed class ReconfigureCommand : ICommand
         _host.AddMessage("[cyan2]  Starting reconfiguration wizard...[/]");
         try
         {
-            var newCfg = await _configService.ReconfigureAsync(_host, currentCfg, ct);
+            var newCfg = await _wizard.ReconfigureAsync(_host, currentCfg, ct);
             _host.AddMessage("[green]  Configuration updated.[/]");
         }
         catch (OperationCanceledException)

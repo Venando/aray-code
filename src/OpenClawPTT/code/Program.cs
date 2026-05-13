@@ -13,6 +13,7 @@ internal static class Program
 
         var cts = new CancellationTokenSource();
         IConfigurationService configService = new ConfigurationService();
+        IConfigWizardOrchestrator wizard = new ConfigWizardOrchestrator(configService);
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         var shellHost = new StreamShellHost();
 
@@ -38,7 +39,7 @@ internal static class Program
         var appStatusPanel = new AppStatusBottomPanel(mainAgentsPart, appConfig.BottomPanelLineCount);
         shellHost.SetDefaultPanel(appStatusPanel);
 
-        var bootstrapper = new AppBootstrapper(configService, factory, shellHost, colorConsole,
+        var bootstrapper = new AppBootstrapper(configService, wizard, factory, shellHost, colorConsole,
             mainAgentsPart: mainAgentsPart, testModeEnabled: testModeEnabled);
         var exitCode = await bootstrapper.RunAsync(cts.Token);
 

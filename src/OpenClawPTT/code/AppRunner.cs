@@ -14,10 +14,11 @@ using StreamShell;
 /// </summary>
 public class AppRunner : IDisposable
 {
-    private readonly AppConfig _cfg;
+    private AppConfig _cfg;
     private readonly IServiceFactory _factory;
     private readonly IStreamShellHost _shellHost;
     private readonly IConfigurationService _configService;
+    private readonly IConfigWizardOrchestrator? _wizard;
     private readonly IColorConsole _console;
     private readonly ErrorLogStore _errorLog;
     private readonly IStatusService _statusService;
@@ -29,12 +30,13 @@ public class AppRunner : IDisposable
     /// </summary>
     public const int MaxRestartCount = 3;
 
-    public AppRunner(AppConfig cfg, IServiceFactory factory, IStreamShellHost shellHost, IConfigurationService configService, IColorConsole console, MainAgentsPart? mainAgentsPart = null)
+    public AppRunner(AppConfig cfg, IServiceFactory factory, IStreamShellHost shellHost, IConfigurationService configService, IColorConsole console, MainAgentsPart? mainAgentsPart = null, IConfigWizardOrchestrator? wizard = null)
     {
         _cfg = cfg;
         _factory = factory;
         _shellHost = shellHost;
         _configService = configService;
+        _wizard = wizard;
         _console = console;
         _errorLog = new ErrorLogStore(cfg.DataDir);
         _statusService = new StatusService(shellHost, mainAgentsPart: mainAgentsPart);
@@ -278,7 +280,8 @@ public class AppRunner : IDisposable
             ttsSummarizer: ttsSummarizer,
             namingService: namingService,
             errorLogStore: _errorLog,
-            statusService: _statusService
+            statusService: _statusService,
+            wizard: _wizard
         );
         shellCommands.CommandExecuted += namingService.OnCommandExecuted;
 
@@ -315,16 +318,130 @@ public class AppRunner : IDisposable
         // AudioService constructor creates a transcriber synchronously — mark STT as ready
         _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
 
-        // Re-create transcriber and recorder when config changes
-        // (e.g. STT provider/model switched or SampleRate changed via /reconfigure)
-        void OnConfigSaved(AppConfig newCfg)
+        // When gateway connection parameters change, recreate the gateway client
+        // and automatically reconnect. The client is disposed and rebuilt from the
+        // new config so that the WebSocket URI and auth tokens take effect.
+        void OnGatewayConfigSaved(ConfigChangedEventArgs e)
         {
+            var gwProps = new[]
+            {
+                nameof(AppConfig.GatewayUrl),
+                nameof(AppConfig.AuthToken),
+                nameof(AppConfig.DeviceToken),
+                nameof(AppConfig.TlsFingerprint),
+            };
+            if (!e.AnyChanged(gwProps))
+                return;
+
+            _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Yellow);
+            _console.PrintInfo("Gateway configuration changed — reconnecting...");
+            try
+            {
+                gateway.RecreateWithConfig(e.NewConfig);
+
+                // Fire-and-forget reconnect: don't block the event loop
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await gateway.ConnectAsync(CancellationToken.None);
+                        _console.LogOk("gateway", "Reconnected with new configuration.");
+                        _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
+                    }
+                    catch (Exception reconnectEx)
+                    {
+                        _console.LogError("gateway", $"Failed to reconnect with new config: {reconnectEx.Message}");
+                        _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _console.LogError("gateway", $"Failed to recreate gateway client: {ex.Message}");
+                _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
+            }
+        }
+        _configService.ConfigSaved += OnGatewayConfigSaved;
+
+        // Update _cfg reference and reapply display/UI config when relevant changes happen
+        void OnDisplayConfigSaved(ConfigChangedEventArgs e)
+        {
+            var displayProps = new[]
+            {
+                nameof(AppConfig.UserMessagePrefix),
+                nameof(AppConfig.RightMarginIndent),
+                nameof(AppConfig.EnableWordWrap),
+                nameof(AppConfig.DebugLevel),
+                nameof(AppConfig.ThinkingDisplayMode),
+                nameof(AppConfig.ThinkingPreviewLines),
+                nameof(AppConfig.HistoryDisplayCount),
+                nameof(AppConfig.BottomPanelLineCount),
+                nameof(AppConfig.VisualMode),
+                nameof(AppConfig.VisualFeedbackEnabled),
+                nameof(AppConfig.VisualFeedbackPosition),
+                nameof(AppConfig.VisualFeedbackSize),
+                nameof(AppConfig.VisualFeedbackOpacity),
+                nameof(AppConfig.VisualFeedbackColor),
+                nameof(AppConfig.VisualFeedbackRimThickness),
+            };
+            var positionProps = new[]
+            {
+                nameof(AppConfig.ActiveAgentPosition),
+                nameof(AppConfig.ModelPosition),
+                nameof(AppConfig.ThinkingLevelPosition),
+                nameof(AppConfig.ContextPosition),
+                nameof(AppConfig.ConversationNamePosition),
+                nameof(AppConfig.ConnectionStatusPosition),
+                nameof(AppConfig.TtsStatusPosition),
+                nameof(AppConfig.SttStatusPosition),
+                nameof(AppConfig.DirectLlmPosition),
+                nameof(AppConfig.MainAgentsPosition),
+            };
+
+            bool displayChanged = e.AnyChanged(displayProps);
+            bool positionsChanged = e.AnyChanged(positionProps);
+
+            if (!displayChanged && !positionsChanged)
+                return;
+
+            // Update the canonical config reference so downstream code is fresh
+            _cfg = e.NewConfig;
+
+            if (positionsChanged)
+                _statusService.ApplyConfigPositions(e.NewConfig);
+
+            if (displayChanged)
+                _console.ApplyConsoleConfig(e.NewConfig);
+        }
+        _configService.ConfigSaved += OnDisplayConfigSaved;
+
+        // Re-create transcriber and recorder when STT/audio config changes
+        void OnConfigSaved(ConfigChangedEventArgs e)
+        {
+            // Only react if an STT or audio-recording property actually changed
+            var sttProps = new[]
+            {
+                nameof(AppConfig.SttProvider),
+                nameof(AppConfig.GroqModel),
+                nameof(AppConfig.GroqApiKey),
+                nameof(AppConfig.OpenAiApiKey),
+                nameof(AppConfig.OpenAiModel),
+                nameof(AppConfig.WhisperCppModel),
+                nameof(AppConfig.WhisperCppBinaryPath),
+                nameof(AppConfig.SampleRate),
+                nameof(AppConfig.Channels),
+                nameof(AppConfig.BitsPerSample),
+                nameof(AppConfig.MaxRecordSeconds),
+            };
+            if (!e.AnyChanged(sttProps))
+                return;
+
             _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Yellow);
             try
             {
                 // Recorder first (so new params are in place before transcriber is recreated)
-                audioService.RecreateRecorder(newCfg, _console);
-                audioService.RecreateTranscriber(newCfg, _console);
+                audioService.RecreateRecorder(e.NewConfig, _console);
+                audioService.RecreateTranscriber(e.NewConfig, _console);
                 _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
             }
             catch (Exception ex)
@@ -357,6 +474,8 @@ public class AppRunner : IDisposable
         }
         finally
         {
+            _configService.ConfigSaved -= OnGatewayConfigSaved;
+            _configService.ConfigSaved -= OnDisplayConfigSaved;
             _configService.ConfigSaved -= OnConfigSaved;
         }
     }

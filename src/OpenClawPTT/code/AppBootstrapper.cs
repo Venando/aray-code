@@ -11,6 +11,7 @@ public sealed class AppBootstrapper : IDisposable
 {
     private readonly IServiceFactory _factory;
     private readonly IConfigurationService _configService;
+    private readonly IConfigWizardOrchestrator _wizard;
     private readonly IStreamShellHost _shellHost;
     private readonly Func<AppConfig, IServiceFactory, AppRunner> _runnerFactory;
     private readonly bool _testModeEnabled;
@@ -21,6 +22,7 @@ public sealed class AppBootstrapper : IDisposable
 
     public AppBootstrapper(
         IConfigurationService configService,
+        IConfigWizardOrchestrator wizard,
         IServiceFactory factory,
         IStreamShellHost shellHost,
         IColorConsole console,
@@ -29,12 +31,13 @@ public sealed class AppBootstrapper : IDisposable
         bool testModeEnabled = false)
     {
         _configService = configService;
+        _wizard = wizard;
         _factory = factory;
         _shellHost = shellHost;
         _console = console;
         _mainAgentsPart = mainAgentsPart;
         _testModeEnabled = testModeEnabled;
-        _runnerFactory = runnerFactory ?? ((cfg, f) => new AppRunner(cfg, f, _shellHost, _configService, console, mainAgentsPart));
+        _runnerFactory = runnerFactory ?? ((cfg, f) => new AppRunner(cfg, f, _shellHost, _configService, console, mainAgentsPart, _wizard));
     }
 
     /// <summary>Runs the application and returns the exit code.</summary>
@@ -65,7 +68,7 @@ public sealed class AppBootstrapper : IDisposable
                 }
             }, TaskContinuationOptions.ExecuteSynchronously);
 
-            var cfg = await _configService.LoadOrSetupAsync(_shellHost, ct: _cts.Token);
+            var cfg = await _wizard.LoadOrSetupAsync(_shellHost, ct: _cts.Token);
 
             // Apply terminal display configuration from loaded config
             _console.ApplyConsoleConfig(cfg);

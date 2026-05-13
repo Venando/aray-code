@@ -67,36 +67,58 @@ public class ConfigurationServiceTests
     public void ConfigurationService_DefaultConstructor_UsesFileConfigStorage()
     {
         var service = new ConfigurationService();
-        var result = service.Load();
         Assert.NotNull(service);
     }
 
     [Fact]
-    public async Task ReconfigureAsync_WithCancellation_HandlesGracefully()
+    public void Save_FiresConfigSavedEvent()
     {
         // Arrange
         var mockStorage = new Mock<IConfigStorage>();
-        mockStorage.Setup(x => x.Load()).Returns(new AppConfig { GatewayUrl = "wss://test.example.com" });
-
+        mockStorage.Setup(x => x.Load()).Returns((AppConfig?)null);
         var service = new ConfigurationService(mockStorage.Object);
-        var existing = new AppConfig { GatewayUrl = "wss://old.example.com" };
-        var shellHost = new Mock<IStreamShellHost>();
+        var config = new AppConfig { GatewayUrl = "wss://test.example.com" };
+        bool fired = false;
 
-        // Simulate cancellation during setup
-        var cts = new CancellationTokenSource();
-        cts.Cancel();
+        service.ConfigSaved += args =>
+        {
+            fired = true;
+            Assert.Same(config, args.NewConfig);
+        };
 
-        // Fake console with immediate cancellation
-        // Act & Assert - should not throw, just complete
-        var result = await service.ReconfigureAsync(shellHost.Object, existing, cts.Token);
-        Assert.NotNull(result);
+        // Act
+        service.Save(config);
+
+        // Assert
+        Assert.True(fired);
     }
 
     [Fact]
-    public void Constructor_NullConfigStorage_HandledGracefully()
+    public void Save_FiresConfigValidatingEvent()
     {
-        var service = new ConfigurationService(null!);
+        // Arrange
+        var mockStorage = new Mock<IConfigStorage>();
+        mockStorage.Setup(x => x.Load()).Returns((AppConfig?)null);
+        var service = new ConfigurationService(mockStorage.Object);
+        var config = new AppConfig { GatewayUrl = "wss://test.example.com" };
+        bool fired = false;
 
-        Assert.NotNull(service);
+        service.ConfigValidating += args =>
+        {
+            fired = true;
+            Assert.Same(config, args.NewConfig);
+        };
+
+        // Act
+        service.Save(config);
+
+        // Assert
+        Assert.True(fired);
+    }
+
+    [Fact]
+    public void Constructor_NullConfigStorage_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new ConfigurationService(null!));
     }
 }

@@ -59,6 +59,20 @@ public sealed class FileConfigStorage : IConfigStorage
         }
         catch (JsonException)
         {
+            // Back up corrupted config before returning null so the user
+            // can recover their settings. The timestamp suffix prevents
+            // overwriting on repeated failures.
+            try
+            {
+                var backupPath = path + $".corrupted.{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+                File.Copy(path, backupPath, overwrite: false);
+            }
+            catch
+            {
+                // Best-effort backup — if it fails (permissions, disk full),
+                // don't let that prevent returning null.
+            }
+
             return null;
         }
     }

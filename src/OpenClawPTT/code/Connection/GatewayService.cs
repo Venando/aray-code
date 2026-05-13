@@ -10,7 +10,7 @@ namespace OpenClawPTT.Services;
 
 public sealed class GatewayService : IGatewayService
 {
-    private readonly AppConfig _config;
+    private AppConfig _config;
     private readonly IColorConsole _console;
     private readonly ITtsSummarizer? _summarizer;
     private readonly IPttStateMachine? _pttStateMachine;
@@ -128,6 +128,10 @@ public sealed class GatewayService : IGatewayService
         if (_disposed) throw new ObjectDisposedException(nameof(GatewayService));
 
         _gatewayClient.Dispose();
+        _config = newConfig;
+        // The TTS audio handler was created with the old config — recreate wire task
+        // with fresh TTS provider. The coordinator's audio handler will be replaced.
+        // For now, the new gateway client gets the latest config fields via _config.
         _gatewayClient = CreateGatewayClient();
     }
 

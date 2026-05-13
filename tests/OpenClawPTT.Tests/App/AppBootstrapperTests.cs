@@ -10,6 +10,7 @@ using Xunit;
 public class AppBootstrapperTests : IDisposable
 {
     private readonly Mock<IConfigurationService> _fakeConfig;
+    private readonly Mock<IConfigWizardOrchestrator> _fakeWizard;
     private readonly Mock<IServiceFactory> _fakeFactory;
     private readonly Mock<IStreamShellHost> _fakeShellHost;
     private readonly Mock<IColorConsole> _fakeConsole;
@@ -23,7 +24,9 @@ public class AppBootstrapperTests : IDisposable
         _fakeConsole = new Mock<IColorConsole>();
 
         _fakeConfig = new Mock<IConfigurationService>();
-        _fakeConfig.Setup(x => x.LoadOrSetupAsync(It.IsAny<IStreamShellHost>(), false, It.IsAny<CancellationToken>()))
+
+        _fakeWizard = new Mock<IConfigWizardOrchestrator>();
+        _fakeWizard.Setup(x => x.LoadOrSetupAsync(It.IsAny<IStreamShellHost>(), false, It.IsAny<CancellationToken>()))
             .Returns(async (IStreamShellHost _, bool _, CancellationToken ct) =>
             {
                 // If cancelled before/during load, throw cancellation
@@ -31,6 +34,7 @@ public class AppBootstrapperTests : IDisposable
                     throw new OperationCanceledException();
                 return new AppConfig();
             });
+
         _fakeFactory = new Mock<IServiceFactory>();
         _fakeFactory.Setup(x => x.CreateStreamShellHost()).Returns(_fakeShellHost.Object);
         _fakeFactory.Setup(x => x.CreateGatewayService(It.IsAny<AppConfig>()))
@@ -64,7 +68,8 @@ public class AppBootstrapperTests : IDisposable
             _fakeShellHost.Object,
             _fakeConfig.Object,
             _fakeConsole.Object,
-            (MainAgentsPart?)null!);
+            (MainAgentsPart?)null!,
+            (IConfigWizardOrchestrator?)null);
         mock.CallBase = false;
         if (throws != null)
             mock.Setup(x => x.RunAsync(It.IsAny<CancellationToken>())).ThrowsAsync(throws);
@@ -81,6 +86,7 @@ public class AppBootstrapperTests : IDisposable
         var mockRunner = MakeMockRunner(0);
         var bootstrapper = new AppBootstrapper(
             _fakeConfig.Object,
+            _fakeWizard.Object,
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConsole.Object,
@@ -101,6 +107,7 @@ public class AppBootstrapperTests : IDisposable
         var mockRunner = MakeMockRunner(1);
         var bootstrapper = new AppBootstrapper(
             _fakeConfig.Object,
+            _fakeWizard.Object,
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConsole.Object,
@@ -118,11 +125,12 @@ public class AppBootstrapperTests : IDisposable
     [Fact]
     public async Task RunAsync_ConfigLoadThrows_ReturnsExitError()
     {
-        _fakeConfig.Setup(x => x.LoadOrSetupAsync(It.IsAny<IStreamShellHost>(), false, It.IsAny<CancellationToken>()))
+        _fakeWizard.Setup(x => x.LoadOrSetupAsync(It.IsAny<IStreamShellHost>(), false, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("config broken"));
 
         var bootstrapper = new AppBootstrapper(
             _fakeConfig.Object,
+            _fakeWizard.Object,
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConsole.Object);
@@ -138,6 +146,7 @@ public class AppBootstrapperTests : IDisposable
         var mockRunner = MakeMockRunner(throws: new InvalidOperationException("runner boom"));
         var bootstrapper = new AppBootstrapper(
             _fakeConfig.Object,
+            _fakeWizard.Object,
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConsole.Object,
@@ -160,6 +169,7 @@ public class AppBootstrapperTests : IDisposable
 
         var bootstrapper = new AppBootstrapper(
             _fakeConfig.Object,
+            _fakeWizard.Object,
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConsole.Object,
@@ -185,6 +195,7 @@ public class AppBootstrapperTests : IDisposable
         var mockRunner = MakeMockRunner(0);
         var bootstrapper = new AppBootstrapper(
             _fakeConfig.Object,
+            _fakeWizard.Object,
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConsole.Object,
@@ -207,6 +218,7 @@ public class AppBootstrapperTests : IDisposable
         var mockRunner = MakeMockRunner(0);
         var bootstrapper = new AppBootstrapper(
             _fakeConfig.Object,
+            _fakeWizard.Object,
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConsole.Object,
