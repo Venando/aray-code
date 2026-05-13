@@ -297,7 +297,7 @@ public sealed class StatusService : IStatusService, IDisposable
         bool needsAnimation = false;
         foreach (var part in _animatedParts)
         {
-            if (part.IsDirty)
+            if (part.IsYellow)
             {
                 needsAnimation = true;
                 break;

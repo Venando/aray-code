@@ -29,6 +29,9 @@ public sealed class ServiceStatusPart : StatusPartBase
     /// <inheritdoc />
     public override string SeparatorBefore => " ";
 
+    /// <summary>Whether this part is currently in the yellow (transitional) state.</summary>
+    internal bool IsYellow => _color == StatusColor.Yellow;
+
     /// <summary>Updates the status color. Marks dirty on actual change.</summary>
     public void SetStatus(StatusColor color)
     {
@@ -65,6 +68,8 @@ public sealed class ServiceStatusPart : StatusPartBase
 
     protected override void BuildText()
     {
+        // Leading space before label (e.g. " GW:●") — ensures gap after separator fill
+        Builder.Append(' ');
         // Label prefix (e.g. "GW:", "TTS:", "STT:")
         Builder.Append(_label);
 

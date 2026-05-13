@@ -11,7 +11,7 @@ namespace OpenClawPTT.Services.StatusParts;
 public sealed class DirectLlmStatusPart : StatusPartBase
 {
     // Pre-baked constant markup fragments
-    private const string LlmPrefix = " LLM:[";
+    private const string LlmPrefix = "LLM:[";
     private const string StatusPrefix = "]● ";
     private const string RightSuffix = "[/]";
 
