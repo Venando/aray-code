@@ -92,7 +92,10 @@ public sealed class SttConfigSection : ConfigSectionBase
 
         // ── Provider selection ──
         string? provider = await PromptSelectionHelper.PromptStringAsync(host,
-            "Choose STT provider:", ProviderOptions, cancellationToken: ct);
+            "Choose STT provider:", ProviderOptions,
+            defaultValue: config.SttProvider,
+            allowCancel: true,
+            cancellationToken: ct);
 
         if (provider == null)
         {
