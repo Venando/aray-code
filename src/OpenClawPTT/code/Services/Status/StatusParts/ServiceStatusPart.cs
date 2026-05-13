@@ -11,7 +11,7 @@ namespace OpenClawPTT.Services.StatusParts;
 public sealed class ServiceStatusPart : StatusPartBase
 {
     // Animation frames for yellow/transitional state: thin → medium → full → medium
-    private static readonly char[] YellowFrames = ['·', '•', '●', '•'];
+    private static readonly char[] YellowFrames = ['•', '●', '•', '●'];
 
     private readonly string _label;
     private StatusColor _color = StatusColor.Yellow;
