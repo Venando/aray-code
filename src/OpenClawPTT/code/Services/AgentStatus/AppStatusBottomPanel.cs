@@ -99,6 +99,11 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
             {
                 _cachedConsoleWidth = ConsoleMetrics.GetWindowWidth();
 
+                // When the MainAgentsPart is configured to None, the bottom
+                // panel should be entirely empty — no "No agents connected" text.
+                if (_agentsPart.Position == DisplayPosition.None)
+                    return _emptyLines;
+
                 var visible = _agentsPart.GetVisibleAgents();
 
                 if (visible.Count > 0)
