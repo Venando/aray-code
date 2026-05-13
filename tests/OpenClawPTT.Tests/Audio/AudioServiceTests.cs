@@ -40,6 +40,7 @@ public sealed class MockTranscriber : ITranscriber
 
     public async Task<string> TranscribeAsync(byte[] wav, string fileName = "audio.wav", CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         CallCount++;
         LastBytes = wav;
         if (ThrowException != null) throw ThrowException;
@@ -491,5 +492,58 @@ public class FakeAudioServiceTests : IDisposable
 
         await _service.SimulateStopWithBytesAsync(new byte[2048], default);
         Assert.False(_service.IsRecording);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Tests for VerifyTranscriberAsync cancellation
+// ═══════════════════════════════════════════════════════════════
+
+public class AudioServiceCancellationTests : IDisposable
+{
+    private AudioService? _service;
+    private MockAudioRecorder? _recorder;
+    private MockTranscriber? _transcriber;
+    private AppConfig? _config;
+    private readonly Mock<IColorConsole> _mockConsole = new();
+
+    private void Setup()
+    {
+        _service?.Dispose();
+        _recorder = new MockAudioRecorder();
+        _transcriber = new MockTranscriber();
+        _config = new AppConfig
+        {
+            GroqApiKey = "test-key",
+        };
+        _service = new AudioService(_config, _mockConsole.Object, Mock.Of<IAgentSettingsPersistence>(), _recorder);
+
+        // Replace the factory-created transcriber with our mock
+        var transcriberField = typeof(AudioService)
+            .GetField("_transcriber", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        transcriberField.SetValue(_service, _transcriber);
+    }
+
+    public void Dispose() => _service?.Dispose();
+
+    [Fact]
+    public async Task VerifyTranscriberAsync_PreCancelledToken_ThrowsOperationCanceledException()
+    {
+        Setup();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _service!.VerifyTranscriberAsync(_config!, _mockConsole.Object, cts.Token));
+    }
+
+    [Fact]
+    public async Task VerifyTranscriberAsync_ValidToken_Succeeds()
+    {
+        Setup();
+        _transcriber!.TranscribeFunc = _ => "";
+
+        // Should not throw
+        await _service!.VerifyTranscriberAsync(_config!, _mockConsole.Object, CancellationToken.None);
     }
 }

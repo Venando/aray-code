@@ -214,8 +214,12 @@ public partial class AppRunner : IDisposable
         {
             try
             {
-                await audioService.VerifyTranscriberAsync(_cfg, _console, CancellationToken.None);
+                await audioService.VerifyTranscriberAsync(_cfg, _console, ct);
                 _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
+            }
+            catch (OperationCanceledException)
+            {
+                // App shutting down — verification cancelled, leave status as-is
             }
             catch (Exception ex)
             {
