@@ -1,6 +1,5 @@
 namespace OpenClawPTT;
 
-using System.Net.WebSockets;
 using OpenClawPTT.Services;
 using OpenClawPTT.Services.Commands;
 using OpenClawPTT.Services.Diagnostics;
@@ -12,7 +11,7 @@ using StreamShell;
 /// Owns the top-level application composition and run loop.
 /// Disposable so it can be unit-tested in isolation from Program.
 /// </summary>
-public class AppRunner : IDisposable
+public partial class AppRunner : IDisposable
 {
     private AppConfig _cfg;
     private readonly IServiceFactory _factory;
@@ -122,43 +121,6 @@ public class AppRunner : IDisposable
         return await RunPttLoopAsync(gateway, pttStateMachine, directLlmService, ttsSummarizer, gatewayConnected, ct);
     }
 
-    /// <summary>
-    /// Initializes the TTS provider on a background thread.
-    /// Updates status via <see cref="_statusService"/> as init progresses.
-    /// </summary>
-    private async Task<ITextToSpeech?> InitializeTtsProviderAsync(AppConfig cfg, CancellationToken ct)
-    {
-        try
-        {
-            _console.Log("tts", "Initializing TTS...");
-            using var ttsService = new TtsService(cfg, _console);
-            ct.ThrowIfCancellationRequested();
-
-            if (ttsService.Provider != null)
-            {
-                _statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Green);
-                _console.LogOk("tts", $"TTS connected ({ttsService.ProviderType})");
-                return ttsService.ReleaseProvider();
-            }
-
-            // Provider is null (Edge with no key, etc.) — warn but don't error
-            _statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Red);
-            _console.Log("tts", "TTS provider is null (not configured).");
-            return null;
-        }
-        catch (OperationCanceledException)
-        {
-            _statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Red);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Red);
-            _console.LogError("tts", $"TTS initialization failed: {ex.Message}");
-            return null;
-        }
-    }
-
     /// <summary>Result of the guided connect attempt.</summary>
     private enum ConnectResult { Success, ContinueWithoutGateway, GiveUp }
 
@@ -237,78 +199,6 @@ public class AppRunner : IDisposable
     }
 
     /// <summary>
-    /// Creates and registers all StreamShell commands and the agent hotkey service.
-    /// Also wires session snapshot cleanup and command-executed events.
-    /// </summary>
-    private async Task<(
-            AgentHotkeyService HotkeyService,
-            StreamShellInputHandler ShellCommands,
-            SessionResetSnapshotCleaner SnapshotCleaner,
-            IAppLoop PttLoop)>
-        CreateShellAndHotkeyServicesAsync(
-            IGatewayService gateway,
-            IPttStateMachine pttStateMachine,
-            ConversationNamingTextMessageSender namingTextSender,
-            IConversationNamingService namingService,
-            IDirectLlmService directLlmService,
-            ITtsSummarizer ttsSummarizer,
-            IAudioService audioService,
-            Services.IInputHandler inputHandler,
-            bool gatewayConnected,
-            CancellationToken ct)
-    {
-        var pttController = new PttController();
-
-        var agentHotkeyService = new AgentHotkeyService(
-            pttController, namingTextSender, _shellHost, _cfg,
-            _factory.GetAgentSettingsPersistence(),
-            gatewayService: gateway,
-            pttStateMachine: pttStateMachine,
-            console: _console);
-
-        var shellCommands = new StreamShellInputHandler(
-            _shellHost,
-            namingTextSender,
-            gateway,
-            _configService,
-            _cfg,
-            onQuit: () => _cts?.Cancel(),
-            console: _console,
-            agentSettingsPersistence: _factory.GetAgentSettingsPersistence(),
-            pttStateMachine: pttStateMachine,
-            directLlmService: directLlmService.IsConfigured ? directLlmService : null,
-            ttsSummarizer: ttsSummarizer,
-            namingService: namingService,
-            errorLogStore: _errorLog,
-            statusService: _statusService,
-            wizard: _wizard
-        );
-        shellCommands.CommandExecuted += namingService.OnCommandExecuted;
-
-        var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentStatusTracker);
-        shellCommands.CommandExecuted += snapshotCleaner.Handle;
-
-        await shellCommands.RegisterBaseAsync();
-
-        if (gatewayConnected)
-            shellCommands.SetGatewayConnected(true);
-
-        if (directLlmService.IsConfigured)
-            shellCommands.SetDirectLlmConfigured(true);
-
-        // Wire agent hotkey history printing to the canonical shared method
-        agentHotkeyService.PrintSessionHistoryAsync = shellCommands.PrintSessionHistory;
-
-        _console.PrintHelpMenu(_cfg);
-
-        var pttLoop = _factory.CreatePttLoop(
-            pttStateMachine, audioService, pttController, namingTextSender, inputHandler,
-            requireConfirmBeforeSend: _cfg.RequireConfirmBeforeSend);
-
-        return (agentHotkeyService, shellCommands, snapshotCleaner, pttLoop);
-    }
-
-    /// <summary>
     /// Wraps the audio service lifecycle: creates it, subscribes to config changes
     /// for STT provider/model switching, runs the PTT loop, and cleans up.
     /// </summary>
@@ -318,139 +208,14 @@ public class AppRunner : IDisposable
         // AudioService constructor creates a transcriber synchronously — mark STT as ready
         _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
 
-        // When gateway connection parameters change, recreate the gateway client
-        // and automatically reconnect. The client is disposed and rebuilt from the
-        // new config so that the WebSocket URI and auth tokens take effect.
-        void OnGatewayConfigSaved(ConfigChangedEventArgs e)
-        {
-            var gwProps = new[]
-            {
-                nameof(AppConfig.GatewayUrl),
-                nameof(AppConfig.AuthToken),
-                nameof(AppConfig.DeviceToken),
-                nameof(AppConfig.TlsFingerprint),
-            };
-            if (!e.AnyChanged(gwProps))
-                return;
+        // Store delegate references for config change handlers
+        Action<ConfigChangedEventArgs> onGatewayConfigSaved = e => HandleGatewayConfigChanged(e, gateway);
+        Action<ConfigChangedEventArgs> onDisplayConfigSaved = HandleDisplayConfigChanged;
+        Action<ConfigChangedEventArgs> onConfigSaved = e => HandleSttConfigChanged(e, audioService);
 
-            _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Yellow);
-            _console.PrintInfo("Gateway configuration changed — reconnecting...");
-            try
-            {
-                gateway.RecreateWithConfig(e.NewConfig);
-
-                // Fire-and-forget reconnect: don't block the event loop
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await gateway.ConnectAsync(CancellationToken.None);
-                        _console.LogOk("gateway", "Reconnected with new configuration.");
-                        _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
-                    }
-                    catch (Exception reconnectEx)
-                    {
-                        _console.LogError("gateway", $"Failed to reconnect with new config: {reconnectEx.Message}");
-                        _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _console.LogError("gateway", $"Failed to recreate gateway client: {ex.Message}");
-                _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
-            }
-        }
-        _configService.ConfigSaved += OnGatewayConfigSaved;
-
-        // Update _cfg reference and reapply display/UI config when relevant changes happen
-        void OnDisplayConfigSaved(ConfigChangedEventArgs e)
-        {
-            var displayProps = new[]
-            {
-                nameof(AppConfig.UserMessagePrefix),
-                nameof(AppConfig.RightMarginIndent),
-                nameof(AppConfig.EnableWordWrap),
-                nameof(AppConfig.DebugLevel),
-                nameof(AppConfig.ThinkingDisplayMode),
-                nameof(AppConfig.ThinkingPreviewLines),
-                nameof(AppConfig.HistoryDisplayCount),
-                nameof(AppConfig.BottomPanelLineCount),
-                nameof(AppConfig.VisualMode),
-                nameof(AppConfig.VisualFeedbackEnabled),
-                nameof(AppConfig.VisualFeedbackPosition),
-                nameof(AppConfig.VisualFeedbackSize),
-                nameof(AppConfig.VisualFeedbackOpacity),
-                nameof(AppConfig.VisualFeedbackColor),
-                nameof(AppConfig.VisualFeedbackRimThickness),
-            };
-            var positionProps = new[]
-            {
-                nameof(AppConfig.ActiveAgentPosition),
-                nameof(AppConfig.ModelPosition),
-                nameof(AppConfig.ThinkingLevelPosition),
-                nameof(AppConfig.ContextPosition),
-                nameof(AppConfig.ConversationNamePosition),
-                nameof(AppConfig.ConnectionStatusPosition),
-                nameof(AppConfig.TtsStatusPosition),
-                nameof(AppConfig.SttStatusPosition),
-                nameof(AppConfig.DirectLlmPosition),
-                nameof(AppConfig.MainAgentsPosition),
-            };
-
-            bool displayChanged = e.AnyChanged(displayProps);
-            bool positionsChanged = e.AnyChanged(positionProps);
-
-            if (!displayChanged && !positionsChanged)
-                return;
-
-            // Update the canonical config reference so downstream code is fresh
-            _cfg = e.NewConfig;
-
-            if (positionsChanged)
-                _statusService.ApplyConfigPositions(e.NewConfig);
-
-            if (displayChanged)
-                _console.ApplyConsoleConfig(e.NewConfig);
-        }
-        _configService.ConfigSaved += OnDisplayConfigSaved;
-
-        // Re-create transcriber and recorder when STT/audio config changes
-        void OnConfigSaved(ConfigChangedEventArgs e)
-        {
-            // Only react if an STT or audio-recording property actually changed
-            var sttProps = new[]
-            {
-                nameof(AppConfig.SttProvider),
-                nameof(AppConfig.GroqModel),
-                nameof(AppConfig.GroqApiKey),
-                nameof(AppConfig.OpenAiApiKey),
-                nameof(AppConfig.OpenAiModel),
-                nameof(AppConfig.WhisperCppModel),
-                nameof(AppConfig.WhisperCppBinaryPath),
-                nameof(AppConfig.SampleRate),
-                nameof(AppConfig.Channels),
-                nameof(AppConfig.BitsPerSample),
-                nameof(AppConfig.MaxRecordSeconds),
-            };
-            if (!e.AnyChanged(sttProps))
-                return;
-
-            _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Yellow);
-            try
-            {
-                // Recorder first (so new params are in place before transcriber is recreated)
-                audioService.RecreateRecorder(e.NewConfig, _console);
-                audioService.RecreateTranscriber(e.NewConfig, _console);
-                _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
-            }
-            catch (Exception ex)
-            {
-                _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Red);
-                _console.PrintError($"Failed to update STT: {ex.Message}");
-            }
-        }
-        _configService.ConfigSaved += OnConfigSaved;
+        _configService.ConfigSaved += onGatewayConfigSaved;
+        _configService.ConfigSaved += onDisplayConfigSaved;
+        _configService.ConfigSaved += onConfigSaved;
 
         try
         {
@@ -474,9 +239,9 @@ public class AppRunner : IDisposable
         }
         finally
         {
-            _configService.ConfigSaved -= OnGatewayConfigSaved;
-            _configService.ConfigSaved -= OnDisplayConfigSaved;
-            _configService.ConfigSaved -= OnConfigSaved;
+            _configService.ConfigSaved -= onGatewayConfigSaved;
+            _configService.ConfigSaved -= onDisplayConfigSaved;
+            _configService.ConfigSaved -= onConfigSaved;
         }
     }
 
