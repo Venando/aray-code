@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using OpenClawPTT.Services;
 using OpenClawPTT.Services.Commands;
 using OpenClawPTT.Services.Diagnostics;
+using OpenClawPTT.Services.StatusParts;
 using OpenClawPTT.TTS;
 using StreamShell;
 
@@ -28,7 +29,7 @@ public class AppRunner : IDisposable
     /// </summary>
     public const int MaxRestartCount = 3;
 
-    public AppRunner(AppConfig cfg, IServiceFactory factory, IStreamShellHost shellHost, IConfigurationService configService, IColorConsole console)
+    public AppRunner(AppConfig cfg, IServiceFactory factory, IStreamShellHost shellHost, IConfigurationService configService, IColorConsole console, MainAgentsPart? mainAgentsPart = null)
     {
         _cfg = cfg;
         _factory = factory;
@@ -36,11 +37,16 @@ public class AppRunner : IDisposable
         _configService = configService;
         _console = console;
         _errorLog = new ErrorLogStore(cfg.DataDir);
-        _statusService = new StatusService(shellHost);
+        _statusService = new StatusService(shellHost, mainAgentsPart: mainAgentsPart);
 
         // Wire agent status tracker if the factory provides one
         if (_factory.AgentStatusTracker != null)
             _statusService.SetAgentStatusTracker(_factory.AgentStatusTracker);
+
+        // Set MainAgentsPart if it wasn't passed to the StatusService constructor
+        // (e.g. when using the default runnerFactory path)
+        if (mainAgentsPart != null && _statusService is StatusService svc && svc.MainAgentsPart == null)
+            svc.SetMainAgentsPart(mainAgentsPart);
 
         // Initialize status part positions from config
         _statusService.ApplyConfigPositions(_cfg);

@@ -79,6 +79,7 @@ public sealed class AppConfig
     public DisplayPosition ConversationNamePosition { get; set; } = DisplayPosition.TopSeparatorLeft;
     public DisplayPosition ConnectionStatusPosition { get; set; } = DisplayPosition.TopSeparatorRight;
     public DisplayPosition DirectLlmPosition { get; set; } = DisplayPosition.TopSeparatorRight;
+    public DisplayPosition MainAgentsPosition { get; set; } = DisplayPosition.AppStatusPanelLeft;
 
     // Visual feedback settings
     public VisualMode VisualMode { get; set; } = VisualMode.SolidDot;
@@ -204,6 +205,7 @@ public sealed class AppConfig
         ["ConversationNamePosition"] = "Status bar position for conversation name",
         ["ConnectionStatusPosition"] = "Status bar position for GW/TTS connection status",
         ["DirectLlmPosition"] = "Status bar position for direct LLM status",
+        ["MainAgentsPosition"] = "Status bar position for main agents list (None, TopSeparatorLeft, TopSeparatorRight, BottomSeparatorLeft, BottomSeparatorRight, AppStatusPanelLeft, AppStatusPanelRight)",
         ["TtsProvider"] = "TTS provider: OpenAI, ElevenLabs, Azure, Coqui, Piper, Espeak",
         ["TtsOpenAiApiKey"] = "OpenAI API key for TTS",
         ["TtsSubscriptionKey"] = "Azure TTS subscription key",

@@ -3,6 +3,7 @@ namespace OpenClawPTT.Tests;
 using Moq;
 using OpenClawPTT;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.StatusParts;
 using System;
 using Xunit;
 
@@ -62,7 +63,8 @@ public class AppBootstrapperTests : IDisposable
             _fakeFactory.Object,
             _fakeShellHost.Object,
             _fakeConfig.Object,
-            _fakeConsole.Object);
+            _fakeConsole.Object,
+            (MainAgentsPart?)null!);
         mock.CallBase = false;
         if (throws != null)
             mock.Setup(x => x.RunAsync(It.IsAny<CancellationToken>())).ThrowsAsync(throws);

@@ -22,4 +22,10 @@ public enum DisplayPosition
 
     /// <summary>Display on the right side of the StreamShell bottom separator.</summary>
     BottomSeparatorRight,
+
+    /// <summary>Display on the left side of the app status bottom panel.</summary>
+    AppStatusPanelLeft,
+
+    /// <summary>Display on the right side of the app status bottom panel.</summary>
+    AppStatusPanelRight,
 }

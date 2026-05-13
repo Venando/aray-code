@@ -1,4 +1,5 @@
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.StatusParts;
 
 namespace OpenClawPTT;
 
@@ -13,6 +14,7 @@ public sealed class AppBootstrapper : IDisposable
     private readonly IStreamShellHost _shellHost;
     private readonly Func<AppConfig, IServiceFactory, AppRunner> _runnerFactory;
     private readonly bool _testModeEnabled;
+    private readonly MainAgentsPart? _mainAgentsPart;
     private CancellationTokenSource? _cts;
 
     private readonly IColorConsole _console;
@@ -23,14 +25,16 @@ public sealed class AppBootstrapper : IDisposable
         IStreamShellHost shellHost,
         IColorConsole console,
         Func<AppConfig, IServiceFactory, AppRunner>? runnerFactory = null,
+        MainAgentsPart? mainAgentsPart = null,
         bool testModeEnabled = false)
     {
         _configService = configService;
         _factory = factory;
         _shellHost = shellHost;
         _console = console;
+        _mainAgentsPart = mainAgentsPart;
         _testModeEnabled = testModeEnabled;
-        _runnerFactory = runnerFactory ?? ((cfg, f) => new AppRunner(cfg, f, _shellHost, _configService, console));
+        _runnerFactory = runnerFactory ?? ((cfg, f) => new AppRunner(cfg, f, _shellHost, _configService, console, mainAgentsPart));
     }
 
     /// <summary>Runs the application and returns the exit code.</summary>

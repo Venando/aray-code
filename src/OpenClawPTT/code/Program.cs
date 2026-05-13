@@ -1,4 +1,5 @@
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.StatusParts;
 using OpenClawPTT.Services.TestMode;
 
 namespace OpenClawPTT;
@@ -15,8 +16,9 @@ internal static class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         var shellHost = new StreamShellHost();
 
-        // Create agent status tracker and bottom panel
+        // Create agent status tracker and shared agents part
         var agentStatusTracker = new AgentStatusTracker();
+        var mainAgentsPart = new MainAgentsPart(agentStatusTracker);
 
         // Use TestModeServiceFactory when test mode is enabled
         ServiceFactory factory;
@@ -33,10 +35,11 @@ internal static class Program
 
         // Load saved config so BottomPanelLineCount is honoured
         var appConfig = configService.Load() ?? new AppConfig();
-        var agentStatusPanel = new AgentStatusBottomPanel(agentStatusTracker, appConfig.BottomPanelLineCount);
-        shellHost.SetDefaultPanel(agentStatusPanel);
+        var appStatusPanel = new AppStatusBottomPanel(mainAgentsPart, appConfig.BottomPanelLineCount);
+        shellHost.SetDefaultPanel(appStatusPanel);
 
-        var bootstrapper = new AppBootstrapper(configService, factory, shellHost, colorConsole, null, testModeEnabled);
+        var bootstrapper = new AppBootstrapper(configService, factory, shellHost, colorConsole,
+            mainAgentsPart: mainAgentsPart, testModeEnabled: testModeEnabled);
         var exitCode = await bootstrapper.RunAsync(cts.Token);
 
         bootstrapper.Dispose();

@@ -8,13 +8,14 @@ namespace OpenClawPTT.Services;
 /// <summary>
 /// Tracks gateway, TTS, direct LLM, and agent status, rendering discrete
 /// status info parts (active agent name, model, thinking level, context
-/// usage, conversation name, connection status, direct LLM status) on
-/// the StreamShell separator bars.
+/// usage, conversation name, connection status, direct LLM status, main
+/// agents list) on the StreamShell separator bars.
 ///
 /// Each part is a separate <see cref="IStatusPart"/> implementation with
 /// its own dirty-flag tracking and text caching.  Parts are collected into
-/// position groups (TopSeparatorLeft, TopSeparatorRight, etc.) based on
-/// <see cref="AppConfig"/> settings, then rendered in order.
+/// position groups (TopSeparatorLeft, TopSeparatorRight, AppStatusPanelLeft,
+/// AppStatusPanelRight, etc.) based on <see cref="AppConfig"/> settings,
+/// then rendered in order.
 ///
 /// Thread-safe: all public methods synchronize on a lock before mutating
 /// state.  Subscribes to the tracker's <see cref="IAgentStatusTracker.Changed"/>
@@ -37,9 +38,10 @@ public sealed class StatusService : IStatusService, IDisposable
     private readonly ConversationNamePart _conversationNamePart;
     private readonly ConnectionStatusPart _connectionStatusPart;
     private readonly DirectLlmStatusPart _directLlmStatusPart;
+    private MainAgentsPart? _mainAgentsPart;
 
-    // All parts in a flat list for iteration
-    private readonly IStatusPart[] _allParts;
+    // All parts in a flat list for iteration; rebuilt when MainAgentsPart is set
+    private IStatusPart[] _allParts;
 
     // Reusable per-position lists to avoid allocations in Render()
     private readonly List<IStatusPart> _topLeft = new(6);
@@ -51,7 +53,7 @@ public sealed class StatusService : IStatusService, IDisposable
     private readonly StringBuilder _sbLeft = new(256);
     private readonly StringBuilder _sbRight = new(128);
 
-    public StatusService(IStreamShellHost shellHost, IAgentStatusTracker? agentStatusTracker = null)
+    public StatusService(IStreamShellHost shellHost, IAgentStatusTracker? agentStatusTracker = null, MainAgentsPart? mainAgentsPart = null)
     {
         _shellHost = shellHost ?? throw new ArgumentNullException(nameof(shellHost));
         _agentTracker = agentStatusTracker;
@@ -65,7 +67,36 @@ public sealed class StatusService : IStatusService, IDisposable
         _connectionStatusPart = new ConnectionStatusPart();
         _directLlmStatusPart = new DirectLlmStatusPart();
 
-        _allParts = new IStatusPart[]
+        // MainAgentsPart may be injected or set later via SetMainAgentsPart()
+        if (mainAgentsPart != null)
+            _mainAgentsPart = mainAgentsPart;
+
+        _allParts = BuildAllParts();
+
+        if (_agentTracker != null)
+            _agentTracker.Changed += OnAgentStatusChanged;
+
+        // React to agent switching in the registry (e.g. /crew or hotkey switch)
+        AgentRegistry.ActiveSessionChanged += OnActiveSessionChanged;
+    }
+
+    /// <summary>
+    /// Sets the <see cref="MainAgentsPart"/> to use for the agents list.
+    /// Must be called before the first render if not injected via constructor.
+    /// </summary>
+    public void SetMainAgentsPart(MainAgentsPart part)
+    {
+        lock (_lock)
+        {
+            _mainAgentsPart = part ?? throw new ArgumentNullException(nameof(part));
+            _allParts = BuildAllParts();
+            Render();
+        }
+    }
+
+    private IStatusPart[] BuildAllParts()
+    {
+        var baseParts = new List<IStatusPart>(8)
         {
             _activeAgentPart,
             _modelPart,
@@ -76,12 +107,17 @@ public sealed class StatusService : IStatusService, IDisposable
             _directLlmStatusPart,
         };
 
-        if (_agentTracker != null)
-            _agentTracker.Changed += OnAgentStatusChanged;
+        if (_mainAgentsPart != null)
+            baseParts.Add(_mainAgentsPart);
 
-        // React to agent switching in the registry (e.g. /crew or hotkey switch)
-        AgentRegistry.ActiveSessionChanged += OnActiveSessionChanged;
+        return baseParts.ToArray();
     }
+
+    /// <summary>
+    /// The <see cref="MainAgentsPart"/> owned by this service.
+    /// Exposed for <see cref="AppStatusBottomPanel"/> to use as its data source.
+    /// </summary>
+    public MainAgentsPart? MainAgentsPart => _mainAgentsPart;
 
     public void SetGatewayStatus(string label, StatusColor color)
     {
@@ -154,6 +190,8 @@ public sealed class StatusService : IStatusService, IDisposable
             _conversationNamePart.Position = cfg.ConversationNamePosition;
             _connectionStatusPart.Position = cfg.ConnectionStatusPosition;
             _directLlmStatusPart.Position = cfg.DirectLlmPosition;
+            if (_mainAgentsPart != null)
+                _mainAgentsPart.Position = cfg.MainAgentsPosition;
             Render();
         }
     }
@@ -251,9 +289,11 @@ public sealed class StatusService : IStatusService, IDisposable
                         _topRight.Add(part);
                         break;
                     case DisplayPosition.BottomSeparatorLeft:
+                    case DisplayPosition.AppStatusPanelLeft:
                         _bottomLeft.Add(part);
                         break;
                     case DisplayPosition.BottomSeparatorRight:
+                    case DisplayPosition.AppStatusPanelRight:
                         _bottomRight.Add(part);
                         break;
                     // DisplayPosition.None: skip entirely
@@ -361,5 +401,7 @@ public sealed class StatusService : IStatusService, IDisposable
 
         if (_agentTracker != null)
             _agentTracker.Changed -= OnAgentStatusChanged;
+
+        _mainAgentsPart?.Dispose();
     }
 }
