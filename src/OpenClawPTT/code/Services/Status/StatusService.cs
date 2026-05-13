@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using OpenClawPTT.Services.StatusParts;
 
 namespace OpenClawPTT.Services;
@@ -27,12 +26,11 @@ public sealed class StatusService : IStatusService, IDisposable
 {
     private const string RepeatedCharacterMarkup = "white";
     private const string LeftSeparator = "──────────────── ";
-    private static readonly TimeSpan AnimationInterval = TimeSpan.FromMilliseconds(600);
 
     private readonly IStreamShellHost _shellHost;
     private IAgentStatusTracker? _agentTracker;
     private readonly object _lock = new();
-    private Timer? _animationTimer;
+    private readonly StatusAnimationManager _animationManager;
 
     // Status parts — each is a discrete, cacheable rendering unit
     private readonly ActiveAgentPart _activeAgentPart;
@@ -93,8 +91,8 @@ public sealed class StatusService : IStatusService, IDisposable
         // React to agent switching in the registry (e.g. /crew or hotkey switch)
         AgentRegistry.ActiveSessionChanged += OnActiveSessionChanged;
 
-        // Start the animation timer for yellow-status dots
-        _animationTimer = new Timer(OnAnimationTick, null, Timeout.Infinite, Timeout.Infinite);
+        // Start animation manager for yellow-status dots
+        _animationManager = new StatusAnimationManager(_animatedParts, OnAnimationTick);
     }
 
     /// <summary>
@@ -138,38 +136,23 @@ public sealed class StatusService : IStatusService, IDisposable
     /// </summary>
     public MainAgentsPart? MainAgentsPart => _mainAgentsPart;
 
-    public void SetGatewayStatus(string label, StatusColor color)
-    {
-        lock (_lock)
-        {
-            _gatewayStatusPart.SetStatus(color);
-            Render();
-        }
-    }
+    public void SetGatewayStatus(string label, StatusColor color) =>
+        SetServiceStatus(_gatewayStatusPart, color);
 
-    public void SetTtsStatus(string label, StatusColor color)
-    {
-        lock (_lock)
-        {
-            _ttsStatusPart.SetStatus(color);
-            Render();
-        }
-    }
+    public void SetTtsStatus(string label, StatusColor color) =>
+        SetServiceStatus(_ttsStatusPart, color);
 
-    public void SetSttStatus(string label, StatusColor color)
-    {
-        lock (_lock)
-        {
-            _sttStatusPart.SetStatus(color);
-            Render();
-        }
-    }
+    public void SetSttStatus(string label, StatusColor color) =>
+        SetServiceStatus(_sttStatusPart, color);
 
-    public void SetDirectLlmStatus(string label, StatusColor color)
+    public void SetDirectLlmStatus(string label, StatusColor color) =>
+        SetServiceStatus(_llmStatusPart, color);
+
+    private void SetServiceStatus(ServiceStatusPart part, StatusColor color)
     {
         lock (_lock)
         {
-            _llmStatusPart.SetStatus(color);
+            part.SetStatus(color);
             Render();
         }
     }
@@ -250,64 +233,39 @@ public sealed class StatusService : IStatusService, IDisposable
     }
 
     /// <summary>
-    /// Timer callback that advances animation frames for yellow status dots
-    /// and triggers a re-render when any part is currently animated.
+    /// Called on a timer thread when an animation tick fires.  Acquires the
+    /// lock, advances frames, and re-renders if any part became dirty.
     /// </summary>
-    private void OnAnimationTick(object? state)
+    private void OnAnimationTick()
     {
-        try
+        lock (_lock)
         {
-            bool anyAnimating = false;
-            lock (_lock)
-            {
-                foreach (var part in _animatedParts)
-                {
-                    part.AdvanceFrame();
-                    if (part.IsDirty)
-                        anyAnimating = true;
-                }
+            _animationManager.AdvanceFrames();
 
-                if (anyAnimating)
+            bool anyAnimating = false;
+            foreach (var part in _animatedParts)
+            {
+                if (part.IsDirty)
                 {
-                    Render();
-                }
-                else
-                {
-                    // No animated parts — stop the timer
-                    _animationTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                    anyAnimating = true;
+                    break;
                 }
             }
-        }
-        catch
-        {
-            // Best-effort; never crash on timer callback
+
+            if (anyAnimating)
+            {
+                Render();
+            }
         }
     }
 
     /// <summary>
-    /// Starts or restarts the animation timer if any service status part
-    /// is in the yellow (transitional) state.
+    /// Ensures the animation timer is running if any service status part
+    /// is in the yellow (transitional) state; stops it otherwise.
     /// </summary>
     private void EnsureAnimationRunning()
     {
-        bool needsAnimation = false;
-        foreach (var part in _animatedParts)
-        {
-            if (part.IsYellow)
-            {
-                needsAnimation = true;
-                break;
-            }
-        }
-
-        if (needsAnimation)
-        {
-            _animationTimer?.Change(AnimationInterval, AnimationInterval);
-        }
-        else
-        {
-            _animationTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-        }
+        _animationManager.EnsureRunning();
     }
 
     /// <summary>
@@ -487,8 +445,7 @@ public sealed class StatusService : IStatusService, IDisposable
 
     public void Dispose()
     {
-        _animationTimer?.Dispose();
-        _animationTimer = null;
+        _animationManager.Dispose();
 
         AgentRegistry.ActiveSessionChanged -= OnActiveSessionChanged;
 
