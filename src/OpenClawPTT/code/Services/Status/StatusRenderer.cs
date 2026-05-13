@@ -61,13 +61,13 @@ public sealed class StatusRenderer
                         _topRight.Add(part);
                         break;
                     case DisplayPosition.BottomSeparatorLeft:
-                    case DisplayPosition.AppStatusPanelLeft:
                         _bottomLeft.Add(part);
                         break;
                     case DisplayPosition.BottomSeparatorRight:
-                    case DisplayPosition.AppStatusPanelRight:
                         _bottomRight.Add(part);
                         break;
+                    // AppStatusPanelLeft / AppStatusPanelRight are rendered
+                    // exclusively by AppStatusBottomPanel — never on the separator.
                     // DisplayPosition.None: skip entirely
                 }
             }

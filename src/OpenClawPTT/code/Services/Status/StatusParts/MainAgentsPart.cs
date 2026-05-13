@@ -53,6 +53,10 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
 
         _tracker.Changed += OnTrackerChanged;
         AgentRegistry.ActiveSessionChanged += OnActiveSessionChanged;
+
+        // Seed the visible-agents list so AppStatusBottomPanel sees
+        // existing agents even before the first Changed event fires.
+        RefreshVisibleAgents();
     }
 
     /// <inheritdoc />
@@ -142,7 +146,14 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
     /// </summary>
     public HashSet<string> NewlyOnlineAgents => _newlyOnlineAgents;
 
-    protected override void BuildText()
+    /// <summary>
+    /// Refreshes the <see cref="_visible"/> list and newly-online detection
+    /// from the current tracker state.  Called automatically when the tracker
+    /// or registry changes, so <see cref="AppStatusBottomPanel"/> always sees
+    /// fresh data even when this part is not rendered via
+    /// <see cref="StatusRenderer"/> (e.g. <see cref="DisplayPosition.AppStatusPanelLeft"/>).
+    /// </summary>
+    public void RefreshVisibleAgents()
     {
         if (_disposed) return;
 
@@ -153,11 +164,22 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
             var snapshots = _tracker.All;
             var activeSessionKey = AgentRegistry.ActiveSessionKey;
 
-            // Prepare visible agents
             PrepareVisibleAgents(snapshots, activeSessionKey);
-
-            // Detect newly-online transitions
             DetectNewlyOnlineAgents(activeSessionKey, snapshots);
+        }
+        catch
+        {
+            // Best-effort — BuildText handles rendering fallback
+        }
+    }
+
+    protected override void BuildText()
+    {
+        if (_disposed) return;
+
+        try
+        {
+            RefreshVisibleAgents();
 
             if (_visible.Count == 0)
             {
@@ -290,6 +312,7 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
 
     private void OnTrackerChanged()
     {
+        RefreshVisibleAgents();
         MarkDirty();
         Changed?.Invoke();
     }
@@ -298,6 +321,7 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
     {
         if (sessionKey is not null)
             _newlyOnlineAgents.Remove(sessionKey);
+        RefreshVisibleAgents();
         MarkDirty();
         Changed?.Invoke();
     }
