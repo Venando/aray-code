@@ -9,6 +9,8 @@ namespace OpenClawPTT.Services.StatusParts;
 public sealed class ActiveAgentPart : StatusPartBase
 {
     private AgentStatusSnapshot? _snapshot;
+    private string? _lastRenderedKey;     // tracks session key for dirty detection
+    private string? _lastRenderedDisplayName;
 
     public ActiveAgentPart(DisplayPosition defaultPosition = DisplayPosition.TopSeparatorLeft, int order = 0)
         : base(defaultPosition, order)
@@ -19,12 +21,13 @@ public sealed class ActiveAgentPart : StatusPartBase
     public override string SeparatorBefore => "";
 
     /// <summary>
-    /// Feeds a new status snapshot. The part becomes dirty if the agent
-    /// identity (session key, display name) or the registry info changed.
+    /// Feeds a new status snapshot. Marks dirty only when the agent identity
+    /// (session key, display name) or registry info actually changed, preserving
+    /// the caching that <see cref="StatusPartBase"/> provides.
     /// </summary>
     public void Update(AgentStatusSnapshot? snapshot)
     {
-        // Snapshot reference changed — mark dirty
+        // Snapshot reference changed — always mark dirty
         if (!ReferenceEquals(_snapshot, snapshot))
         {
             _snapshot = snapshot;
@@ -32,9 +35,42 @@ public sealed class ActiveAgentPart : StatusPartBase
             return;
         }
 
-        // Re-check on every update anyway — snapshot is a record and may
-        // have been replaced with a new instance carrying different values.
-        MarkDirty();
+        if (snapshot is null)
+        {
+            // Both null — nothing changed
+            return;
+        }
+
+        // Both non-null — check if anything we render actually changed
+        bool changed = false;
+
+        if (snapshot.SessionKey != _lastRenderedKey)
+        {
+            changed = true;
+        }
+        else if (snapshot.DisplayName != _lastRenderedDisplayName)
+        {
+            changed = true;
+        }
+        else if (snapshot.GetStatusEmoji() != GetLastStatusEmoji())
+        {
+            changed = true;
+        }
+
+        // Also check if registry info (emoji, color) changed — only when session key is stable
+        if (!changed && snapshot.SessionKey is not null)
+        {
+            var registryAgent = AgentRegistry.Agents?.FirstOrDefault(a => a.SessionKey == snapshot.SessionKey);
+            if (registryAgent is not null)
+            {
+                var emoji = TryGetPersistedEmoji(registryAgent.AgentId);
+                var color = TryGetPersistedColor(registryAgent.AgentId);
+                changed = HasRegistryInfoChanged(registryAgent.AgentId, emoji, color);
+            }
+        }
+
+        if (changed)
+            MarkDirty();
     }
 
     /// <summary>
@@ -93,7 +129,46 @@ public sealed class ActiveAgentPart : StatusPartBase
         Builder.Append(' ');
         Builder.Append(_snapshot.GetStatusEmoji());
         Builder.Append(' ');
+
+        // Cache current render values for dirty detection on next Update()
+        _lastRenderedKey = sessionKey;
+        _lastRenderedDisplayName = _snapshot.DisplayName;
+        CacheStatusEmoji(_snapshot.GetStatusEmoji());
+        if (registryAgent is not null)
+            CacheRegistryInfo(registryAgent.AgentId,
+                TryGetPersistedEmoji(registryAgent.AgentId),
+                TryGetPersistedColor(registryAgent.AgentId));
     }
+
+    // ── Cached value tracking for dirty detection ────────────────────────
+
+    private string? _cachedStatusEmoji;
+    private string? _cachedRegistryAgentId;
+    private string? _cachedRegistryEmoji;
+    private string? _cachedRegistryColor;
+
+    private string? GetLastStatusEmoji() => _cachedStatusEmoji;
+    private void CacheStatusEmoji(string emoji) => _cachedStatusEmoji = emoji;
+
+    private bool HasRegistryInfoChanged(string agentId, string? emoji, string? color)
+    {
+        if (_cachedRegistryAgentId != agentId)
+            return true;
+        if (_cachedRegistryEmoji != emoji)
+            return true;
+        if (_cachedRegistryColor != color)
+            return true;
+        return false;
+    }
+
+    private void CacheRegistryInfo(string agentId, string? emoji, string? color)
+    {
+        _cachedRegistryAgentId = agentId;
+        _cachedRegistryEmoji = emoji;
+        _cachedRegistryColor = color;
+    }
+
+    // ── Persistence helpers ─────────────────────────────────────────────
 
     private static string? TryGetPersistedEmoji(string agentId)
     {

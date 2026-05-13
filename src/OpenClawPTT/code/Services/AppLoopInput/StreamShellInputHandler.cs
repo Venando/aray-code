@@ -215,7 +215,7 @@ public sealed class StreamShellInputHandler : IDisposable
                          !string.IsNullOrWhiteSpace(_appConfig.DirectLlmModelName);
         if (!hasConfig)
             return;
-        _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig, _statusService, _ttsSummarizer, _namingService));
+        _registry.Register(new LlmCommand(_host, _console, _directLlmService, _appConfig, _ttsSummarizer, _namingService));
     }
 
     private void UnregisterDirectLlmCommand()

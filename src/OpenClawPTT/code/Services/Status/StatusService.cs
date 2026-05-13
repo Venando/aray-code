@@ -49,6 +49,9 @@ public sealed class StatusService : IStatusService, IDisposable
     // All parts in a flat list for iteration; rebuilt when MainAgentsPart is set
     private IStatusPart[] _allParts;
 
+    // Map ServiceKind to the corresponding ServiceStatusPart
+    private readonly Dictionary<ServiceKind, ServiceStatusPart> _serviceParts;
+
     public StatusService(IStreamShellHost shellHost, IAgentStatusTracker? agentStatusTracker = null, MainAgentsPart? mainAgentsPart = null)
     {
         _shellHost = shellHost ?? throw new ArgumentNullException(nameof(shellHost));
@@ -65,6 +68,15 @@ public sealed class StatusService : IStatusService, IDisposable
         _ttsStatusPart = new ServiceStatusPart("TTS:", order: 2);
         _sttStatusPart = new ServiceStatusPart("STT:", order: 3);
         _llmStatusPart = new ServiceStatusPart("LLM:", order: 4);
+
+        // Build service-part lookup
+        _serviceParts = new Dictionary<ServiceKind, ServiceStatusPart>
+        {
+            [ServiceKind.Gateway] = _gatewayStatusPart,
+            [ServiceKind.Tts] = _ttsStatusPart,
+            [ServiceKind.Stt] = _sttStatusPart,
+            [ServiceKind.DirectLlm] = _llmStatusPart,
+        };
 
         // Collect all animated parts for periodic frame advancement
         _animatedParts = [_gatewayStatusPart, _ttsStatusPart, _sttStatusPart, _llmStatusPart];
@@ -120,26 +132,11 @@ public sealed class StatusService : IStatusService, IDisposable
     /// </summary>
     public MainAgentsPart? MainAgentsPart => _mainAgentsPart;
 
-    public void SetGatewayStatus(string label, StatusColor color) =>
-        SetServiceStatus(_gatewayStatusPart, color);
-
-    public void SetTtsStatus(string label, StatusColor color) =>
-        SetServiceStatus(_ttsStatusPart, color);
-
-    public void SetSttStatus(string label, StatusColor color) =>
-        SetServiceStatus(_sttStatusPart, color);
-
-    public void SetDirectLlmStatus(string label, StatusColor color) =>
-        SetServiceStatus(_llmStatusPart, color);
-
-    private void SetServiceStatus(ServiceStatusPart part, StatusColor color)
+    /// <inheritdoc />
+    public void SetServiceStatus(ServiceKind kind, StatusColor color)
     {
-        Mutate(() => part.SetStatus(color));
-    }
-
-    public void SetDirectLlmLastCalled(DateTime? timestamp)
-    {
-        // LLM status is now a simple dot like other services — timestamp ignored
+        if (_serviceParts.TryGetValue(kind, out var part))
+            Mutate(() => part.SetStatus(color));
     }
 
     public void SetAgentStatusTracker(IAgentStatusTracker tracker)

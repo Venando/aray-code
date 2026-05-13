@@ -7,23 +7,8 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public interface IStatusService
 {
-    /// <summary>Update the gateway connection status displayed on the separator bar.</summary>
-    void SetGatewayStatus(string label, StatusColor color);
-
-    /// <summary>Update the TTS service status displayed on the separator bar.</summary>
-    void SetTtsStatus(string label, StatusColor color);
-
-    /// <summary>Update the STT (speech-to-text) service status displayed on the separator bar.</summary>
-    void SetSttStatus(string label, StatusColor color);
-
-    /// <summary>Update the direct LLM status displayed on the separator bar.</summary>
-    void SetDirectLlmStatus(string label, StatusColor color);
-
-    /// <summary>
-    /// Record the last time the direct LLM was called.
-    /// Pass null to clear the timestamp.
-    /// </summary>
-    void SetDirectLlmLastCalled(DateTime? timestamp);
+    /// <summary>Update the status of a service component, e.g. <see cref="ServiceKind.Gateway"/>.</summary>
+    void SetServiceStatus(ServiceKind kind, StatusColor color);
 
     /// <summary>
     /// Provide an <see cref="IAgentStatusTracker"/> for rendering active agent

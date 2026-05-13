@@ -43,12 +43,12 @@ public sealed class ReconnectCommand : ICommand
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
     {
-        _statusService.SetGatewayStatus("Reconnecting", StatusColor.Yellow);
+        _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Yellow);
         _host.AddMessage("[cyan2]  Attempting to reconnect to gateway...[/]");
         try
         {
             await _gatewayService.ConnectAsync(ct);
-            _statusService.SetGatewayStatus("Connected", StatusColor.Green);
+            _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
             _host.AddMessage("[green]  Reconnected successfully.[/]");
 
             // Notify subscribers that gateway is back
@@ -61,7 +61,7 @@ public sealed class ReconnectCommand : ICommand
         }
         catch (Exception ex)
         {
-            _statusService.SetGatewayStatus("Disconnected", StatusColor.Red);
+            _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
             var classification = GatewayErrorClassifier.Classify(ex);
             _errorLog.Write(classification.ToLogEntry());
             _host.AddMessage($"[red]  Reconnect failed: {classification.HumanMessage}[/]");

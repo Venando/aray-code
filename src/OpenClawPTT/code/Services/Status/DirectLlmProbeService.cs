@@ -53,34 +53,34 @@ public sealed class DirectLlmProbeService : IDisposable
     {
         if (!service.IsConfigured)
         {
-            _statusService.SetDirectLlmStatus("\u2014", StatusColor.Yellow);
+            _statusService.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Yellow);
             return;
         }
 
         try
         {
-            _statusService.SetDirectLlmStatus("Probing", StatusColor.Yellow);
+            _statusService.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Yellow);
             var ok = await service.ProbeAsync(ct);
 
             if (ok)
             {
-                _statusService.SetDirectLlmStatus("OK", StatusColor.Green);
+                _statusService.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Green);
                 _console.LogOk("llm", $"Direct LLM probed successfully ({config.DirectLlmModelName})");
             }
             else
             {
-                _statusService.SetDirectLlmStatus("Failed", StatusColor.Red);
+                _statusService.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Red);
                 _console.Log("llm", "Direct LLM probe failed — endpoint not reachable");
             }
         }
         catch (OperationCanceledException)
         {
-            _statusService.SetDirectLlmStatus("\u2014", StatusColor.Yellow);
+            _statusService.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Yellow);
             throw;
         }
         catch (Exception ex)
         {
-            _statusService.SetDirectLlmStatus("Error", StatusColor.Red);
+            _statusService.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Red);
             _console.LogError("llm", $"Direct LLM probe error: {ex.Message}");
         }
     }

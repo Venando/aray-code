@@ -14,7 +14,6 @@ public sealed class LlmCommand : ICommand
     private readonly IColorConsole _console;
     private readonly IDirectLlmService? _directLlmService;
     private readonly AppConfig _appConfig;
-    private readonly IStatusService? _statusService;
     private readonly ITtsSummarizer? _ttsSummarizer;
     private readonly IConversationNamingService? _namingService;
 
@@ -29,7 +28,6 @@ public sealed class LlmCommand : ICommand
         IColorConsole console,
         IDirectLlmService? directLlmService,
         AppConfig appConfig,
-        IStatusService? statusService = null,
         ITtsSummarizer? ttsSummarizer = null,
         IConversationNamingService? namingService = null)
     {
@@ -37,7 +35,6 @@ public sealed class LlmCommand : ICommand
         _console = console;
         _directLlmService = directLlmService;
         _appConfig = appConfig;
-        _statusService = statusService;
         _ttsSummarizer = ttsSummarizer;
         _namingService = namingService;
     }
@@ -90,14 +87,11 @@ public sealed class LlmCommand : ICommand
             return;
         }
 
-        _statusService?.SetDirectLlmLastCalled(DateTime.Now);
-
         _host.AddMessage($"[grey]  Sending to LLM ({_appConfig.DirectLlmModelName})...[/]");
 
         try
         {
             var response = await _directLlmService.SendAsync(message, ct);
-            _statusService?.SetDirectLlmLastCalled(DateTime.Now);
             _console.PrintFormatted("[cyan]  LLM Response:[/] ", response);
         }
         catch (Exception ex)

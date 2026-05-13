@@ -15,12 +15,12 @@ public class StatusServiceTests
     }
 
     [Fact]
-    public void SetGatewayStatus_ShowsGreenDot()
+    public void SetServiceStatus_Gateway_ShowsGreenDot()
     {
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
 
-        service.SetGatewayStatus("Connected", StatusColor.Green);
+        service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
 
         Assert.Contains("GW:", host.LastSeparatorRightText);
         Assert.Contains("[green]", host.LastSeparatorRightText);
@@ -28,12 +28,12 @@ public class StatusServiceTests
     }
 
     [Fact]
-    public void SetTtsStatus_ShowsRedDot()
+    public void SetServiceStatus_Tts_ShowsRedDot()
     {
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
 
-        service.SetTtsStatus("Disconnected", StatusColor.Red);
+        service.SetServiceStatus(ServiceKind.Tts, StatusColor.Red);
 
         Assert.Contains("TTS:", host.LastSeparatorRightText);
         Assert.Contains("[red]", host.LastSeparatorRightText);
@@ -46,8 +46,8 @@ public class StatusServiceTests
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
 
-        service.SetGatewayStatus("Connected", StatusColor.Green);
-        service.SetTtsStatus("Starting", StatusColor.Yellow);
+        service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
+        service.SetServiceStatus(ServiceKind.Tts, StatusColor.Yellow);
 
         // Should show labels + green dot + yellow animating dot
         Assert.Contains("GW:", host.LastSeparatorRightText);
@@ -59,31 +59,19 @@ public class StatusServiceTests
     }
 
     [Fact]
-    public void SetDirectLlmStatus_ShowsDot()
+    public void SetServiceStatus_ShowsLlmDot()
     {
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
 
-        service.SetDirectLlmStatus("OK", StatusColor.Green);
+        service.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Green);
 
         Assert.Contains("LLM:", host.LastSeparatorRightText);
         Assert.Contains("[green]", host.LastSeparatorRightText);
         Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
     }
 
-    [Fact]
-    public void SetDirectLlmLastCalled_DoesNothing()
-    {
-        var host = new FakeStreamShellHost();
-        var service = new StatusService(host);
 
-        service.SetDirectLlmStatus("OK", StatusColor.Green);
-        string before = host.LastSeparatorRightText!;
-
-        // SetLastCalled is now a no-op; text should not change
-        service.SetDirectLlmLastCalled(DateTime.Now);
-        Assert.Equal(before, host.LastSeparatorRightText);
-    }
 
     [Fact]
     public void ThreadSafe_ConcurrentCalls_NoCrash()
@@ -93,15 +81,14 @@ public class StatusServiceTests
 
         var t1 = Task.Run(() => {
             for (int i = 0; i < 100; i++)
-                service.SetGatewayStatus("Status" + i, StatusColor.Green);
+                service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
         });
         var t2 = Task.Run(() => {
             for (int i = 0; i < 100; i++)
-                service.SetTtsStatus("Status" + i, StatusColor.Red);
+                service.SetServiceStatus(ServiceKind.Tts, StatusColor.Red);
         });
 
-        var ex = Record.Exception(() => Task.WaitAll(t1, t2));
-        Assert.Null(ex);
+        Task.WaitAll(t1, t2);
     }
 
     [Fact]
@@ -111,8 +98,7 @@ public class StatusServiceTests
         var service = new StatusService(host);
         host.Dispose();
 
-        var ex = Record.Exception(() => service.SetGatewayStatus("Test", StatusColor.Green));
-        Assert.Null(ex);
+        service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
     }
 
     [Fact]
@@ -129,7 +115,7 @@ public class StatusServiceTests
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
 
-        service.SetGatewayStatus("Connected", StatusColor.Green);
+        service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
 
         Assert.Equal(string.Empty, host.LastSeparatorLeftText);
     }
@@ -387,15 +373,14 @@ public class StatusServiceTests
 
         var t1 = Task.Run(() => {
             for (int i = 0; i < 50; i++)
-                service.SetGatewayStatus("GW" + i, StatusColor.Green);
+                service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
         });
         var t2 = Task.Run(() => {
             for (int i = 0; i < 50; i++)
                 tracker.FireChanged();
         });
 
-        var ex = Record.Exception(() => Task.WaitAll(t1, t2));
-        Assert.Null(ex);
+        Task.WaitAll(t1, t2);
     }
 
     [Fact]
@@ -501,7 +486,13 @@ public class StatusServiceTests
         part.MarkClean();
         Assert.False(part.IsDirty);
 
+        // Same snapshot again — caching preserves dirtiness
         part.Update(snapshot);
+        Assert.False(part.IsDirty); // content unchanged
+
+        // Different snapshot reference — marks dirty
+        var changedSnapshot = snapshot with { DisplayName = "OtherAgent" };
+        part.Update(changedSnapshot);
         Assert.True(part.IsDirty);
     }
 
@@ -576,12 +567,12 @@ public class StatusServiceTests
     }
 
     [Fact]
-    public void SetSttStatus_ShowsDotOnRightText()
+    public void SetServiceStatus_Stt_ShowsDotOnRightText()
     {
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
 
-        service.SetSttStatus("Connected", StatusColor.Green);
+        service.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
 
         Assert.Contains("STT:", host.LastSeparatorRightText);
         Assert.Contains("[green]", host.LastSeparatorRightText);
@@ -632,55 +623,7 @@ public class StatusServiceTests
         Assert.Contains("\u25CF", text6); // ● (solid, no animation)
     }
 
-    [Fact]
-    public void DirectLlmStatusPart_BuildsCorrectText()
-    {
-        var part = new DirectLlmStatusPart();
-        part.SetStatus("OK", StatusColor.Green);
 
-        string text = part.GetText();
-        Assert.Contains("LLM:", text);
-        Assert.Contains("OK", text);
-        Assert.Contains("green", text);
-    }
-
-    [Fact]
-    public void DirectLlmStatusPart_IsDirtyTracking_Works()
-    {
-        var part = new DirectLlmStatusPart();
-        part.SetStatus("OK", StatusColor.Green);
-        Assert.True(part.IsDirty); // starts dirty
-
-        part.GetText();
-        part.MarkClean();
-        Assert.False(part.IsDirty);
-
-        part.SetStatus("OK", StatusColor.Green);
-        Assert.False(part.IsDirty); // no change, stays clean
-
-        part.SetStatus("Failed", StatusColor.Red);
-        Assert.True(part.IsDirty); // value changed
-    }
-
-    [Fact]
-    public void DirectLlmStatusPart_LastCalled_AlwaysMarksDirty()
-    {
-        var part = new DirectLlmStatusPart();
-        part.SetStatus("OK", StatusColor.Green);
-        part.GetText();
-        part.MarkClean();
-        Assert.False(part.IsDirty);
-
-        part.SetLastCalled(DateTime.Now);
-        Assert.True(part.IsDirty);
-
-        part.GetText();
-        part.MarkClean();
-
-        // Setting timestamp again (time changed) marks dirty
-        part.SetLastCalled(DateTime.Now);
-        Assert.True(part.IsDirty);
-    }
 
     [Fact]
     public void StatusPart_Position_CanBeChanged()
@@ -744,8 +687,8 @@ public class StatusServiceTests
         });
         tracker.FireChanged();
 
-        service.SetGatewayStatus("Connected", StatusColor.Green);
-        service.SetTtsStatus("Active", StatusColor.Green);
+        service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
+        service.SetServiceStatus(ServiceKind.Tts, StatusColor.Green);
 
         Assert.NotNull(host.LastSeparatorLeftText);
         Assert.Contains("high", host.LastSeparatorLeftText);
