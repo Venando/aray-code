@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
+using OpenClawPTT.TTS;
 using Spectre.Console;
 using StreamShell;
 
@@ -126,6 +127,9 @@ public sealed class ModularConfigurationWizard
             var config = Clone(existing);
             bool anyChanged = false;
 
+            // ── Show current configuration summary before menu ──
+            ShowCurrentConfigSummary(host, config);
+
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
@@ -201,6 +205,70 @@ public sealed class ModularConfigurationWizard
         {
             WizardState.Leave();
         }
+    }
+
+    // ── Status summary ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Displays a concise summary of the current active configuration.
+    /// Shows the active providers/models for each service section.
+    /// </summary>
+    private static void ShowCurrentConfigSummary(IStreamShellHost host, AppConfig config)
+    {
+        host.AddMessage("");
+        host.AddMessage("[bold]Current configuration:[/]");
+
+        // Harness
+        var gwUrl = string.IsNullOrWhiteSpace(config.GatewayUrl)
+            ? "(not set)"
+            : config.GatewayUrl;
+        host.AddMessage($"  [cyan]●[/] [bold]Harness:[/] OpenClaw [grey]({Markup.Escape(gwUrl)})[/]");
+
+        // STT
+        var sttProvider = config.SttProvider ?? "(not set)";
+        var sttModel = sttProvider switch
+        {
+            "groq" => config.GroqModel ?? "whisper-large-v3-turbo",
+            "openai" => config.OpenAiModel ?? "whisper-1",
+            "whisper-cpp" => config.WhisperCppModel ?? "(default)",
+            "faster-whisper" => config.FasterWhisperModel ?? "(default)",
+            _ => "",
+        };
+        if (!string.IsNullOrEmpty(sttModel))
+            host.AddMessage($"  [cyan]●[/] [bold]STT:[/] {Markup.Escape(sttProvider)} [grey](model: {Markup.Escape(sttModel ?? "")})[/]");
+        else
+            host.AddMessage($"  [cyan]●[/] [bold]STT:[/] {Markup.Escape(sttProvider)}");
+
+        // TTS
+        var ttsProvider = config.TtsProvider.ToString();
+        var ttsVoice = string.IsNullOrWhiteSpace(config.TtsVoice) ? "(default)" : config.TtsVoice;
+        var ttsMode = config.TtsOutputMode ?? "siso";
+        host.AddMessage($"  [cyan]●[/] [bold]TTS:[/] {Markup.Escape(ttsProvider)} [grey](voice: {Markup.Escape(ttsVoice)}, mode: {Markup.Escape(ttsMode)})[/]");
+
+        // Direct LLM
+        var llmConfigured = !string.IsNullOrWhiteSpace(config.DirectLlmUrl)
+                          && !string.IsNullOrWhiteSpace(config.DirectLlmModelName);
+        if (llmConfigured)
+        {
+            host.AddMessage($"  [cyan]●[/] [bold]Direct LLM:[/] {Markup.Escape(config.DirectLlmModelName ?? "")} [grey]@ {Markup.Escape(config.DirectLlmUrl ?? "")}[/]");
+        }
+        else
+        {
+            host.AddMessage($"  [cyan]●[/] [bold]Direct LLM:[/] [grey](not configured)[/]");
+        }
+
+        // Input & Display
+        var hotkey = string.IsNullOrWhiteSpace(config.HotkeyCombination) ? "(not set)" : config.HotkeyCombination;
+        var hold = config.HoldToTalk ? "hold" : "toggle";
+        var displayMode = config.ReplyDisplayMode.ToString();
+        host.AddMessage($"  [cyan]●[/] [bold]Input & Display:[/] Hotkey: {Markup.Escape(hotkey)} [grey]|[/] Mode: {Markup.Escape(hold)} [grey]|[/] Reply: {Markup.Escape(displayMode)}");
+
+        // Visual Feedback
+        var vfEnabled = config.VisualFeedbackEnabled ? "enabled" : "disabled";
+        var vfStyle = config.VisualMode.ToString();
+        host.AddMessage($"  [cyan]●[/] [bold]Visual Feedback:[/] {Markup.Escape(vfEnabled)} [grey]({Markup.Escape(vfStyle)})[/]");
+
+        host.AddMessage("");
     }
 
     // ── Clone helper ─────────────────────────────────────────────────
