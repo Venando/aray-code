@@ -47,7 +47,17 @@ public interface IDirectLlmService : IDisposable
 /// </summary>
 public sealed class DirectLlmService : IDirectLlmService, IDisposable
 {
+    // Static handler with connection pooling — shared across all DirectLlmService instances.
+    // Prevents socket exhaustion when services are created/destroyed on config changes.
+    private static readonly SocketsHttpHandler SharedHandler = new()
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+        MaxConnectionsPerServer = 5
+    };
+
     private readonly HttpClient _httpClient;
+    private readonly bool _ownsClient;
     private AppConfig _config;
     private readonly IDirectLlmFailureTracker _failureTracker;
     private bool _disposed;
@@ -65,8 +75,20 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _failureTracker = failureTracker ?? new DirectLlmFailureTracker();
-        _httpClient = handler != null ? new HttpClient(handler) : new HttpClient();
-        
+
+        if (handler != null)
+        {
+            // Test-provided handler — own it for lifecycle management
+            _httpClient = new HttpClient(handler, disposeHandler: true);
+            _ownsClient = true;
+        }
+        else
+        {
+            // Production: use shared connection-pooled handler, don't own it
+            _httpClient = new HttpClient(SharedHandler, disposeHandler: false);
+            _ownsClient = false;
+        }
+
         // Set timeout for local LLMs (Ollama may be slower on first request)
         _httpClient.Timeout = TimeSpan.FromMinutes(5);
     }
@@ -432,7 +454,8 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
     {
         if (!_disposed)
         {
-            _httpClient.Dispose();
+            if (_ownsClient)
+                _httpClient.Dispose();
             _disposed = true;
         }
     }
