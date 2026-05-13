@@ -179,8 +179,18 @@ public sealed class TtsConfigSection : ConfigSectionBase
         }
 
         // ── Voice and TTS output mode (indices 1..) ──
-        if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexVoice))
-            changed = true;
+        // For CoquiUv, skip "Voice name" (it expects a speaker_wav file path, not a simple name)
+        if (config.TtsProvider == TtsProviderType.CoquiUv)
+        {
+            // Only run TTS output mode (index 2), skip voice (index 1)
+            if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexTtsMode))
+                changed = true;
+        }
+        else
+        {
+            if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexVoice))
+                changed = true;
+        }
 
         result.IsChanged = changed;
         return result;

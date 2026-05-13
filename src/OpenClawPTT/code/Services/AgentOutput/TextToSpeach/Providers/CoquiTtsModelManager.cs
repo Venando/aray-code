@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
@@ -52,10 +53,8 @@ public sealed class CoquiTtsModelManager
     /// <summary>Converts a Coqui model name like tts_models/en/ljspeech/vits to a HuggingFace cache dir slug.</summary>
     private static string ModelToCacheSlug(string modelName)
     {
-        var parts = modelName.Split('/');
         // Coqui models are at: coqui/TTS → ... tts_models/en/ljspeech/vits
         // The HF cache dir is: models--coqui--TTS
-        // We check if the model files exist under any snapshot of this repo.
         return "models--coqui--TTS";
     }
 
@@ -75,10 +74,19 @@ public sealed class CoquiTtsModelManager
             foreach (var snap in Directory.EnumerateDirectories(snapshots))
             {
                 var modelPath = Path.Combine(snap, modelName);
-                if (Directory.Exists(modelPath) || File.Exists(modelPath + ".pth"))
+                if (Directory.Exists(modelPath))
+                    return true;
+                // Some models store as single .pth file
+                var pthFile = modelPath + ".pth";
+                if (File.Exists(pthFile))
                     return true;
             }
         }
+
+        // Also check blobs directory (some HF cache layouts)
+        var blobs = Path.Combine(cacheDir, "blobs");
+        if (Directory.Exists(blobs) && Directory.EnumerateFiles(blobs).Any())
+            return true;
 
         return false;
     }
@@ -95,6 +103,7 @@ public sealed class CoquiTtsModelManager
     /// <summary>
     /// Pre-downloads a Coqui TTS model by invoking <c>uv run python -c</c>
     /// to instantiate TTS(model_name). This triggers HuggingFace download.
+    /// Logs all uv/Python output for debugging via <c>host.AddMessage</c>.
     /// </summary>
     public async Task DownloadModelAsync(
         string modelName,
@@ -107,7 +116,8 @@ public sealed class CoquiTtsModelManager
             return;
         }
 
-        progressCallback?.Invoke(modelName, "Starting download (this may take minutes)...", null, null, false);
+        _host.AddMessage($"[grey]    Starting download of {modelName}...[/]");
+        progressCallback?.Invoke(modelName, "Starting download (uv resolving packages)...", null, null, false);
 
         var pythonCmd = CoquiUvEnvironment.BuildPreDownloadCommand(modelName);
         var uvPath = CoquiUvEnvironment.FindUv() ?? "uv";
@@ -126,12 +136,33 @@ public sealed class CoquiTtsModelManager
         using var timeoutCts = new CancellationTokenSource(_downloadTimeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
+        _host.AddMessage($"[grey]    Running: uv run --directory ... python -c ...[/]");
         using var process = Process.Start(psi)
             ?? throw new InvalidOperationException("Failed to start uv run for Coqui TTS model download.");
 
+        // Collect all stdout/stderr for debugging
+        var stdoutLines = new List<string>();
+        var stderrLines = new List<string>();
+
         try
         {
-            // Read stderr for HuggingFace download progress
+            // Read both stdout and stderr, logging progress
+            var stdoutTask = Task.Run(async () =>
+            {
+                var reader = process.StandardOutput;
+                while (true)
+                {
+                    var line = await reader.ReadLineAsync(linkedCts.Token).ConfigureAwait(false);
+                    if (line == null) break;
+                    stdoutLines.Add(line);
+                    // Log for user visibility
+                    if (!string.IsNullOrWhiteSpace(line))
+                        _host.AddMessage($"[grey]      [stdout] {line}[/]");
+                    if (line.Contains("%", StringComparison.Ordinal) || line.Contains("Download", StringComparison.OrdinalIgnoreCase))
+                        progressCallback?.Invoke(modelName, $"Downloading: {line.Trim()[..Math.Min(line.Trim().Length, 80)]}", null, null, false);
+                }
+            }, linkedCts.Token);
+
             var stderrTask = Task.Run(async () =>
             {
                 var reader = process.StandardError;
@@ -139,23 +170,40 @@ public sealed class CoquiTtsModelManager
                 {
                     var line = await reader.ReadLineAsync(linkedCts.Token).ConfigureAwait(false);
                     if (line == null) break;
-                    if (line.Contains("%") || line.Contains("Download"))
-                        progressCallback?.Invoke(modelName, "Downloading...", null, null, false);
+                    stderrLines.Add(line);
+                    // Log uv/Python stderr for user visibility
+                    if (!string.IsNullOrWhiteSpace(line))
+                        _host.AddMessage($"[grey]      [stderr] {line}[/]");
+                    // HF download progress often shows percentages on stderr
+                    if (line.Contains("%", StringComparison.Ordinal) || line.Contains("Download", StringComparison.OrdinalIgnoreCase) || line.Contains("Fetching", StringComparison.OrdinalIgnoreCase))
+                        progressCallback?.Invoke(modelName, $"Downloading: {line.Trim()[..Math.Min(line.Trim().Length, 80)]}", null, null, false);
                 }
             }, linkedCts.Token);
 
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
-            await Task.WhenAll(stderrTask, stdoutTask, process.WaitForExitAsync(linkedCts.Token))
+            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(linkedCts.Token))
                 .ConfigureAwait(false);
+
+            var stdoutText = string.Join("\n", stdoutLines);
+            var stderrText = string.Join("\n", stderrLines);
 
             if (process.ExitCode != 0)
             {
-                var err = await stdoutTask.ConfigureAwait(false);
+                var errorDetail = !string.IsNullOrWhiteSpace(stderrText) ? stderrText : stdoutText;
+                _host.AddMessage($"[red]    Download failed (exit={process.ExitCode}): {errorDetail.Trim()}[/]");
                 progressCallback?.Invoke(modelName, $"Failed (exit={process.ExitCode})", null, null, false);
-                throw new InvalidOperationException($"Coqui TTS download failed: {err}");
+                throw new InvalidOperationException($"Coqui TTS download failed (exit={process.ExitCode}): {errorDetail.Trim()}");
             }
 
+            _host.AddMessage($"[grey]    Process exited OK. Checking cache...[/]");
             var isCached = IsModelCached(modelName);
+            if (isCached)
+            {
+                _host.AddMessage($"[green]    ✓ Model {modelName} cached successfully.[/]");
+            }
+            else
+            {
+                _host.AddMessage($"[yellow]    ⚠ Process completed but model not found in cache. stdout/stderr above may help diagnose.[/]");
+            }
             progressCallback?.Invoke(modelName,
                 isCached ? "Download complete" : "Process completed but model not found in cache",
                 null, null, isCached);
@@ -163,12 +211,14 @@ public sealed class CoquiTtsModelManager
         catch (OperationCanceledException)
         {
             try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+            _host.AddMessage("[yellow]    Download cancelled.[/]");
             progressCallback?.Invoke(modelName, "Cancelled", null, null, false);
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
             try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+            _host.AddMessage($"[red]    Download error: {ex.Message}[/]");
             progressCallback?.Invoke(modelName, $"Failed: {ex.Message}", null, null, false);
             throw;
         }
@@ -185,6 +235,7 @@ public sealed class CoquiTtsModelManager
 
         // Delete the model directory from all snapshots
         var snapshots = Path.Combine(cacheDir, "snapshots");
+        var deleted = false;
         if (Directory.Exists(snapshots))
         {
             foreach (var snap in Directory.EnumerateDirectories(snapshots))
@@ -192,13 +243,16 @@ public sealed class CoquiTtsModelManager
                 var modelPath = Path.Combine(snap, modelName);
                 if (Directory.Exists(modelPath))
                 {
-                    try { Directory.Delete(modelPath, recursive: true); } catch { }
+                    try { Directory.Delete(modelPath, recursive: true); deleted = true; } catch { }
+                }
+                var pthFile = modelPath + ".pth";
+                if (File.Exists(pthFile))
+                {
+                    try { File.Delete(pthFile); deleted = true; } catch { }
                 }
             }
-            return true;
         }
-
-        return false;
+        return deleted;
     }
 }
 
