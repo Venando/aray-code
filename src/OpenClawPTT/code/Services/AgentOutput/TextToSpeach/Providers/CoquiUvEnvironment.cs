@@ -40,6 +40,29 @@ public sealed class CoquiUvEnvironment
     private static bool s_scriptsExtracted;
     private static readonly object s_scriptsLock = new();
 
+    /// <summary>
+    /// Set after the first <c>uv run</c> attempt fails with a build/dependency error.
+    /// Prevents retrying the same doomed operation (e.g. Python version mismatch).
+    /// </summary>
+    public static bool IsUvBuildBroken { get; private set; }
+
+    /// <summary>Human-readable reason why the build is broken, for display.</summary>
+    public static string? UvBuildErrorDetail { get; private set; }
+
+    /// <summary>Marks the uv environment as broken so retries are skipped.</summary>
+    public static void MarkUvBuildBroken(string detail)
+    {
+        IsUvBuildBroken = true;
+        UvBuildErrorDetail = detail;
+    }
+
+    /// <summary>Resets the broken flag — call after user fixes Python/uv.</summary>
+    public static void ResetBrokenFlag()
+    {
+        IsUvBuildBroken = false;
+        UvBuildErrorDetail = null;
+    }
+
     public CoquiUvEnvironment(string? dataDir, string modelName, string? modelPath, string? ttsConfigPath, string? espeakNgPath)
     {
         _projectDir = Path.Combine(
@@ -93,6 +116,118 @@ public sealed class CoquiUvEnvironment
             : "curl -LsSf https://astral.sh/uv/install.sh | sh";
 
     public static bool IsUvAvailable() => FindUv() != null;
+
+    /// <summary>
+    /// Quick validation that <c>uv</c> can resolve a compatible Python for Coqui TTS.
+    /// Does NOT trigger full package resolution — just checks the Python version.
+    /// Returns null on success or an error message string on failure.
+    /// </summary>
+    public static async Task<string?> ValidatePythonVersionAsync(
+        string? dataDir, CancellationToken ct = default)
+    {
+        if (!IsUvAvailable())
+            return "uv is not installed";
+
+        if (IsUvBuildBroken)
+            return UvBuildErrorDetail ?? "uv environment is broken";
+
+        var uvPath = FindUv()!;
+
+        // Ensure pyproject.toml exists so uv uses the requires-python constraint
+        var projectDir = Path.Combine(
+            dataDir ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".openclaw-ptt"),
+            "coqui-tts-env");
+        Directory.CreateDirectory(projectDir);
+        File.WriteAllText(Path.Combine(projectDir, "pyproject.toml"), PyProjectToml, Encoding.UTF8);
+
+        // uv python find respects requires-python from pyproject.toml
+        var psi = new ProcessStartInfo
+        {
+            FileName = uvPath,
+            Arguments = $"python find --directory \"{projectDir}\"",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            using var process = Process.Start(psi);
+            if (process == null)
+                return "Failed to start uv python find";
+
+            var stdout = await process.StandardOutput.ReadToEndAsync(linked.Token).ConfigureAwait(false);
+            var stderr = await process.StandardError.ReadToEndAsync(linked.Token).ConfigureAwait(false);
+            await process.WaitForExitAsync(linked.Token).ConfigureAwait(false);
+
+            if (process.ExitCode != 0)
+            {
+                // uv couldn't find a compatible Python
+                var detail = stderr.Trim();
+                if (string.IsNullOrEmpty(detail)) detail = stdout.Trim();
+                return string.IsNullOrEmpty(detail)
+                    ? $"No compatible Python found (exit={process.ExitCode}). Coqui TTS requires Python >=3.9, <3.12."
+                    : $"No compatible Python found (exit={process.ExitCode}): {detail}";
+            }
+
+            var versionLine = stdout.Trim();
+            if (string.IsNullOrEmpty(versionLine))
+                return "uv python find returned no output";
+
+            // Version check: if uv found a Python, it respects requires-python,
+            // so we're good. Parse out the version for display.
+            var versionPart = ExtractPythonVersion(versionLine);
+            if (versionPart != null)
+            {
+                if (Version.TryParse(versionPart, out var ver))
+                {
+                    if (ver.Major == 3 && ver.Minor >= 12)
+                        return $"Resolved Python {versionPart} is too new. Coqui TTS requires < 3.12.";
+                }
+            }
+
+            return null; // success
+        }
+        catch (OperationCanceledException)
+        {
+            return "Python version check timed out";
+        }
+        catch (Exception ex)
+        {
+            return $"Python version check failed: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Extracts a Python version string like "3.11.13" from a path like
+    /// "...cpython-3.11.13-linux..." or "...Python311...".
+    /// </summary>
+    private static string? ExtractPythonVersion(string pathOrVersion)
+    {
+        // Try "cpython-X.Y.Z" pattern
+        var cpythonIdx = pathOrVersion.IndexOf("cpython-", StringComparison.Ordinal);
+        if (cpythonIdx >= 0)
+        {
+            var start = cpythonIdx + "cpython-".Length;
+            var end = start;
+            while (end < pathOrVersion.Length &&
+                   (char.IsDigit(pathOrVersion[end]) || pathOrVersion[end] == '.'))
+                end++;
+            var ver = pathOrVersion[start..end];
+            if (ver.Count(c => c == '.') >= 2)
+                return ver;
+        }
+
+        // Try "Python X.Y" or raw version string
+        var match = System.Text.RegularExpressions.Regex.Match(
+            pathOrVersion, @"(\d+\.\d+(\.\d+)?)");
+        return match.Success ? match.Groups[1].Value : null;
+    }
 
     // ── Project files ───────────────────────────────────────────────
 
@@ -184,7 +319,7 @@ public sealed class CoquiUvEnvironment
 [project]
 name = "openclaw-ptt-tts"
 version = "0.1.0"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<3.12"
 dependencies = [
     "TTS>=0.22.0",
     "torch>=2.0.0",

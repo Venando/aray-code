@@ -368,6 +368,34 @@ public sealed class CoquiTtsModelManager
         return false;
     }
 
+    /// <summary>
+    /// Extracts a summary from a build/dependency error for display.
+    /// Returns the most relevant line (e.g. version mismatch) instead
+    /// of the full traceback.
+    /// </summary>
+    private static string SummarizeBuildError(string errorText)
+    {
+        if (string.IsNullOrWhiteSpace(errorText))
+            return "Build failed (no details)";
+
+        // Look for actionable lines first
+        var lines = errorText.Split('\n');
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Contains("RuntimeError", StringComparison.Ordinal))
+                return trimmed;
+            if (trimmed.Contains("requires python", StringComparison.OrdinalIgnoreCase))
+                return trimmed;
+            if (trimmed.Contains("Failed to build", StringComparison.Ordinal))
+                return trimmed;
+        }
+
+        // Fallback: first non-empty line
+        var first = lines.FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
+        return first?.Trim() ?? "Build failed";
+    }
+
     /// <summary>Lists names of locally cached Coqui TTS models (from known list).</summary>
     public static IReadOnlyList<string> GetCachedModels()
     {
@@ -391,6 +419,14 @@ public sealed class CoquiTtsModelManager
         {
             progressCallback?.Invoke(modelName, "Already cached", null, null, true);
             return;
+        }
+
+        // Don't retry doomed builds
+        if (CoquiUvEnvironment.IsUvBuildBroken)
+        {
+            var detail = CoquiUvEnvironment.UvBuildErrorDetail ?? "uv environment is broken";
+            _host.AddMessage($"[red]    Cannot download — uv environment is broken: {EscapeSpectreMarkup(detail)}[/]");
+            throw new InvalidOperationException($"uv environment is broken: {detail}");
         }
 
         _host.AddMessage($"[grey]    Starting download of {modelName}...[/]");
@@ -466,9 +502,14 @@ public sealed class CoquiTtsModelManager
             if (process.ExitCode != 0)
             {
                 var errorDetail = !string.IsNullOrWhiteSpace(stderrText) ? stderrText : stdoutText;
-                _host.AddMessage($"[red]    Download failed (exit={process.ExitCode}): {errorDetail.Trim()}[/]");
+                var summary = SummarizeBuildError(errorDetail);
+
+                // Mark environment as broken to prevent retries
+                CoquiUvEnvironment.MarkUvBuildBroken(summary);
+
+                _host.AddMessage($"[red]    Download failed (exit={process.ExitCode}): {EscapeSpectreMarkup(summary)}[/]");
                 progressCallback?.Invoke(modelName, $"Failed (exit={process.ExitCode})", null, null, false);
-                throw new InvalidOperationException($"Coqui TTS download failed (exit={process.ExitCode}): {errorDetail.Trim()}");
+                throw new InvalidOperationException($"Coqui TTS download failed (exit={process.ExitCode}): {summary}");
             }
 
             _host.AddMessage($"[grey]    Process exited OK. Checking cache...[/]");

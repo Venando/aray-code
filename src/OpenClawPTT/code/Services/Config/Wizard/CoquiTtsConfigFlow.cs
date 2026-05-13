@@ -22,15 +22,18 @@ public sealed class CoquiTtsConfigFlow
     public async Task<bool> RunAsync(
         IStreamShellHost host, AppConfig config, CancellationToken ct)
     {
+        var dataDir = config.CustomDataDir ?? config.DataDir;
+
         // Ensure the pyproject.toml exists — uv needs it for dependency resolution
         var env = new CoquiUvEnvironment(
-            config.CustomDataDir ?? config.DataDir,
+            dataDir,
             config.CoquiModelName ?? "tts_models/multilingual/mxtts/vits",
             config.CoquiModelPath,
             config.CoquiConfigPath,
             config.EspeakNgPath);
         env.EnsureProjectFiles();
 
+        // ── Phase 1: Gate — validate uv and Python before anything else ──
         var uvAvailable = CoquiUvEnvironment.IsUvAvailable();
         if (!uvAvailable)
         {
@@ -40,34 +43,93 @@ public sealed class CoquiTtsConfigFlow
             host.AddMessage("[grey]    But you'll need uv to actually use Coqui TTS.[/]");
             host.AddMessage("");
         }
+        else
+        {
+            // Quick Python version check before triggering expensive operations
+            host.AddMessage("[grey]    Checking Python environment...[/]");
+            var versionError = await CoquiUvEnvironment.ValidatePythonVersionAsync(
+                dataDir, ct);
+            if (versionError != null)
+            {
+                host.AddMessage($"[red]    ✗ Python environment check failed: {versionError}[/]");
+                host.AddMessage("[yellow]    Coqui TTS requires Python >=3.9 and <3.12.[/]");
+                host.AddMessage("[grey]    uv can download the right Python automatically —[/]");
+                host.AddMessage($"[grey]    add 'requires-python = \">=3.9,<3.12\"' to pyproject.toml.[/]");
+                host.AddMessage("[grey]    Current pyproject.toml should already have this constraint.[/]");
+                host.AddMessage("");
+            }
+            else
+            {
+                host.AddMessage("[green]    ✓ Python environment OK[/]");
+            }
+        }
 
-        var modelManager = new CoquiTtsModelManager(config.CustomDataDir ?? config.DataDir, host);
+        // ── Phase 2: Model selection ──
+        var modelManager = new CoquiTtsModelManager(dataDir, host);
         var modelResult = await SelectModelAsync(
             host, modelManager, config, config.CoquiModelName, ct);
 
         if (modelResult == null)
             return false;
 
-        bool changed = false;
-        if (modelResult != config.CoquiModelName)
-        {
-            config.CoquiModelName = modelResult;
-            changed = true;
-        }
+        bool modelChanged = modelResult != config.CoquiModelName;
 
-        // Pre-download if not cached
+        // ── Phase 3: Download (with user confirmation) ──
+        var downloadSucceeded = true;
         if (!CoquiTtsModelManager.IsModelCached(modelResult))
         {
-            await DownloadModelAsync(host, modelManager, modelResult, ct);
+            var shouldDownload = await host.PromptSelection(
+                $"Model '{modelResult}' is not cached. Download now?",
+                [new ConfigVariant("[green]Download now[/]", "download"),
+                 new ConfigVariant("[yellow]Select without downloading[/]", "select"),
+                 new ConfigVariant("[grey]Cancel[/]", "cancel")]);
+
+            if (shouldDownload is not { Length: > 0 } || shouldDownload[0] is not ConfigVariant cv)
+                return false;
+
+            var choice = cv.Value;
+            if (choice == "cancel")
+                return false;
+
+            if (choice == "download")
+            {
+                try
+                {
+                    await DownloadModelAsync(host, modelManager, modelResult, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    host.AddMessage("[yellow]  Download cancelled — model selected but not downloaded.[/]");
+                    downloadSucceeded = false;
+                }
+                catch (Exception ex)
+                {
+                    host.AddMessage($"[red]  Download failed: {EscapeLine(ex.Message)}[/]");
+                    host.AddMessage("[yellow]  Model selected but download failed. You can retry later.[/]");
+                    downloadSucceeded = false;
+                }
+            }
+            else
+            {
+                host.AddMessage("[grey]  Model selected without downloading. Use /reconfigure to download later.[/]");
+                downloadSucceeded = false; // model not cached yet
+            }
         }
 
-        if (changed)
+        // ── Phase 4: Apply config change AFTER download resolution ──
+        if (modelChanged)
         {
+            config.CoquiModelName = modelResult;
             config.SttProvider = null; // ensure TTS provider is CoquiUv
             host.AddMessage($"[green]  Model: {modelResult}[/]");
+
+            if (!downloadSucceeded && !CoquiTtsModelManager.IsModelCached(modelResult))
+            {
+                host.AddMessage("[yellow]  ⚠ Model not cached yet — TTS won't work until downloaded.[/]");
+            }
         }
 
-        return changed;
+        return modelChanged;
     }
 
     internal static async Task<string?> SelectModelAsync(

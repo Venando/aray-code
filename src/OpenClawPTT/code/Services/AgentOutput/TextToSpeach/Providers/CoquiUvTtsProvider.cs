@@ -137,6 +137,15 @@ public sealed class CoquiUvTtsProvider : ITextToSpeech, IAsyncDisposable
             throw new InvalidOperationException(
                 $"uv is not installed. Install it with: {CoquiUvEnvironment.GetInstallInstructions()}");
 
+        // Short-circuit if environment is known broken — don't retry
+        if (CoquiUvEnvironment.IsUvBuildBroken)
+        {
+            _startupFailed = true;
+            var detail = CoquiUvEnvironment.UvBuildErrorDetail ?? "environment is broken";
+            throw new InvalidOperationException(
+                $"Coqui TTS (uv) environment is broken: {detail}. Fix the issue and restart.");
+        }
+
         while (_consecutiveRestarts < MaxConsecutiveRestarts)
         {
             if (_consecutiveRestarts > 0)
@@ -222,6 +231,8 @@ public sealed class CoquiUvTtsProvider : ITextToSpeech, IAsyncDisposable
 
         _startupFailed = true;
         _consecutiveRestarts = 0;
+        CoquiUvEnvironment.MarkUvBuildBroken(
+            $"Coqui TTS (uv) failed to start after {MaxConsecutiveRestarts} attempts");
         throw new InvalidOperationException($"Coqui TTS (uv) failed to start after {MaxConsecutiveRestarts} attempts.");
     }
 
