@@ -167,7 +167,8 @@ public sealed class FasterWhisperModelManager
             return;
         }
 
-        progressCallback?.Invoke(modelName, "Starting download...", null, null, false);
+        _host.AddMessage($"[grey]    Starting download of faster-whisper/{modelName}...[/]");
+        progressCallback?.Invoke(modelName, "Starting download (uv resolving)...", null, null, false);
 
         var pythonCmd = FasterWhisperEnvironment.BuildPreDownloadCommand(modelName);
         var psi = _environment.CreateProcessStartInfo(pythonCmd);
@@ -179,43 +180,78 @@ public sealed class FasterWhisperModelManager
         using var process = Process.Start(psi)
             ?? throw new InvalidOperationException($"Failed to start uv run for model download: {modelName}");
 
+        // Collect all output for debugging
+        var stdoutLines = new System.Collections.Generic.List<string>();
+        var stderrLines = new System.Collections.Generic.List<string>();
+
         try
         {
-            // Read stderr for progress (HuggingFace hub shows download progress on stderr)
-            var stderrTask = ReadDownloadProgressAsync(process, modelName, progressCallback, linkedCts.Token);
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
+            var stdoutTask = Task.Run(async () =>
+            {
+                var reader = process.StandardOutput;
+                while (true)
+                {
+                    var line = await reader.ReadLineAsync(linkedCts.Token).ConfigureAwait(false);
+                    if (line == null) break;
+                    stdoutLines.Add(line);
+                    if (!string.IsNullOrWhiteSpace(line))
+                        _host.AddMessage($"[grey]      [stdout] {line}[/]");
+                }
+            }, linkedCts.Token);
 
-            await Task.WhenAll(stderrTask, stdoutTask, process.WaitForExitAsync(linkedCts.Token))
+            var stderrTask = Task.Run(async () =>
+            {
+                var reader = process.StandardError;
+                while (true)
+                {
+                    var line = await reader.ReadLineAsync(linkedCts.Token).ConfigureAwait(false);
+                    if (line == null) break;
+                    stderrLines.Add(line);
+                    if (!string.IsNullOrWhiteSpace(line))
+                        _host.AddMessage($"[grey]      [stderr] {line}[/]");
+                    if (line.Contains("%", StringComparison.Ordinal) || line.Contains("Download", StringComparison.OrdinalIgnoreCase))
+                        progressCallback?.Invoke(modelName, "Downloading...", null, null, false);
+                }
+            }, linkedCts.Token);
+
+            await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync(linkedCts.Token))
                 .ConfigureAwait(false);
+
+            var stderrText = string.Join("\n", stderrLines);
 
             if (process.ExitCode != 0)
             {
-                var err = await stderrTask.ConfigureAwait(false);
+                _host.AddMessage($"[red]    Download failed (exit={process.ExitCode}): {stderrText.Trim()}[/]");
                 progressCallback?.Invoke(modelName, $"Failed (exit={process.ExitCode})", null, null, false);
                 throw new InvalidOperationException(
-                    $"faster-whisper model download failed (exit={process.ExitCode}): {err}");
+                    $"faster-whisper model download failed (exit={process.ExitCode}): {stderrText.Trim()}");
             }
 
+            _host.AddMessage($"[grey]    Process exited OK. Checking cache...[/]");
             var isCached = IsModelCached(modelName);
             if (isCached)
             {
+                _host.AddMessage($"[green]    ✓ Model {modelName} cached successfully.[/]");
                 progressCallback?.Invoke(modelName, "Download complete", null, null, true);
             }
             else
             {
+                _host.AddMessage($"[yellow]    ⚠ Process completed but model not found in cache. See stdout/stderr above.[/]");
                 progressCallback?.Invoke(modelName,
-                    $"Process completed but model not found in cache", null, null, false);
+                    "Process completed but model not found in cache", null, null, false);
             }
         }
         catch (OperationCanceledException)
         {
-            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+            _host.AddMessage("[yellow]    Download cancelled.[/]");
             progressCallback?.Invoke(modelName, "Cancelled", null, null, false);
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+            _host.AddMessage($"[red]    Download error: {ex.Message}[/]");
             progressCallback?.Invoke(modelName, $"Failed: {ex.Message}", null, null, false);
             throw;
         }
@@ -244,36 +280,6 @@ public sealed class FasterWhisperModelManager
     }
 
     // ── Progress parsing ────────────────────────────────────────────
-
-    private async Task<string> ReadDownloadProgressAsync(
-        Process process,
-        string modelName,
-        Action<string, string, long?, long?, bool>? progressCallback,
-        CancellationToken ct)
-    {
-        var stderr = new StringWriter();
-        try
-        {
-            var reader = process.StandardError;
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-                var line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
-                if (line == null)
-                    break;
-
-                stderr.WriteLine(line);
-
-                // HuggingFace hub progress: "Downloading ... 45%| ..."
-                if (line.Contains("%") && (line.Contains("Download") || line.Contains("Fetching")))
-                {
-                    progressCallback?.Invoke(modelName, "Downloading...", null, null, false);
-                }
-            }
-        }
-        catch (OperationCanceledException) { }
-        catch (ObjectDisposedException) { }
-
-        return stderr.ToString();
-    }
+    // Progress is now logged inline in DownloadModelAsync via host.AddMessage
+    // for both stdout and stderr. The old ReadDownloadProgressAsync is removed.
 }

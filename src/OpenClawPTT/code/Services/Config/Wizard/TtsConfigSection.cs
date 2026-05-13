@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
 using OpenClawPTT.TTS;
+using OpenClawPTT.TTS.Providers;
 using StreamShell;
 
 namespace OpenClawPTT.ConfigWizard;
@@ -17,9 +18,10 @@ public sealed class TtsConfigSection : ConfigSectionBase
     {
         ("OpenAI", "OpenAI"),
         ("Edge", "Edge"),
-        ("Coqui", "Coqui"),
+        ("Coqui TTS (uv)", "CoquiUv"),
+        ("Coqui TTS (legacy)", "Coqui"),
         ("Piper", "Piper"),
-        ("Python", "Python"),
+        ("Python (legacy)", "Python"),
         ("ElevenLabs (not supported)", "ElevenLabs"),
     };
 
@@ -124,6 +126,29 @@ public sealed class TtsConfigSection : ConfigSectionBase
 
         ConfigSelectionHelper.PrintSubSection(host, config.TtsProvider.ToString());
 
+        // ── Coqui TTS (uv): delegate to model download/choose flow ──
+        if (config.TtsProvider == TtsProviderType.CoquiUv)
+        {
+            // Check uv is installed
+            if (!CoquiUvEnvironment.IsUvAvailable())
+            {
+                host.AddMessage("");
+                host.AddMessage($"[yellow]  ⚠ uv (Python package manager) is not installed.[/]");
+                host.AddMessage($"[grey]    Install: {CoquiUvEnvironment.GetInstallInstructions()}[/]");
+                host.AddMessage($"[grey]    Then re-run this configuration.[/]");
+                host.AddMessage("");
+            }
+            else
+            {
+                var coquiFlow = new CoquiTtsConfigFlow();
+                if (await coquiFlow.RunAsync(host, config, ct))
+                    changed = true;
+            }
+            result.Settings.Add(new ConfigSectionResult.SettingRecord(
+                "Coqui TTS Model", config.CoquiModelName ?? "none"));
+        }
+        else
+        {
         // ── ElevenLabs is not supported yet ──
         if (config.TtsProvider == TtsProviderType.ElevenLabs)
         {
@@ -151,10 +176,21 @@ public sealed class TtsConfigSection : ConfigSectionBase
             if (await RunConfigItemsByTagAsync(tag, host, config, isInitialSetup, ct, result))
                 changed = true;
         }
+        }
 
         // ── Voice and TTS output mode (indices 1..) ──
-        if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexVoice))
-            changed = true;
+        // For CoquiUv, skip "Voice name" (it expects a speaker_wav file path, not a simple name)
+        if (config.TtsProvider == TtsProviderType.CoquiUv)
+        {
+            // Only run TTS output mode (index 2), skip voice (index 1)
+            if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexTtsMode))
+                changed = true;
+        }
+        else
+        {
+            if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexVoice))
+                changed = true;
+        }
 
         result.IsChanged = changed;
         return result;

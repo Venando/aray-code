@@ -214,7 +214,7 @@ public sealed class AppConfig
         ["ConnectionStatusPosition"] = "Status bar position for GW/TTS connection status",
         ["DirectLlmPosition"] = "Status bar position for direct LLM status",
         ["MainAgentsPosition"] = "Status bar position for main agents list (None, TopSeparatorLeft, TopSeparatorRight, BottomSeparatorLeft, BottomSeparatorRight, AppStatusPanelLeft, AppStatusPanelRight)",
-        ["TtsProvider"] = "TTS provider: OpenAI, ElevenLabs, Azure, Coqui, Piper, Espeak",
+        ["TtsProvider"] = "TTS provider: OpenAI, Edge, CoquiUv, Coqui, Piper, Python, ElevenLabs",
         ["TtsOpenAiApiKey"] = "OpenAI API key for TTS",
         ["TtsSubscriptionKey"] = "Azure TTS subscription key",
         ["TtsRegion"] = "Azure TTS region",

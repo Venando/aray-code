@@ -5,6 +5,7 @@ using System.Text.Json;
 
 namespace OpenClawPTT.TTS.Providers;
 
+[Obsolete("Use inline JSON parsing in CoquiUvTtsProvider instead.")]
 public static class JsonHelper
 {
     public static bool TryParseJson(string? json, [NotNullWhen(true)] out JsonDocument? jsonDocument, [NotNullWhen(true)] out string? type)

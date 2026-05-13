@@ -119,10 +119,8 @@ public sealed class FasterWhisperEnvironment
     /// </summary>
     public void EnsureProjectFiles()
     {
+        // Always write latest pyproject.toml (may have dependency fixes)
         var pyprojectPath = Path.Combine(_projectDir, "pyproject.toml");
-        if (File.Exists(pyprojectPath))
-            return;
-
         File.WriteAllText(pyprojectPath, PyProjectToml, Encoding.UTF8);
     }
 

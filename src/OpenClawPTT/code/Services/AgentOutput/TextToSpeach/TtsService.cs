@@ -11,10 +11,17 @@ public enum TtsProviderType
 {
     OpenAI,
     Edge,
+    [Obsolete("Use CoquiUv instead — it uses uv for automatic Python/package management.")]
     Coqui,
     Piper,
+    [Obsolete("Use CoquiUv instead — it uses uv for automatic Python/package management.")]
     Python,
-    ElevenLabs
+    ElevenLabs,
+    /// <summary>
+    /// Coqui TTS via <c>uv</c> — automatic Python/packages/dependencies.
+    /// Replacement for <see cref="Coqui"/> and <see cref="Python"/>.
+    /// </summary>
+    CoquiUv,
 }
 
 /// <summary>
@@ -40,6 +47,14 @@ public sealed class TtsService : IDisposable
         _provider = _providerType switch
         {
             TtsProviderType.OpenAI => new Providers.OpenAiTtsProvider(config.TtsOpenAiApiKey ?? config.OpenAiApiKey ?? throw new InvalidOperationException("OpenAI API key not configured")),
+            TtsProviderType.CoquiUv => new Providers.CoquiUvTtsProvider(
+                console,
+                config.CustomDataDir ?? config.DataDir,
+                config.CoquiModelName ?? "tts_models/multilingual/mxtts/vits",
+                config.CoquiModelPath,
+                config.CoquiConfigPath,
+                config.EspeakNgPath,
+                true),
             TtsProviderType.Coqui => new Providers.PythonTtsProvider(
                 console,
                 "",
@@ -53,7 +68,6 @@ public sealed class TtsService : IDisposable
             TtsProviderType.Edge => config.TtsSubscriptionKey != null
                 ? new Providers.EdgeTtsProvider(config.TtsSubscriptionKey, config.TtsRegion ?? "eastus")
                 : null,
-            TtsProviderType.ElevenLabs => throw new NotSupportedException("ElevenLabs TTS provider is not yet implemented. Use OpenAI, Edge, Coqui, Piper, or Python instead."),
             TtsProviderType.Python => new Providers.PythonTtsProvider(
                 console,
                 "",

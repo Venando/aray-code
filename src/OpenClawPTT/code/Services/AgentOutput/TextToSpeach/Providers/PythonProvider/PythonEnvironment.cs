@@ -7,6 +7,7 @@ namespace OpenClawPTT.TTS.Providers;
 /// <summary>
 /// Manages Python environment setup: script extraction, Python resolution, and environment variables.
 /// </summary>
+[Obsolete("Use CoquiUvEnvironment instead — uv handles Python version, packages, and dependencies automatically.")]
 public sealed class PythonEnvironment
 {
     private readonly string _pythonPath;

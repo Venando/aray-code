@@ -1,6 +1,7 @@
 
 namespace OpenClawPTT.TTS.Providers;
 
+[Obsolete("Use inline JSON parsing in CoquiUvTtsProvider instead.")]
 public static class MessageType
 {
     public const string Performance = "perf";

@@ -10,6 +10,7 @@ namespace OpenClawPTT.TTS.Providers;
 /// <summary>
 /// Python TTS provider using a long-running tts_service.py subprocess.
 /// </summary>
+[Obsolete("Use CoquiUvTtsProvider instead — it uses uv for automatic Python/package management.")]
 public sealed class PythonTtsProvider : ITextToSpeech, IAsyncDisposable
 {
     private readonly IColorConsole _console;
