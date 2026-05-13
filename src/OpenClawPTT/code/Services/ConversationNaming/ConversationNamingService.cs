@@ -28,7 +28,7 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
     /// <summary>How many messages (user + agent) trigger the first naming attempt.
     /// Set to 1 so a single user message immediately triggers naming (backward compat.
     /// with the original behavior). Adaptive re-naming happens as more messages arrive.</summary>
-    private const int InitialNamingThreshold = 1;
+    private const int InitialNamingThreshold = 2;
 
     /// <summary>After this many messages, re-evaluate the name.</summary>
     private const int ReNamingThreshold = 6;
