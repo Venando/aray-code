@@ -51,6 +51,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
 
     /// <summary>Base delay in ms for exponential backoff.</summary>
     internal const int RetryBaseDelayMs = 500;
+    internal const int ProbeTimeoutSeconds = 30;
 
     public DirectLlmService(AppConfig config, IDirectLlmFailureTracker? failureTracker = null, HttpMessageHandler? handler = null)
     {
@@ -218,7 +219,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
         var url = BuildOpenAiUrl(_config.DirectLlmUrl!);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(ProbeTimeoutSeconds));
 
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
@@ -255,7 +256,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
         var url = BuildAnthropicUrl(_config.DirectLlmUrl!);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(ProbeTimeoutSeconds));
 
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
