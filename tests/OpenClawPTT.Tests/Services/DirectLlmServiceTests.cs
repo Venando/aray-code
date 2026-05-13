@@ -236,7 +236,8 @@ public class DirectLlmServiceTests
         using var service = new DirectLlmService(cfg, tracker.Object, handler);
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() => service.SendAsync("hello", cts.Token));
+        // HttpClient wraps OperationCanceledException → TaskCanceledException
+        await Assert.ThrowsAsync<TaskCanceledException>(() => service.SendAsync("hello", cts.Token));
         Assert.Equal(1, callCount); // no retry on cancellation
         tracker.Verify(t => t.RecordFailure(), Times.Never); // cancellation not a "failure"
     }

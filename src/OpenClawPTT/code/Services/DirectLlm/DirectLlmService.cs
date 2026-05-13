@@ -52,6 +52,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
     /// <summary>Base delay in ms for exponential backoff.</summary>
     internal const int RetryBaseDelayMs = 500;
     internal const int ProbeTimeoutSeconds = 30;
+    internal const int SendTimeoutMinutes = 5;
 
     public DirectLlmService(AppConfig config, IDirectLlmFailureTracker? failureTracker = null, HttpMessageHandler? handler = null)
     {
@@ -303,10 +304,12 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.DirectLlmToken);
         }
 
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromMinutes(SendTimeoutMinutes));
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadFromJsonAsync<OpenAiResponse>(ct);
+        var responseJson = await response.Content.ReadFromJsonAsync<OpenAiResponse>(timeoutCts.Token);
         return responseJson?.Choices?.FirstOrDefault()?.Message?.Content?.Trim() ?? "(No response)";
     }
 
@@ -338,10 +341,12 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
         request.Headers.Add("x-api-key", _config.DirectLlmToken ?? string.Empty);
         request.Headers.Add("anthropic-version", "2023-06-01");
 
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromMinutes(SendTimeoutMinutes));
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadFromJsonAsync<AnthropicResponse>(ct);
+        var responseJson = await response.Content.ReadFromJsonAsync<AnthropicResponse>(timeoutCts.Token);
         // Aggregate all "text" type content blocks, skip "thinking" and others
         var textParts = responseJson?.Content
             ?.Where(c => c.Type == "text")
