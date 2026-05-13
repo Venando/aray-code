@@ -60,12 +60,4 @@ public sealed class ConnectionStatusPart : StatusPartBase
         Builder.Append(_ttsLabel);
         Builder.Append(RightSuffix);
     }
-
-    private static string ToMarkupColor(StatusColor color) => color switch
-    {
-        StatusColor.Green => "green",
-        StatusColor.Yellow => "yellow",
-        StatusColor.Red => "red",
-        _ => "yellow",
-    };
 }

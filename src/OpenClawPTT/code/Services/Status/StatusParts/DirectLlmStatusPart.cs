@@ -79,12 +79,4 @@ public sealed class DirectLlmStatusPart : StatusPartBase
             return $"{(int)elapsed.TotalHours}h";
         return $"{(int)elapsed.TotalDays}d";
     }
-
-    private static string ToMarkupColor(StatusColor color) => color switch
-    {
-        StatusColor.Green => "green",
-        StatusColor.Yellow => "yellow",
-        StatusColor.Red => "red",
-        _ => "yellow",
-    };
 }
