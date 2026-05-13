@@ -6,7 +6,7 @@ using OpenClawPTT.Services.StatusParts;
 
 namespace OpenClawPTT.Tests;
 
-[Collection("ConversationNaming")]
+[Collection("AgentRegistryCollection")]
 public class StatusServiceTests
 {
     static StatusServiceTests()
@@ -54,8 +54,8 @@ public class StatusServiceTests
         Assert.Contains("TTS:", host.LastSeparatorRightText);
         Assert.Contains("[green]", host.LastSeparatorRightText);
         Assert.Contains("[yellow]", host.LastSeparatorRightText);
-        // Yellow dot animates — first frame is '·'
-        Assert.Contains("\u00B7", host.LastSeparatorRightText); // ·
+        // Yellow dot animates — first frame is '•'
+        Assert.Contains("\u2022", host.LastSeparatorRightText); // •
     }
 
     [Fact]
@@ -595,31 +595,32 @@ public class StatusServiceTests
         part.SetStatus(StatusColor.Yellow);
 
         // Yellow state: animation advances via AdvanceFrame() then GetText()
-        // Frame 0: '·'
+        // Current frames: ['•', '●', '•', '●']
+        // Frame 0: '•'
         string text1 = part.GetText();
         Assert.Contains("STT:", text1);
-        Assert.Contains("\u00B7", text1); // ·
+        Assert.Contains("\u2022", text1); // •
         Assert.Contains("[yellow]", text1);
 
-        // Advance + get: frame 1 → '•'
+        // Advance + get: frame 1 → '●'
         part.AdvanceFrame();
         string text2 = part.GetText();
-        Assert.Contains("\u2022", text2); // •
+        Assert.Contains("\u25CF", text2); // ●
 
-        // Advance + get: frame 2 → '●'
+        // Advance + get: frame 2 → '•'
         part.AdvanceFrame();
         string text3 = part.GetText();
-        Assert.Contains("\u25CF", text3); // ●
+        Assert.Contains("\u2022", text3); // •
 
-        // Advance + get: frame 3 → '•'
+        // Advance + get: frame 3 → '●'
         part.AdvanceFrame();
         string text4 = part.GetText();
-        Assert.Contains("\u2022", text4); // •
+        Assert.Contains("\u25CF", text4); // ●
 
-        // Advance + get: wraps around to frame 0 → '·'
+        // Advance + get: wraps around to frame 0 → '•'
         part.AdvanceFrame();
         string text5 = part.GetText();
-        Assert.Contains("\u00B7", text5); // ·
+        Assert.Contains("\u2022", text5); // •
 
         // Yellow always stays dirty (for continued rendering)
         Assert.True(part.IsDirty);

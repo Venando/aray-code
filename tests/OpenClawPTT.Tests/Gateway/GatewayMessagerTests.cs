@@ -157,15 +157,16 @@ public class GatewayMessagerTests : IDisposable
     }
 
     [Fact]
-    public void TestProcessFrame_ChatFinal_FiresDeltaEvents()
+    public void TestProcessFrame_ChatFinal_FiresAgentReplyFull()
     {
-        var startFired = false;
-        _mockEvents.Setup(x => x.RaiseAgentReplyDeltaStart()).Callback(() => startFired = true);
+        string? captured = null;
+        _mockEvents.Setup(x => x.RaiseAgentReplyFinal(It.IsAny<string>()))
+            .Callback<string>(t => captured = t);
 
         var json = @"{""type"":""event"",""event"":""chat"",""payload"":{""state"":""final"",""message"":{""content"":[{""type"":""text"",""text"":""final text""}]}}}";
         _messager.TestProcessFrame(json);
 
-        Assert.True(startFired);
+        Assert.Equal("final text", captured);
     }
 
     [Fact]

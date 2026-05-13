@@ -5,6 +5,7 @@ using Xunit;
 
 namespace OpenClawPTT.Tests.Gateway;
 
+[Collection("AgentRegistryCollection")]
 public class SnapshotProcessorTests
 {
     private readonly Mock<ILogger> _mockLogger;

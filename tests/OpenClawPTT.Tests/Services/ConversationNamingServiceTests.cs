@@ -9,7 +9,7 @@ using Xunit;
 
 namespace OpenClawPTT.Tests.Services;
 
-[Collection("ConversationNaming")]
+[Collection("AgentRegistryCollection")]
 public class ConversationNamingServiceTests : IDisposable
 {
     private static AppConfig CreateDefaultConfig()
