@@ -28,4 +28,9 @@ public interface IStatusService
     /// or whenever the config is updated at runtime.
     /// </summary>
     void ApplyConfigPositions(AppConfig cfg);
+
+    /// <summary>
+    /// Gets the current status color of a service component, or null if not tracked.
+    /// </summary>
+    StatusColor? GetServiceStatus(ServiceKind kind);
 }

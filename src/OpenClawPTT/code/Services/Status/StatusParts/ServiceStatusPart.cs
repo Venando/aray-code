@@ -34,6 +34,9 @@ public sealed class ServiceStatusPart : StatusPartBase
     /// <summary>The label prefix (e.g. "GW:", "TTS:").</summary>
     private string Label => _label;
 
+    /// <summary>Gets the current status color.</summary>
+    public StatusColor GetCurrentColor() => _color;
+
     /// <summary>Whether this part is currently in the yellow (transitional) state.</summary>
     internal bool IsYellow => _color == StatusColor.Yellow;
 
