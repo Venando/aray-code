@@ -332,6 +332,24 @@ This will fail at transcription time with a confusing `Process.Start` error.
 
 ---
 
+## Fix Verification (2026-05-13)
+
+All 12 issues resolved in branch `analysis/stt-pipeline-resilience`:
+
+| Commit | Issues | Changes |
+|--------|--------|---------|
+| `0c57ddd` | M3 | Added `CancellationToken ct` param to GroqTranscriber.TranscribeAsync — passed to HttpClient, Task.Delay, ReadAsStringAsync |
+| `27d470c` | C1 | GroqTranscriberAdapter passes ct through instead of dropping it |
+| `35a8a29` | C2 | GroqRetryCount default 0→2 — transient errors get 2 retries by default |
+| `36b634f` | H3 | CancellationToken.None → cancellable ct; OCE caught separately from errors |
+| `6c3462c` | H1 | TranscriptionTimeoutSeconds=30 config; linked timeout CTS in StopAndTranscribeAsync |
+| `7791481` | H2+H4+M1 | TranscriptionStatusCallback — Yellow(Running)/Green(OK)/Red(Fail) lifecycle wired to StatusService |
+| `d6b6137` | M2+M4+L1+L2 | Send-failure preserves text; clearer too-short message; recorder start errors caught; whisper binary validated early |
+
+**Test results:** 883 passed, 3 skipped, 0 failed ✅
+
+---
+
 ## Summary
 
 | # | Severity | Issue | Component |
