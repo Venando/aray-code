@@ -33,6 +33,9 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
     public event Action? ConnectionSucceeded;
 
+    /// <summary>Fires when the reconnection loop begins after an unexpected disconnect.</summary>
+    public event Action? Reconnecting;
+
     public GatewayConnectionLifecycle(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource events, IColorConsole console,
         Func<IClientWebSocket>? socketFactory = null, ISnapshotProcessor? snapshotProcessor = null, IAgentStatusTracker? agentStatusTracker = null)
     {
@@ -44,6 +47,13 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         _snapshotProcessor = snapshotProcessor ?? new SnapshotProcessor(new ConsoleLogger(console), agentStatusTracker);
         _jobRunner = new BackgroundJobRunner(msg => _console.Log("jobrunner", msg));
         _gatewayReconnector = new GatewayReconnector(cfg, console, this, _disposeCts.Token);
+
+        // Wire reconnector events to lifecycle relay
+        _gatewayReconnector.ReconnectStarted += () => Reconnecting?.Invoke();
+        // On permanent reconnect failure, signal the final disconnected state through the event source
+        // so StatusService (via GatewayService) can update the status dot from Yellow back to Red.
+        _gatewayReconnector.ReconnectFailed += () => _events.RaiseDisconnected();
+
         _agentStatusTracker = agentStatusTracker;
     }
 

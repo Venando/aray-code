@@ -98,9 +98,12 @@ public class AppRunner : IDisposable
         using var gateway = _factory.CreateGatewayService(_cfg, ttsSummarizer, pttStateMachine,
             ttsProviderTask: ttsInitTask);
 
-        // Subscribe to gateway connection events so the status dot updates
-        // on every successful connection (initial, manual reconnect, auto-reconnect).
+        // Subscribe to gateway connection lifecycle events for the status bar.
+        // The Disconnected event fires both on initial connect failure (via ReceiveLoop detection)
+        // and on permanent reconnect failure (via GatewayReconnector -> lifecycle relay).
         gateway.Connected += () => _statusService.SetGatewayStatus("Connected", StatusColor.Green);
+        gateway.Disconnected += () => _statusService.SetGatewayStatus("Disconnected", StatusColor.Red);
+        gateway.Reconnecting += () => _statusService.SetGatewayStatus("Reconnecting", StatusColor.Yellow);
 
         // Wire ErrorLogStore into GatewayService so SendTextAsync/SendRpcAsync failures are logged
         if (gateway is GatewayService gw)
@@ -165,10 +168,11 @@ public class AppRunner : IDisposable
     {
         try
         {
+            _statusService.SetGatewayStatus("Connecting", StatusColor.Yellow);
             _console.PrintInfo("Connecting to gateway...");
             await gateway.ConnectAsync(ct);
             _console.LogOk("gateway", "Gateway connected.");
-            _statusService.SetGatewayStatus("Connected", StatusColor.Green);
+            // Status set to Green via gateway.Connected event handler (handles initial + reconnect)
             return ConnectResult.Success;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -192,8 +196,6 @@ public class AppRunner : IDisposable
                 foreach (var action in classification.SuggestedActions)
                     _console.PrintInfo($"    \u2192 {action}");
             }
-
-            _statusService.SetGatewayStatus("Connecting", StatusColor.Yellow);
 
             if (classification.ShouldStopApp)
             {

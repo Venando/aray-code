@@ -12,6 +12,13 @@ public interface IGatewayUIEvents
 {
     /// <summary>Fires after a successful connection to the gateway (initial or reconnection).</summary>
     event Action? Connected;
+
+    /// <summary>Fires when the WebSocket connection is lost.</summary>
+    event Action? Disconnected;
+
+    /// <summary>Fires when the reconnection loop begins after an unexpected disconnect.</summary>
+    event Action? Reconnecting;
+
     event Action<string>? AgentReplyFull;
     event Action? AgentReplyDeltaStart;
     event Action<string>? AgentReplyDelta;

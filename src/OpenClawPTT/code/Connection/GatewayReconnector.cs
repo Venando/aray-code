@@ -15,6 +15,18 @@ public class GatewayReconnector : IDisposable
 
     public SemaphoreSlim ReconnectLock => _reconnectLock;
 
+    /// <summary>Fires when the reconnection loop begins (initial delay before first attempt).</summary>
+    public event Action? ReconnectStarted;
+
+    /// <summary>Fires after a successful reconnection.</summary>
+    public event Action? ReconnectSucceeded;
+
+    /// <summary>Fires when the reconnection loop exhausts all retries without success.</summary>
+    public event Action? ReconnectFailed;
+
+    /// <summary>Maximum number of reconnection attempts before giving up. Default: 5.</summary>
+    public int MaxRetryCount { get; set; } = 5;
+
     public GatewayReconnector(AppConfig appConfig, IColorConsole console, IGatewayConnector gatewayConnector, CancellationToken cancellationToken)
     {
         _cfg = appConfig;
@@ -38,6 +50,7 @@ public class GatewayReconnector : IDisposable
             _reconnectLock.Release();
         }
         _console.Log("gateway", "Starting reconnection loop...");
+        ReconnectStarted?.Invoke();
         _reconnectTask = ReconnectLoopAsync(ct);
     }
 
@@ -47,22 +60,25 @@ public class GatewayReconnector : IDisposable
         var linkedCt = linkCts.Token;
         try
         {
-            while (!linkedCt.IsCancellationRequested)
+            int attempt = 0;
+            while (!linkedCt.IsCancellationRequested && attempt < MaxRetryCount)
             {
-                var delayMs = (int)(_cfg.ReconnectDelaySeconds * 1000);
-                _console.Log("gateway", $"Waiting {_cfg.ReconnectDelaySeconds}s before reconnection attempt...");
+                attempt++;
+                var delayMs = CalculateBackoffDelay(attempt);
+                _console.Log("gateway", $"Waiting {delayMs / 1000.0:F1}s before reconnection attempt {attempt}/{MaxRetryCount}...");
                 await Task.Delay(delayMs, linkedCt);
 
-                _console.Log("gateway", "Attempting to reconnect...");
+                _console.Log("gateway", $"Attempting to reconnect (attempt {attempt}/{MaxRetryCount})...");
                 try
                 {
                     await _gatewayConnector.ConnectAsync(linkedCt);
                     _console.LogOk("gateway", "Reconnected successfully.");
-                    break;
+                    ReconnectSucceeded?.Invoke();
+                    return;
                 }
                 catch (OperationCanceledException) when (linkedCt.IsCancellationRequested)
                 {
-                    break;
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -82,15 +98,32 @@ public class GatewayReconnector : IDisposable
                         }
                         break;
                     }
-                    _console.LogError("gateway", $"Reconnection failed: {ex.Message}");
+                    _console.LogError("gateway", $"Reconnection attempt {attempt}/{MaxRetryCount} failed: {ex.Message}");
                 }
             }
+
+            // All retries exhausted or non-retryable error
+            _console.LogError("gateway", $"Reconnection failed after {attempt} attempts. Giving up.");
+            ReconnectFailed?.Invoke();
         }
         finally
         {
             _isReconnecting = false;
             linkCts.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Calculates the delay before a reconnection attempt using exponential backoff.
+    /// Base delay from <see cref="AppConfig.ReconnectDelaySeconds"/>, doubled per attempt,
+    /// capped at 60 seconds.
+    /// </summary>
+    private int CalculateBackoffDelay(int attempt)
+    {
+        var baseDelayMs = (int)(_cfg.ReconnectDelaySeconds * 1000);
+        var backoffMs = baseDelayMs * (int)Math.Pow(2, attempt - 1);
+        // Cap at 60s, never go below base delay (0 if config is 0)
+        return Math.Min(backoffMs, 60_000);
     }
 
     public void Dispose()

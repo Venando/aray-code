@@ -14,6 +14,7 @@ public sealed class GatewayEventSource : IGatewayEventSource
     public event Action<string>? AgentThinking;
     public event Action<string, string>? AgentToolCall;
     public event Action<string>? AgentReplyAudio;
+    public event Action? Disconnected;
 
     public void RaiseAgentThinking(string thinking) => AgentThinking?.Invoke(thinking);
     public void RaiseAgentToolCall(string toolName, string arguments) => AgentToolCall?.Invoke(toolName, arguments);
@@ -24,4 +25,5 @@ public sealed class GatewayEventSource : IGatewayEventSource
     public void RaiseAgentReplyFinal(string text) => AgentReplyFinal?.Invoke(text);
     public void RaiseAgentReplyDelta(string chunk) => AgentReplyDelta?.Invoke(chunk);
     public void RaiseEventReceived(string eventName, JsonElement payload) => EventReceived?.Invoke(eventName, payload);
+    public void RaiseDisconnected() => Disconnected?.Invoke();
 }

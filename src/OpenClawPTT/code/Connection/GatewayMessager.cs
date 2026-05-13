@@ -82,6 +82,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         _console.Log("gateway", "Server closed connection.");
+                        _events.RaiseDisconnected();
                         _dispatcher.DispatchAndForget(new GatewayDisconnectedEvent("Server closed connection."));
                         _onDisconnection?.Invoke(ct);
                         return;
@@ -109,12 +110,14 @@ public class GatewayMessager : IDisposable, IRpcCaller
         catch (WebSocketException ex)
         {
             _console.LogError("gateway", $"WebSocket error: {ex.Message}");
+            _events.RaiseDisconnected();
             _dispatcher.DispatchAndForget(new GatewayDisconnectedEvent($"WebSocket error: {ex.Message}", ex));
             _onDisconnection?.Invoke(ct);
         }
         catch (Exception ex)
         {
             _console.LogError("gateway", $"ReceiveLoop unexpected error: {ex.GetType().Name}: {ex.Message}");
+            _events.RaiseDisconnected();
             _dispatcher.DispatchAndForget(new GatewayDisconnectedEvent($"Unexpected error: {ex.Message}", ex));
             _onDisconnection?.Invoke(ct);
         }

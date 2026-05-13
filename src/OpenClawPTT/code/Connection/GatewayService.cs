@@ -23,6 +23,8 @@ public sealed class GatewayService : IGatewayService
     private bool _disposed;
 
     public event Action? Connected;
+    public event Action? Disconnected;
+    public event Action? Reconnecting;
     public event Action<string>? AgentReplyFull;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;
@@ -172,9 +174,12 @@ public sealed class GatewayService : IGatewayService
         if (events != null)
             WireEventHandlers(events);
 
-        // Relay connection events to the public Connected event
+        // Relay connection events from the concrete GatewayClient
         if (client is GatewayClient gc)
+        {
             gc.ConnectionSucceeded += () => Connected?.Invoke();
+            gc.Reconnecting += () => Reconnecting?.Invoke();
+        }
 
         return client;
     }
@@ -191,6 +196,8 @@ public sealed class GatewayService : IGatewayService
         bool useFull = _config.ReplyDisplayMode != ReplyDisplayMode.Delta;
 
         // ── Always wired (display-mode independent) ──
+        events.Disconnected += () => Disconnected?.Invoke();
+
         events.AgentThinking += thinking =>
         {
             _coordinator.OnAgentThinking(thinking);

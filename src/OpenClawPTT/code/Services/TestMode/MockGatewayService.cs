@@ -17,7 +17,11 @@ public sealed class MockGatewayService : IGatewayService
     private readonly TestScenarioSession _session;
     private bool _disposed;
 
+#pragma warning disable CS0067 // Events never raised — required by IGatewayService interface in mock
     public event Action? Connected;
+    public event Action? Disconnected;
+    public event Action? Reconnecting;
+#pragma warning restore CS0067
     public event Action<string>? AgentReplyFull;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;

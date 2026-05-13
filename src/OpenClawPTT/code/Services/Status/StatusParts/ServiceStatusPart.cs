@@ -104,11 +104,4 @@ public sealed class ServiceStatusPart : StatusPartBase
         }
     }
 
-    private static string ToMarkupColor(StatusColor color) => color switch
-    {
-        StatusColor.Green => "green",
-        StatusColor.Yellow => "yellow",
-        StatusColor.Red => "red",
-        _ => "yellow",
-    };
 }

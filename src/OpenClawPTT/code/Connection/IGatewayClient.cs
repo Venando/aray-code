@@ -17,6 +17,12 @@ public interface IGatewayClient : IDisposable
     string? AgentId { get; }
     bool IsDisposed { get; }
 
+    /// <summary>Fires after a successful connection to the gateway (initial or reconnection).</summary>
+    event Action? ConnectionSucceeded;
+
+    /// <summary>Fires when the reconnection loop begins after an unexpected disconnect.</summary>
+    event Action? Reconnecting;
+
     Task ConnectAsync(CancellationToken ct);
     Task DisconnectAsync(CancellationToken ct);
     Task<JsonElement> SendTextAsync(string body, CancellationToken ct);
