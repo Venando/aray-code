@@ -82,6 +82,17 @@ public abstract class StatusPartBase : IStatusPart
     /// <inheritdoc />
     public int Order { get; set; }
 
+    /// <summary>
+    /// Converts a <see cref="StatusColor"/> to its Spectre.Console markup color name.
+    /// </summary>
+    protected static string ToMarkupColor(StatusColor color) => color switch
+    {
+        StatusColor.Green => "green",
+        StatusColor.Yellow => "yellow",
+        StatusColor.Red => "red",
+        _ => "yellow",
+    };
+
     /// <inheritdoc />
     public abstract string SeparatorBefore { get; }
 

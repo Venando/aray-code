@@ -3,26 +3,24 @@ using Spectre.Console;
 
 namespace OpenClawPTT.Services;
 
-public sealed class EditToolRenderer : IToolRenderer
+public sealed class EditToolRenderer : ToolRendererBase
 {
-    private readonly IToolOutput _output;
     private readonly DiffRenderer _diffRenderer;
 
-    public EditToolRenderer(IToolOutput output)
+    public EditToolRenderer(IToolOutput output) : base(output)
     {
-        _output = output;
         _diffRenderer = new DiffRenderer(output);
     }
 
-    public string ToolName => "edit";
+    public override string ToolName => "edit";
 
-    public void Render(JsonElement args, int rightMarginIndent)
+    public override void Render(JsonElement args, int rightMarginIndent)
     {
         // Schema: { "path": "...", "edits": [{ "oldText": "...", "newText": "..." }] }
         if (args.TryGetProperty("path", out var pathProp))
         {
             string displayPath = FilePathDisplayHelper.FormatDisplayPath(pathProp.GetString() ?? "");
-            _output.Print(displayPath, ConsoleColor.Gray);
+            Output.Print(displayPath, ConsoleColor.Gray);
         }
 
         if (args.TryGetProperty("edits", out var editsProp) && editsProp.ValueKind == JsonValueKind.Array)
@@ -32,7 +30,7 @@ public sealed class EditToolRenderer : IToolRenderer
                 string oldText = edit.TryGetProperty("oldText", out var oldProp) ? oldProp.GetString() ?? "" : "";
                 string newText = edit.TryGetProperty("newText", out var newProp) ? newProp.GetString() ?? "" : "";
 
-                _output.PrintLine("");
+                Output.PrintLine("");
 
                 // Compute and render diff between oldText and newText
                 var diffResult = LineDiffEngine.ComputeDiff(oldText, newText);

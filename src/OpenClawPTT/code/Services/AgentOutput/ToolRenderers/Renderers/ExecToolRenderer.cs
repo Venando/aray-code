@@ -94,7 +94,7 @@ public sealed class ExecToolRenderer : ToolRendererBase
             }
             string fmt = FormatToken(pos);
             posChars += fmt.Length;
-            Output.Print(" ", ConsoleColor.White);
+            PrintSpace();
             Output.Print(fmt, ConsoleColor.Cyan);
             posCount++;
         }
@@ -102,7 +102,7 @@ public sealed class ExecToolRenderer : ToolRendererBase
         // ── Script body (compact display) ────────────────────────────────────
         if (!string.IsNullOrEmpty(meta.ScriptBody))
         {
-            Output.Print(" ", ConsoleColor.White);
+            PrintSpace();
             int bodyLen = meta.ScriptBody.Length;
             if (bodyLen <= 40)
             {
@@ -121,12 +121,12 @@ public sealed class ExecToolRenderer : ToolRendererBase
         {
             if (flag.StartsWith("--"))
             {
-                Output.Print(" ", ConsoleColor.White);
+                PrintSpace();
                 Output.Print(FormatToken(flag), ConsoleColor.Green);
             }
             else
             {
-                Output.Print(" ", ConsoleColor.White);
+                PrintSpace();
                 Output.Print(FormatToken(flag), ConsoleColor.DarkYellow);
             }
         }
@@ -134,7 +134,7 @@ public sealed class ExecToolRenderer : ToolRendererBase
         // ── Redirects ─────────────────────────────────────────────────────
         foreach (var redir in meta.Redirects)
         {
-            Output.Print(" ", ConsoleColor.White);
+            PrintSpace();
             Output.Print(FormatToken(redir), ConsoleColor.Gray);
         }
 
@@ -165,6 +165,8 @@ public sealed class ExecToolRenderer : ToolRendererBase
             Output.Print($" ({bodyLines} line{(bodyLines == 1 ? "" : "s")})", ConsoleColor.DarkGray);
         }
     }
+
+    private void PrintSpace() => Output.Print(" ", ConsoleColor.White);
 
     private static ConsoleColor GetExecutableColor(CommandType type)
     {

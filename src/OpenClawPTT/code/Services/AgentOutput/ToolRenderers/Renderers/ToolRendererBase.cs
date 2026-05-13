@@ -77,4 +77,49 @@ public abstract class ToolRendererBase : IToolRenderer
         PrintLabelValue(label, value.ToString(), prependComma);
         return true;
     }
+
+    /// <summary>
+    /// Renders JSON object properties as comma-separated key-value pairs.
+    /// First property is printed in gray; subsequent ones as ", key: value" in darkgray/white.
+    /// </summary>
+    protected static void RenderKvpProperties(IToolOutput output, JsonElement args)
+    {
+        bool first = true;
+        foreach (var prop in args.EnumerateObject())
+        {
+            if (first)
+            {
+                output.Print(GetValueString(prop.Value), ConsoleColor.Gray);
+                first = false;
+            }
+            else
+            {
+                output.Print($", {prop.Name}: ", ConsoleColor.DarkGray);
+                output.Print(GetValueString(prop.Value), ConsoleColor.White);
+            }
+        }
+
+        if (first)
+        {
+            output.PrintLine("\u00b7", ConsoleColor.Black);
+        }
+    }
+
+    /// <summary>
+    /// Converts a <see cref="JsonElement"/> to its string representation, handling all value types.
+    /// </summary>
+    protected static string GetValueString(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.String => element.GetString() ?? "",
+            JsonValueKind.Number => element.GetRawText(),
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            JsonValueKind.Null => "null",
+            JsonValueKind.Array => element.GetRawText(),
+            JsonValueKind.Object => element.GetRawText(),
+            _ => element.GetRawText()
+        };
+    }
 }

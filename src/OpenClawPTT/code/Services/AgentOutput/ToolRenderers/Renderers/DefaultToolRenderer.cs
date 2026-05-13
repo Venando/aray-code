@@ -7,32 +7,16 @@ namespace OpenClawPTT.Services;
 /// Falls back to printing the raw arguments. NOTE: this renderer returns an empty
 /// ToolName so it is filtered out of the default registry.
 /// </summary>
-public sealed class DefaultToolRenderer : IToolRenderer
+public sealed class DefaultToolRenderer : ToolRendererBase
 {
-    private readonly IToolOutput _output;
-
-    public DefaultToolRenderer(IToolOutput output)
+    public DefaultToolRenderer(IToolOutput output) : base(output)
     {
-        _output = output;
     }
 
-    public string ToolName => "";
+    public override string ToolName => "";
 
-    public void Render(JsonElement args, int rightMarginIndent)
+    public override void Render(JsonElement args, int rightMarginIndent)
     {
-        bool first = true;
-        foreach (var prop in args.EnumerateObject())
-        {
-            if (first)
-            {
-                _output.Print(prop.Value.GetString() ?? "", ConsoleColor.Gray);
-                first = false;
-            }
-            else
-            {
-                _output.Print($", {prop.Name}: ", ConsoleColor.DarkGray);
-                _output.Print(prop.Value.GetString() ?? "", ConsoleColor.White);
-            }
-        }
+        RenderKvpProperties(Output, args);
     }
 }
