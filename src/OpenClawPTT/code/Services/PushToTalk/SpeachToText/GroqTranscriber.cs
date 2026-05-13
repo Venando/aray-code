@@ -88,12 +88,13 @@ public sealed class GroqTranscriber : IDisposable
     /// <exception cref="GroqTranscriberException">
     ///   Thrown on any HTTP or JSON error from the Groq API after retries exhausted.
     /// </exception>
-    public async Task<string> TranscribeAsync(byte[] wavBytes, string fileName = "audio.wav")
+    public async Task<string> TranscribeAsync(byte[] wavBytes, string fileName = "audio.wav", CancellationToken ct = default)
     {
         if (wavBytes == null || wavBytes.Length == 0)
             throw new ArgumentNullException(nameof(wavBytes), "WAV bytes must not be null or empty.");
 
         ThrowIfDisposed();
+        ct.ThrowIfCancellationRequested();
 
         int attempt = 0;
         int maxAttempts = _retryCount + 1; // include initial attempt
@@ -119,7 +120,7 @@ public sealed class GroqTranscriber : IDisposable
                 HttpResponseMessage response;
                 try
                 {
-                    response = await _http.PostAsync(GroqApiUrl, content).ConfigureAwait(false);
+                    response = await _http.PostAsync(GroqApiUrl, content, ct).ConfigureAwait(false);
                 }
                 catch (HttpRequestException ex)
                 {
@@ -128,12 +129,12 @@ public sealed class GroqTranscriber : IDisposable
                         throw new GroqTranscriberException("Network error while contacting Groq API.", ex);
                     
                     // Wait and retry
-                    await Task.Delay(delay).ConfigureAwait(false);
+                    await Task.Delay(delay, ct).ConfigureAwait(false);
                     delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * _retryBackoffFactor);
                     continue;
                 }
 
-                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -145,7 +146,7 @@ public sealed class GroqTranscriber : IDisposable
                     }
                     
                     // Wait and retry
-                    await Task.Delay(delay).ConfigureAwait(false);
+                    await Task.Delay(delay, ct).ConfigureAwait(false);
                     delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * _retryBackoffFactor);
                     continue;
                 }
@@ -158,7 +159,7 @@ public sealed class GroqTranscriber : IDisposable
             {
                 // This catch block is for any other transient exceptions we might have missed
                 // Wait and retry
-                await Task.Delay(delay).ConfigureAwait(false);
+                await Task.Delay(delay, ct).ConfigureAwait(false);
                 delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * _retryBackoffFactor);
             }
         }

@@ -306,6 +306,29 @@ public class GroqTranscriberTests : IDisposable
     }
 
     // -------------------------------------------------------------------------
+    // CancellationToken — cancels immediately
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task TranscribeAsync_PreCancelledToken_ThrowsOperationCanceledException()
+    {
+        var handler = new FakeHttpMessageHandler
+        {
+            ResponseToReturn = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("hello")
+            }
+        };
+
+        using var transcriber = CreateWithFakeHttp(handler, retryCount: 0);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => transcriber.TranscribeAsync(SampleWav, ct: cts.Token));
+    }
+
+    // -------------------------------------------------------------------------
     // Dispose — verifies HttpClient is disposed
     // -------------------------------------------------------------------------
 
