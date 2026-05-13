@@ -116,7 +116,7 @@ public sealed class AudioPlayerService : IAudioPlayer, IDisposable
                 _waveOut.Stop();
                 _waveOut.Dispose();
             }
-            catch { /* ignore */ }
+            catch (Exception ex) { _console.PrintError($"Audio cleanup failed: {ex.Message}"); }
             _waveOut = null;
         }
 

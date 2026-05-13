@@ -322,7 +322,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
                         await SendRequestAsync("tick", null, tickCt, TimeSpan.FromSeconds(5));
                 }
                 catch (OperationCanceledException) { break; }
-                catch { /* swallow tick failures */ }
+                catch (Exception ex) { _console.LogError("gateway", $"Tick failed: {ex.Message}"); }
             }
         }, tickCt);
     }
