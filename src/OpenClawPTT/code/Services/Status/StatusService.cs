@@ -43,7 +43,7 @@ public sealed class StatusService : IStatusService, IDisposable
     private readonly ServiceStatusPart _gatewayStatusPart;
     private readonly ServiceStatusPart _ttsStatusPart;
     private readonly ServiceStatusPart _sttStatusPart;
-    private readonly DirectLlmStatusPart _directLlmStatusPart;
+    private readonly ServiceStatusPart _llmStatusPart;
     private MainAgentsPart? _mainAgentsPart;
 
     // All animated parts (ServiceStatusPart instances) for efficient animation ticking
@@ -76,10 +76,10 @@ public sealed class StatusService : IStatusService, IDisposable
         _gatewayStatusPart = new ServiceStatusPart("GW:", order: 1);
         _ttsStatusPart = new ServiceStatusPart("TTS:", order: 2);
         _sttStatusPart = new ServiceStatusPart("STT:", order: 3);
-        _directLlmStatusPart = new DirectLlmStatusPart();
+        _llmStatusPart = new ServiceStatusPart("LLM:", order: 4);
 
         // Collect all animated parts for periodic frame advancement
-        _animatedParts = [_gatewayStatusPart, _ttsStatusPart, _sttStatusPart];
+        _animatedParts = [_gatewayStatusPart, _ttsStatusPart, _sttStatusPart, _llmStatusPart];
 
         // MainAgentsPart may be injected or set later via SetMainAgentsPart()
         if (mainAgentsPart != null)
@@ -123,7 +123,7 @@ public sealed class StatusService : IStatusService, IDisposable
             _gatewayStatusPart,
             _ttsStatusPart,
             _sttStatusPart,
-            _directLlmStatusPart,
+            _llmStatusPart,
         };
 
         if (_mainAgentsPart != null)
@@ -169,18 +169,14 @@ public sealed class StatusService : IStatusService, IDisposable
     {
         lock (_lock)
         {
-            _directLlmStatusPart.SetStatus(label, color);
+            _llmStatusPart.SetStatus(color);
             Render();
         }
     }
 
     public void SetDirectLlmLastCalled(DateTime? timestamp)
     {
-        lock (_lock)
-        {
-            _directLlmStatusPart.SetLastCalled(timestamp);
-            Render();
-        }
+        // LLM status is now a simple dot like other services — timestamp ignored
     }
 
     public void SetAgentStatusTracker(IAgentStatusTracker tracker)
@@ -219,7 +215,7 @@ public sealed class StatusService : IStatusService, IDisposable
             _gatewayStatusPart.Position = cfg.ConnectionStatusPosition;
             _ttsStatusPart.Position = cfg.TtsStatusPosition;
             _sttStatusPart.Position = cfg.SttStatusPosition;
-            _directLlmStatusPart.Position = cfg.DirectLlmPosition;
+            _llmStatusPart.Position = cfg.DirectLlmPosition;
             if (_mainAgentsPart != null)
                 _mainAgentsPart.Position = cfg.MainAgentsPosition;
             Render();

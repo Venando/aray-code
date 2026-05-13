@@ -59,7 +59,7 @@ public class StatusServiceTests
     }
 
     [Fact]
-    public void SetDirectLlmStatus_UpdatesRenderedText()
+    public void SetDirectLlmStatus_ShowsDot()
     {
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
@@ -67,22 +67,22 @@ public class StatusServiceTests
         service.SetDirectLlmStatus("OK", StatusColor.Green);
 
         Assert.Contains("LLM:", host.LastSeparatorRightText);
-        Assert.Contains("OK", host.LastSeparatorRightText);
-        Assert.Contains("green", host.LastSeparatorRightText);
+        Assert.Contains("[green]", host.LastSeparatorRightText);
+        Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
     }
 
     [Fact]
-    public void SetDirectLlmLastCalled_ShowsElapsedTime()
+    public void SetDirectLlmLastCalled_DoesNothing()
     {
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
 
         service.SetDirectLlmStatus("OK", StatusColor.Green);
-        service.SetDirectLlmLastCalled(DateTime.Now);
+        string before = host.LastSeparatorRightText!;
 
-        Assert.Contains("LLM:", host.LastSeparatorRightText);
-        Assert.Contains("OK", host.LastSeparatorRightText);
-        Assert.Contains("0s", host.LastSeparatorRightText);
+        // SetLastCalled is now a no-op; text should not change
+        service.SetDirectLlmLastCalled(DateTime.Now);
+        Assert.Equal(before, host.LastSeparatorRightText);
     }
 
     [Fact]
