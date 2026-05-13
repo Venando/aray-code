@@ -286,3 +286,20 @@ Timer lifecycle, frame advancement, and Yellow detection are all correctly manag
 | `StatusColorExtensions.cs` | StatusColor → Spectre color mapping |
 | `ServiceKind.cs` | Enum: Gateway/Tts/Stt/DirectLlm |
 | `EdgeTtsProvider.cs` | Example provider (Azure TTS) |
+
+---
+
+## Resolution Log (2026-05-13)
+
+All 6 findings resolved on branch `analysis/tts-pipeline-resilience`:
+
+| # | Commit | Resolution |
+|---|--------|-----------|
+| 1 + 8 + 9 | `09bff92` | Added `Action<bool>?` synthesis status callback from AudioResponseHandler → GatewayService → AppRunner → StatusService. Try/catch around synthesis with true (Green) / false (Red) reporting. |
+| 2 | `b54639c` | Added `_synthesisCts` (cancelled on Dispose), replaced `CancellationToken.None`. Retry loop: up to 1 retry with 500ms delay. OCE returns silently (shutdown). |
+| 3 | `0f451fb` | `_statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Yellow)` at start of `InitializeTtsProviderAsync()`. |
+| 4 | `081e026` | `Stop()` wrapped in inner try/catch in both Play methods. `CleanupPlayback()` nulls fields before disposal so exceptions don't leave stale state. |
+| 5 | `4a8bbbd` | TtsService logs warning when Edge has no key. `RecreateTtsProviderAsync` throws when provider is null → reconfig handler sets Red. More descriptive init logs. |
+| 7 (as #6) | `0bbc345` | `HasSpecialFormatting` uses `^#{1,6}\s` regex instead of `Contains("#")`. Eliminates false positives on plain hashtags. |
+
+**Test results**: 877 passed, 0 failed, 3 skipped — unchanged from baseline.
