@@ -30,6 +30,7 @@ public sealed class ModularConfigurationWizard
             new HarnessConfigSection(),
             new SttConfigSection(),
             new TtsConfigSection(),
+            new DirectLlmConfigSection(),
             new InputDisplayConfigSection(),
             new VisualFeedbackConfigSection(),
         };

@@ -181,14 +181,37 @@ public static class OpenClawCommandSuggestions
         SuggestionsMap.TryGetValue(commandName, out var suggestions) ? suggestions : null;
 
     /// <summary>
+    /// Known value suggestions for string-backed AppConfig properties that have
+    /// a constrained set of valid values (e.g. API type names).
+    /// These are appended to the property-name suggestions so that tab-completion
+    /// offers the valid values after the user has typed the key name.
+    /// </summary>
+    private static readonly Dictionary<string, string[]> KnownConfigPropertyValues = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [nameof(AppConfig.DirectLlmApiType)] = new[] { "openai-completions", "anthropic-messages" },
+    };
+
+    /// <summary>
     /// Dynamically builds suggestions from all writable public properties on AppConfig.
     /// Used for the local /appconfig command tab completion.
+    /// Also appends known valid values for constrained-string properties (e.g. DirectLlmApiType)
+    /// so the user can tab-complete the value after typing the key.
     /// </summary>
-    public static string[] GetAppConfigSuggestions() =>
-        typeof(AppConfig)
+    public static string[] GetAppConfigSuggestions()
+    {
+        var propertyNames = typeof(AppConfig)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
             .Where(p => p.CanWrite && p.SetMethod?.IsPublic == true)
             .Select(p => p.Name)
-            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .ToList();
+
+        // Append known values for constrained-string properties
+        foreach (var (propName, values) in KnownConfigPropertyValues)
+        {
+            if (propertyNames.Contains(propName))
+                propertyNames.AddRange(values.Where(v => !propertyNames.Contains(v)));
+        }
+
+        return propertyNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
 }
