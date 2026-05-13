@@ -85,11 +85,29 @@ public sealed class CoquiTtsConfigFlow
         if (isFallback)
         {
             host.AddMessage("");
-            host.AddMessage("[bold yellow]  ─── Using Built-in (Offline) Model List ───[/]");
+            host.AddMessage("[bold yellow]  \u2500\u2500\u2500 Using Built-in (Offline) Model List \u2500\u2500\u2500[/]");
             host.AddMessage("[grey]    These are well-known Coqui TTS models hardcoded in OpenClawPTT.[/]");
             host.AddMessage("[grey]    Live models from coqui/TTS could not be fetched. See errors above.[/]");
             host.AddMessage("[grey]    Fix uv/Python issues and re-run to get the live model catalogue.[/]");
             host.AddMessage("");
+
+            // If uv's dependency resolution itself broke (build error, not just timeout/missing),
+            // there's no point in showing a model selection — the user needs to fix uv first.
+            // Keep the current model and let them come back after fixing the environment.
+            var errorDetail = CoquiTtsModelManager.LastFetchErrorDetail;
+            var isUvBroken = !string.IsNullOrEmpty(errorDetail) &&
+                             (errorDetail.Contains("uv exit=", StringComparison.Ordinal) ||
+                              errorDetail.Contains("Failed to build", StringComparison.Ordinal) ||
+                              errorDetail.Contains("build backend", StringComparison.Ordinal) ||
+                              errorDetail.Contains("build_wheel", StringComparison.Ordinal));
+            if (isUvBroken)
+            {
+                host.AddMessage("[yellow]  The uv environment could not be set up (build/dependency error).[/]");
+                host.AddMessage("[grey]    Fix the issues above, then re-run /reconfigure TTS to select a model.[/]");
+                if (!string.IsNullOrEmpty(currentModel))
+                    host.AddMessage($"[grey]    Current model: {currentModel}[/]");
+                return currentModel; // Keep current model, skip selection
+            }
         }
 
         var cachedModels = new HashSet<string>(
@@ -181,7 +199,8 @@ public sealed class CoquiTtsConfigFlow
         }
         catch (Exception ex)
         {
-            host.AddMessage($"[red]  Download failed: {ex.Message}[/]");
+            var errorText = ex.Message;
+            host.AddMessage($"[red]  Download failed: {EscapeLine(errorText)}[/]");
         }
         finally
         {
@@ -190,6 +209,12 @@ public sealed class CoquiTtsConfigFlow
     }
 
     // ── Variant builder ─────────────────────────────────────────────
+
+    private static string EscapeLine(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return text.Replace("[", "[[").Replace("]", "]]");
+    }
 
     private static List<IVariant> BuildVariants(
         IReadOnlyList<CoquiTtsModelInfo> allModels,
