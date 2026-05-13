@@ -205,24 +205,16 @@ public class AppRunner : IDisposable
         }
     }
 
-    private async Task<int> RunPttLoopAsync(IGatewayService gateway, IPttStateMachine pttStateMachine, IDirectLlmService directLlmService, ITtsSummarizer ttsSummarizer, bool gatewayConnected, CancellationToken ct)
+    /// <summary>
+    /// Wires up the conversation naming pipeline: text sender wrapper, naming service,
+    /// and input handler. Returns the assembled objects for caller disposal.
+    /// </summary>
+    private (ConversationNamingTextMessageSender NamingTextSender, IConversationNamingService NamingService, Services.IInputHandler InputHandler)
+        CreateNamingPipeline(IGatewayService gateway, IDirectLlmService directLlmService)
     {
-        using var audioService = _factory.CreateAudioService(_cfg);
-
-        // Re-create transcriber when config changes (e.g. STT provider/model switched via /reconfigure)
-        void OnConfigSaved(AppConfig newCfg)
-        {
-            try { audioService.RecreateTranscriber(newCfg, _console); }
-            catch (Exception ex) { _console.PrintError($"Failed to update STT: {ex.Message}"); }
-        }
-        _configService.ConfigSaved += OnConfigSaved;
-
-        try
-        {
         var textSender = _factory.CreateTextMessageSender(gateway);
 
-        // Wire up conversation naming: wrap text sender and connect to status bar
-        using var namingService = _factory.CreateConversationNamingService(
+        var namingService = _factory.CreateConversationNamingService(
             directLlmService.IsConfigured ? directLlmService : null, _cfg);
         namingService.ConversationNameChanged += name => _statusService.SetConversationName(name);
 
@@ -230,21 +222,42 @@ public class AppRunner : IDisposable
         gateway.AgentReplyFull += namingService.OnAgentReplyReceived;
 
         var namingTextSender = new ConversationNamingTextMessageSender(textSender, namingService);
-
         var inputHandler = _factory.CreateInputHandler(namingTextSender);
 
-        // Agent settings (loaded in AppBootstrapper, already merged into AgentRegistry)
+        return (namingTextSender, namingService, inputHandler);
+    }
+
+    /// <summary>
+    /// Creates and registers all StreamShell commands and the agent hotkey service.
+    /// Also wires session snapshot cleanup and command-executed events.
+    /// </summary>
+    private async Task<(
+            AgentHotkeyService HotkeyService,
+            StreamShellInputHandler ShellCommands,
+            SessionResetSnapshotCleaner SnapshotCleaner,
+            IAppLoop PttLoop)>
+        CreateShellAndHotkeyServicesAsync(
+            IGatewayService gateway,
+            IPttStateMachine pttStateMachine,
+            ConversationNamingTextMessageSender namingTextSender,
+            IConversationNamingService namingService,
+            IDirectLlmService directLlmService,
+            ITtsSummarizer ttsSummarizer,
+            IAudioService audioService,
+            Services.IInputHandler inputHandler,
+            bool gatewayConnected,
+            CancellationToken ct)
+    {
         var pttController = new PttController();
 
-        using var agentHotkeyService = new AgentHotkeyService(
+        var agentHotkeyService = new AgentHotkeyService(
             pttController, namingTextSender, _shellHost, _cfg,
             _factory.GetAgentSettingsPersistence(),
             gatewayService: gateway,
             pttStateMachine: pttStateMachine,
             console: _console);
 
-        // Register StreamShell commands (/quit, /reconfigure) before PTT loop
-        using var shellCommands = new StreamShellInputHandler(
+        var shellCommands = new StreamShellInputHandler(
             _shellHost,
             namingTextSender,
             gateway,
@@ -262,16 +275,14 @@ public class AppRunner : IDisposable
         );
         shellCommands.CommandExecuted += namingService.OnCommandExecuted;
 
-        using var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentStatusTracker);
+        var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentStatusTracker);
         shellCommands.CommandExecuted += snapshotCleaner.Handle;
 
         await shellCommands.RegisterBaseAsync();
 
-        // Register gateway-dependent commands based on connection result
         if (gatewayConnected)
             shellCommands.SetGatewayConnected(true);
 
-        // Register /llm command if Direct LLM is configured
         if (directLlmService.IsConfigured)
             shellCommands.SetDirectLlmConfigured(true);
 
@@ -280,11 +291,48 @@ public class AppRunner : IDisposable
 
         _console.PrintHelpMenu(_cfg);
 
-        using IAppLoop pttLoop = _factory.CreatePttLoop(
+        var pttLoop = _factory.CreatePttLoop(
             pttStateMachine, audioService, pttController, namingTextSender, inputHandler,
             requireConfirmBeforeSend: _cfg.RequireConfirmBeforeSend);
 
-        return (int)(await pttLoop.RunAsync(ct));
+        return (agentHotkeyService, shellCommands, snapshotCleaner, pttLoop);
+    }
+
+    /// <summary>
+    /// Wraps the audio service lifecycle: creates it, subscribes to config changes
+    /// for STT provider/model switching, runs the PTT loop, and cleans up.
+    /// </summary>
+    private async Task<int> RunPttLoopAsync(IGatewayService gateway, IPttStateMachine pttStateMachine, IDirectLlmService directLlmService, ITtsSummarizer ttsSummarizer, bool gatewayConnected, CancellationToken ct)
+    {
+        using var audioService = _factory.CreateAudioService(_cfg);
+
+        // Re-create transcriber when config changes (e.g. STT provider/model switched via /reconfigure)
+        void OnConfigSaved(AppConfig newCfg)
+        {
+            try { audioService.RecreateTranscriber(newCfg, _console); }
+            catch (Exception ex) { _console.PrintError($"Failed to update STT: {ex.Message}"); }
+        }
+        _configService.ConfigSaved += OnConfigSaved;
+
+        try
+        {
+            var (namingTextSender, namingService, inputHandler) =
+                CreateNamingPipeline(gateway, directLlmService);
+
+            using var namingDisposable = (IDisposable)namingService;
+
+            var (hotkeyService, shellCommands, snapshotCleaner, pttLoop) =
+                await CreateShellAndHotkeyServicesAsync(
+                    gateway, pttStateMachine, namingTextSender, namingService,
+                    directLlmService, ttsSummarizer, audioService, inputHandler,
+                    gatewayConnected, ct);
+
+            using var hotkeyDisposable = hotkeyService;
+            using var shellDisposable = shellCommands;
+            using var snapshotDisposable = snapshotCleaner;
+            using var pttLoopDisposable = pttLoop;
+
+            return (int)(await pttLoop.RunAsync(ct));
         }
         finally
         {

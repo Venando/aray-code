@@ -4,7 +4,7 @@ namespace OpenClawPTT.Services;
 /// Thread-safe in-memory store for agent and subagent status snapshots.
 /// <para>
 /// <b>Non-erasure guarantee:</b> <see cref="Update"/> always passes the
-/// previously stored snapshot to <see cref="AgentStatusExtractor.Extract"/>
+/// previously stored snapshot to <see cref="AgentStatusMerger.MergeSnapshots"/>
 /// so that information present in an earlier, richer payload is never
 /// overwritten by a later partial payload.  The merge logic lives in the
 /// extractor; the tracker is purely a thread-safe key-value store that
@@ -37,7 +37,7 @@ public sealed class AgentStatusTracker : IAgentStatusTracker
             // new payload are preserved from the old one.
             var merged = existing is null
                 ? snapshot
-                : AgentStatusExtractor.MergeSnapshots(existing, snapshot);
+                : AgentStatusMerger.MergeSnapshots(existing, snapshot);
 
             changed = !ReferenceEquals(existing, merged)
                       && (existing is null || !existing.Equals(merged));
