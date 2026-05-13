@@ -194,9 +194,10 @@ dependencies = [
 # uv downloads the right Python automatically if not installed
 
 [tool.uv.extra-build-dependencies]
-# pandas 1.5.3 (dep of TTS 0.22) uses pkg_resources but doesn't declare
-# setuptools as a build dependency → uv needs this hint
-pandas = ["setuptools"]
+# pandas 1.5.3 (dep of TTS 0.22) uses pkg_resources at build time but
+# doesn't declare setuptools as a build dependency. setuptools>=67.3
+# removed pkg_resources, so we pin to an older version that includes it.
+pandas = ["setuptools<67"]
 """;
 
     private const string TtsServiceScript = """

@@ -92,6 +92,19 @@ public sealed class TtsService : ITtsService
             throw new InvalidOperationException($"Failed to initialize TTS provider: {_providerType}");
         }
 
+        if (_provider is Providers.CoquiUvTtsProvider coquiUv)
+        {
+            try
+            {
+                coquiUv.InitializeAsync(_cts.Token).GetAwaiter().GetResult();
+            }
+            catch (AggregateException ae)
+            {
+                // Unwrap AggregateException from GetAwaiter().GetResult()
+                throw ae.InnerException ?? ae;
+            }
+        }
+
         if (_provider is Providers.PythonTtsProvider pythonProvider)
         {
             try
