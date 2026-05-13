@@ -173,15 +173,15 @@ public sealed class GatewayService : IGatewayService
                 _summarizer, _pttStateMachine, ttsService.ReleaseProvider(),
                 onSynthesisStatus: _onTtsSynthesisStatus);
             _coordinator.SetAudioHandler(audioHandler);
-        }
-        else
-        {
-            // Provider is null (Edge with no key, etc.) — clear audio handler,
-            // TTS will be effectively disabled until reconfigured with valid settings.
-            _coordinator.SetAudioHandler(null);
+            return Task.CompletedTask;
         }
 
-        return Task.CompletedTask;
+        // Provider is null (Edge with no key, etc.) — clear audio handler,
+        // TTS will be effectively disabled until reconfigured with valid settings.
+        _coordinator.SetAudioHandler(null);
+        throw new InvalidOperationException(
+            $"TTS provider '{ttsService.ProviderType}' requires configuration. " +
+            "Check TtsSubscriptionKey / TtsOpenAiApiKey / TtsApiKey / CoquiModelPath settings.");
     }
 
     public async Task<List<ChatHistoryEntry>?> FetchSessionHistoryAsync(string sessionKey, int limit = 5)

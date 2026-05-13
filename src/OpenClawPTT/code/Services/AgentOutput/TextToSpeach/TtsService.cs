@@ -83,6 +83,9 @@ public sealed class TtsService : ITtsService
         if (_provider == null && _providerType == TtsProviderType.Edge)
         {
             // Edge with null key — warn but don't crash (TtsService still works, TTS just silent)
+            console.PrintWarning(
+                $"TTS provider '{_providerType}' requires a subscription key. " +
+                "Set 'TtsSubscriptionKey' and 'TtsRegion' in configuration.");
         }
         else if (_provider == null)
         {
