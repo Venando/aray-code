@@ -139,6 +139,15 @@ public sealed class StatusService : IStatusService, IDisposable
             Mutate(() => part.SetStatus(color));
     }
 
+    /// <inheritdoc />
+    public StatusColor? GetServiceStatus(ServiceKind kind)
+    {
+        lock (_lock)
+        {
+            return _serviceParts.TryGetValue(kind, out var part) ? part.GetCurrentColor() : null;
+        }
+    }
+
     public void SetAgentStatusTracker(IAgentStatusTracker tracker)
     {
         Mutate(() =>
