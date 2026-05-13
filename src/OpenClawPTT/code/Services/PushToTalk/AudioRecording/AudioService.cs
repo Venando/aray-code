@@ -55,7 +55,16 @@ public sealed class AudioService : IAudioService
         
         IAudioRecorder recorder;
         lock (_recorderLock) { recorder = _recorder; }
-        recorder.StartRecording();
+        try
+        {
+            recorder.StartRecording();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.PrintError($"Cannot start recording: {ex.Message}");
+            _console.PrintInfo("  Install 'sox' (Linux/macOS) or ensure NAudio is available (Windows).");
+            return;
+        }
         // Use per-agent hotkey if set, else fall back to global config default
         var activeAgentId = AgentRegistry.ActiveAgentId;
         var effectiveHotkey = activeAgentId != null
@@ -102,7 +111,7 @@ public sealed class AudioService : IAudioService
         
         if (wav.Length < 1024)
         {
-            _console.PrintWarning("Too short (<1KB), skipped.");
+            _console.PrintWarning("Recording too short — hold the hotkey for at least 0.5 seconds.");
             return null;
         }
 

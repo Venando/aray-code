@@ -54,7 +54,20 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
     {
         if (binaryPath == null || !binaryPath.Contains(Path.DirectorySeparatorChar))
         {
-            return WhisperCppModelManager.FindWhisperBinary() ?? binaryPath ?? "whisper";
+            var found = WhisperCppModelManager.FindWhisperBinary();
+            if (found != null)
+                return found;
+
+            // User-specified binary name (no path) — trust it may be on PATH.
+            // A bare name like "whisper" or "whisper-cpp" will be resolved by
+            // Process.Start at transcription time.
+            if (binaryPath != null)
+                return binaryPath;
+
+            // No binary found and no user override — fail early with a clear message.
+            throw new TranscriberException(
+                "Whisper binary not found. Install whisper.cpp or set WhisperCppBinaryPath in config.\n" +
+                "  Install: https://github.com/ggerganov/whisper.cpp");
         }
 
         // If it's a full path, verify it exists

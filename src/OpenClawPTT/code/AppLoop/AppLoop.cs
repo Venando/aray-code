@@ -152,6 +152,11 @@ public sealed class AppLoop : IAppLoop
         catch (Exception ex)
         {
             _console.LogError("ptt", $"Failed to send: {ex.GetType().Name}: {ex.Message}");
+            // Preserve transcribed text so the user can re-send manually
+            // (escape brackets to prevent Spectre markup injection from transcribed speech)
+            var safe = transcribed.Replace("[", "[[").Replace("]", "]]");
+            _console.PrintMarkup($"[yellow][dim]  Transcribed: [/][/][yellow]{safe}[/]");
+            _console.PrintInfo("  Use /chat to re-send if desired.");
         }
     }
 
