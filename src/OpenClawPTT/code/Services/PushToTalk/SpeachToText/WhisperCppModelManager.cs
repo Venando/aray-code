@@ -93,20 +93,12 @@ public sealed class WhisperCppModelManager
         var url = $"https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{fileName}";
         var destPath = GetModelPath(modelName);
 
-        // If already downloaded, just report complete
-        if (File.Exists(destPath))
-        {
-            var existingInfo = new FileInfo(destPath);
-            progressCallback?.Invoke(fileName, "Already downloaded", existingInfo.Length, existingInfo.Length, true);
+        if (TryReportAlreadyDownloaded(destPath, fileName, progressCallback))
             return;
-        }
 
         progressCallback?.Invoke(fileName, "Starting download...", null, null, false);
 
-        using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct)
-            .ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
+        using var response = await StartHttpDownloadAsync(url, ct);
         var totalBytes = response.Content.Headers.ContentLength;
         var tempPath = destPath + ".download";
 
@@ -116,48 +108,21 @@ public sealed class WhisperCppModelManager
 
         try
         {
-            long totalRead = 0;
-            
-            // 1. Create a nested scope for the FileStream
-            {
-                await using var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            var totalRead = await StreamToFileWithProgressAsync(
+                response, tempPath, fileName, totalBytes, progressCallback, ct);
 
-                var buffer = new byte[8192];
-                int bytesRead;
-                var lastReportTime = Environment.TickCount64;
-
-                while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
-                {
-                    ct.ThrowIfCancellationRequested(); // MEDIUM: check cancellation in loop
-                    await fs.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
-                    totalRead += bytesRead;
-
-                    var now = Environment.TickCount64;
-                    if (now - lastReportTime >= 100)
-                    {
-                        progressCallback?.Invoke(fileName, "Downloading...", totalRead, totalBytes, false);
-                        lastReportTime = now;
-                    }
-                }
-            }
-
-            // 2. Atomic move with overwrite
             File.Move(tempPath, destPath, overwrite: true);
-
             progressCallback?.Invoke(fileName, "Download complete", totalRead, totalRead, true);
         }
         catch (OperationCanceledException)
         {
-            // H10: Rethrow silently — caller handles cancellation display
-            try { File.Delete(tempPath); } catch { /* best effort */ }
+            SafeDeleteTempFile(tempPath);
             throw;
         }
         catch (Exception ex)
         {
             _host.AddMessage($"[red][download] failed to download: {ex.Message} [/]");
-            // Clean up temp file on failure
-            try { File.Delete(tempPath); } catch { /* best effort */ }
+            SafeDeleteTempFile(tempPath);
             throw;
         }
         finally
@@ -255,6 +220,82 @@ public sealed class WhisperCppModelManager
         {
             return false;
         }
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Checks if the model file already exists on disk and reports completion via callback.
+    /// </summary>
+    /// <returns>True if the model is already downloaded.</returns>
+    private static bool TryReportAlreadyDownloaded(
+        string destPath,
+        string fileName,
+        Action<string, string, long?, long?, bool>? progressCallback)
+    {
+        if (!File.Exists(destPath))
+            return false;
+
+        var existingInfo = new FileInfo(destPath);
+        progressCallback?.Invoke(fileName, "Already downloaded", existingInfo.Length, existingInfo.Length, true);
+        return true;
+    }
+
+    /// <summary>
+    /// Sends an HTTP GET request with streaming response headers enabled.
+    /// </summary>
+    private static async Task<HttpResponseMessage> StartHttpDownloadAsync(string url, CancellationToken ct)
+    {
+        var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        return response;
+    }
+
+    /// <summary>
+    /// Streams the HTTP response content to a temporary file with periodic progress reporting.
+    /// Reports progress at most every 100 ms via <paramref name="progressCallback"/>.
+    /// </summary>
+    /// <returns>Total bytes read from the stream.</returns>
+    private static async Task<long> StreamToFileWithProgressAsync(
+        HttpResponseMessage response,
+        string tempPath,
+        string fileName,
+        long? totalBytes,
+        Action<string, string, long?, long?, bool>? progressCallback,
+        CancellationToken ct)
+    {
+        await using var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+
+        var buffer = new byte[8192];
+        long totalRead = 0;
+        var lastReportTime = Environment.TickCount64;
+
+        int bytesRead;
+        while ((bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            await fs.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
+            totalRead += bytesRead;
+
+            var now = Environment.TickCount64;
+            if (now - lastReportTime >= 100)
+            {
+                progressCallback?.Invoke(fileName, "Downloading...", totalRead, totalBytes, false);
+                lastReportTime = now;
+            }
+        }
+
+        return totalRead;
+    }
+
+    /// <summary>
+    /// Attempts to delete a file, swallowing any errors.
+    /// </summary>
+    private static void SafeDeleteTempFile(string path)
+    {
+        try { File.Delete(path); } catch { /* best effort */ }
     }
 
     private static string? FindOnPath(string name)
