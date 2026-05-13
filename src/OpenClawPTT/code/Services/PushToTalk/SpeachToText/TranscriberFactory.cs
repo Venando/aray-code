@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using OpenClawPTT;
 using OpenClawPTT.Services;
 
@@ -27,6 +28,9 @@ public static class TranscriberFactory
             AppConfig.ProviderWhisperCpp => CreateWhisperCpp(config, colorConsole.GetStreamShellHost()
                 ?? throw new InvalidOperationException("Cannot initialize whisper-cpp STT: terminal integration unavailable.")),
 
+            AppConfig.ProviderFasterWhisper => CreateFasterWhisper(config, colorConsole.GetStreamShellHost()
+                ?? throw new InvalidOperationException("Cannot initialize faster-whisper STT: terminal integration unavailable.")),
+
             _ => throw new ArgumentException($"Unknown STT provider: {config.SttProvider}")
         };
     }
@@ -42,5 +46,19 @@ public static class TranscriberFactory
 
         return new WhisperCppTranscriberAdapter(modelManager, modelName,
             whisperBinaryPath: config.WhisperCppBinaryPath);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="FasterWhisperTranscriberAdapter"/> using <c>uv</c> + <c>faster-whisper</c>.
+    /// No Python path, packages, or binary path configuration required — <c>uv</c>
+    /// handles the full toolchain automatically.
+    /// </summary>
+    private static ITranscriber CreateFasterWhisper(AppConfig config, IStreamShellHost host)
+    {
+        var env = new FasterWhisperEnvironment(config.CustomDataDir ?? config.DataDir);
+        var modelManager = new FasterWhisperModelManager(env, host);
+        var modelName = config.FasterWhisperModel ?? "base";
+
+        return new FasterWhisperTranscriberAdapter(env, modelManager, modelName);
     }
 }

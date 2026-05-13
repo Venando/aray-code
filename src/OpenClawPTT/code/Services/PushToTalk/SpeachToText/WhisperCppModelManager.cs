@@ -232,6 +232,7 @@ public sealed class WhisperCppModelManager
     /// Detects whether the given binary is Python openai-whisper (uses model names,
     /// auto-downloads from HuggingFace) vs native C++ whisper.cpp (uses .bin files).
     /// </summary>
+    [Obsolete("Python openai-whisper is deprecated. Use the 'faster-whisper' STT provider with uv instead.")]
     public static bool IsPythonOpenAiWhisper(string binaryPath)
     {
         try
@@ -282,6 +283,7 @@ public sealed class WhisperCppModelManager
     /// macOS: ~/Library/Caches/whisper/
     /// Windows: %USERPROFILE%\.cache\whisper\
     /// </summary>
+    [Obsolete("Python openai-whisper is deprecated. Use FasterWhisperModelManager instead.")]
     public static string GetPythonCacheDir()
     {
         if (OperatingSystem.IsWindows())
@@ -305,6 +307,7 @@ public sealed class WhisperCppModelManager
     /// Checks if a Python openai-whisper model is already cached locally.
     /// Python models use .pt (PyTorch) or .en.pt files in the Whisper cache directory.
     /// </summary>
+    [Obsolete("Python openai-whisper is deprecated. Use FasterWhisperModelManager.IsModelCached() instead.")]
     public static bool IsPythonModelCached(string modelName)
     {
         var cacheDir = GetPythonCacheDir();
@@ -318,6 +321,7 @@ public sealed class WhisperCppModelManager
     /// Deletes a Python openai-whisper model from the local cache.
     /// Returns true if the model existed and was deleted.
     /// </summary>
+    [Obsolete("Python openai-whisper is deprecated. Use FasterWhisperModelManager.DeleteModel() instead.")]
     public static bool DeletePythonModel(string modelName)
     {
         var cacheDir = GetPythonCacheDir();
@@ -335,6 +339,7 @@ public sealed class WhisperCppModelManager
     /// to ~/.cache/whisper/ before transcription begins.
     /// Reports progress via <paramref name="progressCallback"/> (indeterminate).
     /// </summary>
+    [Obsolete("Python openai-whisper is deprecated. Use FasterWhisperModelManager.DownloadModelAsync() instead.")]
     public static async Task DownloadPythonModelAsync(
         string binaryPath,
         string modelName,
@@ -438,6 +443,8 @@ public sealed class WhisperCppModelManager
     /// <summary>
     /// Reads stderr line by line from the Python whisper process and parses
     /// tqdm progress bar output to provide byte-level progress updates.
+    /// </summary>
+    [Obsolete("Python openai-whisper is deprecated.")]
     /// tqdm output format:
     ///   100%|██████████| 148M/148M [00:02<00:00, 50.1MB/s]
     /// also handles variants like:
@@ -597,7 +604,12 @@ public sealed class WhisperModelInfo
 }
 
 /// <summary>Type of whisper binary detected on the system.</summary>
-public enum WhisperType { Python, Cpp }
+public enum WhisperType
+{
+    [Obsolete("Python openai-whisper is deprecated. Use the 'faster-whisper' STT provider with uv instead.")]
+    Python,
+    Cpp
+}
 
 /// <summary>Info about a detected whisper binary on the system.</summary>
 public sealed class WhisperBinaryInfo

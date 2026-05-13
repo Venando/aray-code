@@ -37,11 +37,13 @@ public sealed class AppConfig
     public const string ProviderGroq = "groq";
     public const string ProviderOpenAi = "openai";
     public const string ProviderWhisperCpp = "whisper-cpp";
+    public const string ProviderFasterWhisper = "faster-whisper";
     public string? SttProvider { get; set; }
     public string? OpenAiApiKey { get; set; }
     public string? OpenAiModel { get; set; }
     public string? WhisperCppModel { get; set; }
     public string? WhisperCppBinaryPath { get; set; }
+    public string? FasterWhisperModel { get; set; }
     public string? GroqModel { get; set; }
 
     // Shortcut settings
@@ -178,6 +180,7 @@ public sealed class AppConfig
         ["OpenAiModel"] = "OpenAI model name for STT",
         ["WhisperCppModel"] = "Whisper.cpp model name (e.g. base, small.en, medium)",
         ["WhisperCppBinaryPath"] = "Path to whisper CLI binary (auto-detected if not set)",
+        ["FasterWhisperModel"] = "faster-whisper model name (e.g. base, small.en, medium)",
         ["GroqModel"] = "Groq model for STT",
         ["HotkeyCombination"] = "Push-to-talk hotkey (e.g. Alt+=)",
         ["HoldToTalk"] = "Hold key to record, release to send (vs toggle)",

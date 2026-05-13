@@ -20,6 +20,7 @@ internal static class WhisperDownloadProgress
     /// Downloads a Python openai-whisper model by running the whisper binary
     /// with a tiny silent WAV to trigger auto-download. Shows progress in bottom panel.
     /// </summary>
+    [Obsolete("Python openai-whisper is deprecated. Use DownloadFasterWhisperAsync() instead.")]
     public static async Task DownloadPythonAsync(
         IStreamShellHost host, string binaryPath,
         string modelName, CancellationToken ct)
@@ -31,6 +32,45 @@ internal static class WhisperDownloadProgress
         {
             await WhisperCppModelManager.DownloadPythonModelAsync(
                 binaryPath,
+                modelName,
+                progressCallback: (fileName, status, downloaded, total, complete) =>
+                {
+                    progressPanel.SetProgress(fileName, status, downloaded, total, complete);
+                },
+                ct: ct);
+
+            await Task.Delay(500, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            host.AddMessage("[yellow]  Download cancelled.[/]");
+        }
+        catch (Exception ex)
+        {
+            host.AddMessage($"[red]  Download failed: {ex.Message}[/]");
+        }
+        finally
+        {
+            host.ResetBottomPanel();
+        }
+    }
+
+    // ── faster-whisper model download (uv) ──────────────────────────
+
+    /// <summary>
+    /// Pre-downloads a faster-whisper model via <c>uv run</c>.
+    /// Shows progress in the bottom panel.
+    /// </summary>
+    public static async Task DownloadFasterWhisperAsync(
+        IStreamShellHost host, FasterWhisperModelManager modelManager,
+        string modelName, CancellationToken ct)
+    {
+        var progressPanel = new DownloadProgressBottomPanel();
+        host.SetBottomPanel(progressPanel);
+
+        try
+        {
+            await modelManager.DownloadModelAsync(
                 modelName,
                 progressCallback: (fileName, status, downloaded, total, complete) =>
                 {

@@ -14,12 +14,14 @@ public sealed class SttConfigSection : ConfigSectionBase
     private const string TagGroq = "groq";
     private const string TagOpenAi = "openai";
     private const string TagWhisperCpp = "whisper-cpp";
+    private const string TagFasterWhisper = "faster-whisper";
 
     private static readonly (string Name, string Value)[] ProviderOptions =
     {
         ("Groq", TagGroq),
         ("OpenAI", TagOpenAi),
-        ("Whisper.cpp (local)", TagWhisperCpp),
+        ("Whisper.cpp — C++ (local)", TagWhisperCpp),
+        ("faster-whisper — uv (local)", TagFasterWhisper),
     };
 
     public SttConfigSection()
@@ -116,7 +118,7 @@ public sealed class SttConfigSection : ConfigSectionBase
         config.GroqModel ??= "whisper-large-v3-turbo";
         config.OpenAiModel ??= "whisper-1";
 
-        // ── Whisper.cpp: delegate to WhisperConfigFlow ──
+        // ── Whisper.cpp (C++): delegate to WhisperConfigFlow ──
         if (provider == TagWhisperCpp)
         {
             var whisperFlow = new WhisperConfigFlow();
@@ -125,6 +127,16 @@ public sealed class SttConfigSection : ConfigSectionBase
 
             result.Settings.Add(new ConfigSectionResult.SettingRecord(
                 "Whisper Model", config.WhisperCppModel ?? "none"));
+        }
+        // ── faster-whisper (uv): delegate to FasterWhisperConfigFlow ──
+        else if (provider == TagFasterWhisper)
+        {
+            var fwFlow = new FasterWhisperConfigFlow();
+            if (await fwFlow.RunAsync(host, config, ct))
+                changed = true;
+
+            result.Settings.Add(new ConfigSectionResult.SettingRecord(
+                "faster-whisper Model", config.FasterWhisperModel ?? "none"));
         }
         else
         {
