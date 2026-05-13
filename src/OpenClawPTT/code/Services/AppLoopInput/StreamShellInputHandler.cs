@@ -273,6 +273,10 @@ public sealed class StreamShellInputHandler : IDisposable
         _lastKnownLlmUrl = llmUrl;
         _lastKnownLlmModel = llmModel;
 
+        // Update the existing service's config so subsequent /llm calls
+        // use the new URL/model/token without requiring a restart.
+        _directLlmService?.UpdateConfig(e.NewConfig);
+
         bool nowConfigured = !string.IsNullOrWhiteSpace(llmUrl) && !string.IsNullOrWhiteSpace(llmModel);
         SetDirectLlmConfigured(nowConfigured);
     }

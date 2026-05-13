@@ -19,6 +19,7 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
     private readonly IDirectLlmService? _directLlm;
     private readonly IColorConsole? _console;
     private readonly AppConfig _appConfig;
+    private readonly CancellationTokenSource _cts = new();
 
     // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -234,7 +235,7 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
             _console?.Log("naming", "Generating conversation name...", LogLevel.Debug);
 
             var prompt = BuildNamingPrompt(state);
-            var name = await _directLlm.SendAsync(prompt, CancellationToken.None);
+            var name = await _directLlm.SendAsync(prompt, _cts.Token);
             name = SanitizeName(name);
 
             if (!string.IsNullOrWhiteSpace(name) && name != "(No response)")
@@ -382,6 +383,8 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
         if (!_disposed)
         {
             _disposed = true;
+            _cts.Cancel();
+            _cts.Dispose();
             AgentRegistry.ActiveSessionChanged -= OnActiveSessionChanged;
         }
     }

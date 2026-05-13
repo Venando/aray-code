@@ -128,6 +128,7 @@ public sealed class AppConfig
     public string? DirectLlmUrl { get; set; }
     public string? DirectLlmModelName { get; set; }
     public string DirectLlmApiType { get; set; } = "openai-completions"; // "openai-completions" or "anthropic-messages"
+    public int DirectLlmMaxTokens { get; set; } = 4096; // Max tokens for Anthropic responses
 
     // Audio response settings
 
