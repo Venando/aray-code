@@ -95,7 +95,10 @@ public sealed class HarnessConfigSection : ConfigSectionBase
         while (harness == null)
         {
             var harnessResult = await PromptSelectionHelper.PromptStringAsync(host,
-                "Choose harness:", HarnessOptions, cancellationToken: ct);
+                "Choose harness:", HarnessOptions,
+                defaultValue: "openclaw",
+                allowCancel: true,
+                cancellationToken: ct);
 
             if (harnessResult == null)
             {
