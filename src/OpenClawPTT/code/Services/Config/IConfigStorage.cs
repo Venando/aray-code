@@ -20,6 +20,7 @@ public interface IConfigStorage
 public sealed class FileConfigStorage : IConfigStorage
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
+    private static readonly object _saveLock = new();
 
     public AppConfig? Load()
     {
@@ -67,53 +68,61 @@ public sealed class FileConfigStorage : IConfigStorage
         var path = ConfigPath(cfg);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        // Load existing JSON to preserve unrecognized fields
-        JsonNode? node = null;
-        if (File.Exists(path))
+        lock (_saveLock)
         {
-            var existingJson = File.ReadAllText(path);
-            try
+            // Load existing JSON to preserve unrecognized fields
+            JsonNode? node = null;
+            if (File.Exists(path))
             {
-                node = JsonNode.Parse(existingJson);
+                var existingJson = File.ReadAllText(path);
+                try
+                {
+                    node = JsonNode.Parse(existingJson);
+                }
+                catch (JsonException)
+                {
+                    node = null;
+                }
             }
-            catch (JsonException)
+
+            node ??= new JsonObject();
+
+            // Fresh defaults for comparison
+            var defaults = new AppConfig();
+
+            // Reflect over all public instance properties
+            var props = typeof(AppConfig).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                .Where(p => p.CanRead && p.GetMethod?.IsPublic == true);
+
+            foreach (var prop in props)
             {
-                node = null;
+                var currentValue = prop.GetValue(cfg);
+                var defaultValue = prop.GetValue(defaults);
+
+                // Compare via JSON serialization to handle enums, strings, etc. uniformly
+                var currentJson = JsonSerializer.SerializeToNode(currentValue, JsonOpts);
+                var defaultJson = JsonSerializer.SerializeToNode(defaultValue, JsonOpts);
+
+                if (JsonNode.DeepEquals(currentJson, defaultJson))
+                {
+                    // Remove if present so defaults don't clutter the file
+                    if (node is JsonObject obj)
+                        obj.Remove(prop.Name);
+                }
+                else
+                {
+                    // Update or add the property
+                    node[prop.Name] = currentJson;
+                }
             }
+
+            // Atomic write: write to temp file, then rename over target.
+            // If the process crashes mid-write, config.json remains intact.
+            var json = node.ToJsonString(JsonOpts);
+            var tempPath = path + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, path, overwrite: true);
         }
-
-        node ??= new JsonObject();
-
-        // Fresh defaults for comparison
-        var defaults = new AppConfig();
-
-        // Reflect over all public instance properties
-        var props = typeof(AppConfig).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
-            .Where(p => p.CanRead && p.GetMethod?.IsPublic == true);
-
-        foreach (var prop in props)
-        {
-            var currentValue = prop.GetValue(cfg);
-            var defaultValue = prop.GetValue(defaults);
-
-            // Compare via JSON serialization to handle enums, strings, etc. uniformly
-            var currentJson = JsonSerializer.SerializeToNode(currentValue, JsonOpts);
-            var defaultJson = JsonSerializer.SerializeToNode(defaultValue, JsonOpts);
-
-            if (JsonNode.DeepEquals(currentJson, defaultJson))
-            {
-                // Remove if present so defaults don't clutter the file
-                if (node is JsonObject obj)
-                    obj.Remove(prop.Name);
-            }
-            else
-            {
-                // Update or add the property
-                node[prop.Name] = currentJson;
-            }
-        }
-
-        File.WriteAllText(path, node.ToJsonString(JsonOpts));
     }
 
     private static string ConfigPath(AppConfig cfg)

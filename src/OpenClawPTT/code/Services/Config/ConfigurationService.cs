@@ -85,6 +85,16 @@ public class ConfigurationService : IConfigurationService
             return existing;
         }
 
+        // Validate the result — the wizard may skip sections, leaving issues.
+        var issues = Validate(newCfg);
+        if (issues.Count > 0)
+        {
+            shellHost.AddMessage("[yellow]Configuration issues found after reconfiguration:[/]");
+            foreach (var i in issues)
+                shellHost.AddMessage($"  [grey]\u2022 {Markup.Escape(i)}[/]");
+            shellHost.AddMessage("[grey]Run /reconfigure again to fix these issues.[/]");
+        }
+
         _storage.Save(newCfg);
         ConfigSaved?.Invoke(newCfg);
         return newCfg;

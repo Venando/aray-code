@@ -19,6 +19,11 @@ public sealed class AudioService : IAudioService
     private readonly string _hotkeyCombination;
     private readonly bool _holdToTalk;
     private readonly int _rightMarginIndent;
+    // Startup-only recording parameters (baked into the recorder at construction).
+    private readonly int _startupSampleRate;
+    private readonly int _startupChannels;
+    private readonly int _startupBitsPerSample;
+    private readonly int _startupMaxRecordSeconds;
     private readonly object _transcriberLock = new();
     private int _disposedFlag; // 0 = not disposed, 1 = disposed
     
@@ -44,6 +49,10 @@ public sealed class AudioService : IAudioService
         _hotkeyCombination = config.HotkeyCombination;
         _holdToTalk = config.HoldToTalk;
         _rightMarginIndent = config.RightMarginIndent;
+        _startupSampleRate = config.SampleRate;
+        _startupChannels = config.Channels;
+        _startupBitsPerSample = config.BitsPerSample;
+        _startupMaxRecordSeconds = config.MaxRecordSeconds;
     }
     
     public bool IsRecording => _recorder.IsRecording;
@@ -108,9 +117,25 @@ public sealed class AudioService : IAudioService
     /// <summary>
     /// Re-creates the transcriber after a config change (e.g. STT provider/model switched).
     /// Disposes the old transcriber and creates a new one from the updated config.
+    ///
+    /// NOTE: This does NOT recreate the <see cref="IAudioRecorder"/>. Config fields
+    /// <c>SampleRate</c>, <c>Channels</c>, <c>BitsPerSample</c>, and <c>MaxRecordSeconds</c>
+    /// are startup-only — they are baked into the recorder at construction time.
+    /// Changing them at runtime (via /reconfigure or /appconfig) silently has no effect
+    /// until the app restarts.
     /// </summary>
     public void RecreateTranscriber(AppConfig config, IColorConsole console)
     {
+        // Log a warning if startup-only recording parameters changed silently.
+        if (config.SampleRate != _startupSampleRate ||
+            config.Channels != _startupChannels ||
+            config.BitsPerSample != _startupBitsPerSample ||
+            config.MaxRecordSeconds != _startupMaxRecordSeconds)
+        {
+            console.Log("audio",
+                "SampleRate/Channels/BitsPerSample/MaxRecordSeconds changed (startup-only; restart to apply).");
+        }
+
         ITranscriber old;
         lock (_transcriberLock)
         {

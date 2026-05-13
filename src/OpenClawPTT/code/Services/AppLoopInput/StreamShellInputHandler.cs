@@ -28,7 +28,7 @@ public sealed class StreamShellInputHandler : IDisposable
     private readonly IGatewayService _gatewayService;
     private readonly IConfigurationService _configService;
     private readonly IDirectLlmService? _directLlmService;
-    private readonly AppConfig _appConfig;
+    private AppConfig _appConfig;
     private readonly Action _onQuit;
     private readonly TextMessageComposer _messageComposer;
     private readonly IColorConsole _console;
@@ -251,9 +251,14 @@ public sealed class StreamShellInputHandler : IDisposable
     /// <summary>
     /// Detects DirectLlmUrl / DirectLlmModelName changes and adds or removes
     /// the <c>/llm</c> command dynamically.
+    /// Updates <c>_appConfig</c> so that <c>RegisterDirectLlmCommand</c>
+    /// reads the current values, not the stale startup ones.
     /// </summary>
     private void OnConfigSaved(AppConfig newCfg)
     {
+        // Keep _appConfig in sync — RegisterDirectLlmCommand() reads it.
+        _appConfig = newCfg;
+
         var llmUrl = newCfg.DirectLlmUrl;
         var llmModel = newCfg.DirectLlmModelName;
 
