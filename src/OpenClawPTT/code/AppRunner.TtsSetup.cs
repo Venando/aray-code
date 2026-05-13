@@ -17,6 +17,7 @@ public partial class AppRunner
     {
         try
         {
+            _statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Yellow);
             _console.Log("tts", "Initializing TTS...");
             using var ttsService = _factory.CreateTtsService(cfg, _console);
             ct.ThrowIfCancellationRequested();
