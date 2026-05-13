@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
+using OpenClawPTT.TTS;
 using Spectre.Console;
 using StreamShell;
 
@@ -117,6 +118,7 @@ public sealed class ModularConfigurationWizard
     /// <summary>
     /// Presents a menu to pick which section to reconfigure, then runs it.
     /// Returns the updated config (may be the same reference if nothing changed).
+    /// Each menu variant shows the section name plus a one-line status of what's active.
     /// </summary>
     public async Task<AppConfig> RunReconfigureAsync(IStreamShellHost host, AppConfig existing, CancellationToken ct = default)
     {
@@ -130,18 +132,19 @@ public sealed class ModularConfigurationWizard
             {
                 ct.ThrowIfCancellationRequested();
 
-                // Build menu variants
+                // Build menu variants with live status from current config
                 var variants = new List<IVariant>
                 {
                     new ConfigVariant("[red]Cancel[/]", PromptSelectionHelper.CancelSentinel)
                 };
                 foreach (var section in _sections)
                 {
-                    variants.Add(new ConfigVariant($"{section.Name} [grey]- {section.Description}[/]", section.Name));
+                    var status = GetSectionStatusLine(config, section.Name);
+                    variants.Add(new ConfigVariant($"{section.Name} [cyan]{Markup.Escape(status)}[/]", section.Name));
                 }
 
                 host.AddMessage("");
-                host.AddMessage("[bold cyan]Configuration[/]");
+                host.AddMessage("[bold cyan]Configuration[/] — [grey]pick a section to edit[/]");
 
                 string choice;
                 const int maxAttempts = 3;
@@ -201,6 +204,85 @@ public sealed class ModularConfigurationWizard
         {
             WizardState.Leave();
         }
+    }
+
+    // ── Status line per section ─────────────────────────────────────
+
+    /// <summary>
+    /// Returns a concise one-line status string for a section, showing the active
+    /// configuration. Used in the PromptSelection menu so the user sees current
+    /// values before picking a section.
+    /// </summary>
+    private static string GetSectionStatusLine(AppConfig config, string sectionName)
+    {
+        return sectionName switch
+        {
+            "Harness" => GetHarnessStatus(config),
+            "Speech-To-Text" => GetSttStatus(config),
+            "Text-To-Speech" => GetTtsStatus(config),
+            "Direct LLM" => GetDirectLlmStatus(config),
+            "Input & Display" => GetInputDisplayStatus(config),
+            "Visual Feedback" => GetVisualFeedbackStatus(config),
+            _ => "",
+        };
+    }
+
+    private static string GetHarnessStatus(AppConfig config)
+    {
+        var url = string.IsNullOrWhiteSpace(config.GatewayUrl)
+            ? "(not set)"
+            : config.GatewayUrl;
+        return $"OpenClaw ({url})";
+    }
+
+    private static string GetSttStatus(AppConfig config)
+    {
+        var provider = config.SttProvider ?? "(not set)";
+        var model = provider switch
+        {
+            "groq" => config.GroqModel ?? "whisper-large-v3-turbo",
+            "openai" => config.OpenAiModel ?? "whisper-1",
+            "whisper-cpp" => config.WhisperCppModel ?? "(default)",
+            "faster-whisper" => config.FasterWhisperModel ?? "(default)",
+            _ => "",
+        };
+        return string.IsNullOrEmpty(model)
+            ? provider
+            : $"{provider} ({model})";
+    }
+
+    private static string GetTtsStatus(AppConfig config)
+    {
+        var provider = config.TtsProvider.ToString();
+        var voice = string.IsNullOrWhiteSpace(config.TtsVoice) ? "(default)" : config.TtsVoice;
+        var mode = config.TtsOutputMode ?? "siso";
+        return $"{provider} (voice: {voice}, mode: {mode})";
+    }
+
+    private static string GetDirectLlmStatus(AppConfig config)
+    {
+        var configured = !string.IsNullOrWhiteSpace(config.DirectLlmUrl)
+                      && !string.IsNullOrWhiteSpace(config.DirectLlmModelName);
+        if (!configured)
+            return "(not configured)";
+        return $"{config.DirectLlmModelName} @ {config.DirectLlmUrl}";
+    }
+
+    private static string GetInputDisplayStatus(AppConfig config)
+    {
+        var hotkey = string.IsNullOrWhiteSpace(config.HotkeyCombination)
+            ? "(not set)"
+            : config.HotkeyCombination;
+        var hold = config.HoldToTalk ? "hold" : "toggle";
+        var displayMode = config.ReplyDisplayMode.ToString();
+        return $"{hotkey} | {hold} | {displayMode}";
+    }
+
+    private static string GetVisualFeedbackStatus(AppConfig config)
+    {
+        var enabled = config.VisualFeedbackEnabled ? "enabled" : "disabled";
+        var style = config.VisualMode.ToString();
+        return $"{enabled} ({style})";
     }
 
     // ── Clone helper ─────────────────────────────────────────────────

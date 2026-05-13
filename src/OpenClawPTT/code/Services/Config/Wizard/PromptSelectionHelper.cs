@@ -38,7 +38,7 @@ public static class PromptSelectionHelper
     }
 
     private static string HighlightDefault(string name, bool isDefault) =>
-        isDefault ? $"{name}" : name;
+        isDefault ? $"{name} [green]● active[/]" : name;
 
     // ── Bool ─────────────────────────────────────────────────────────
 
