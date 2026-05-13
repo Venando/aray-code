@@ -3,8 +3,9 @@ using System.Text;
 namespace OpenClawPTT.Services.StatusParts;
 
 /// <summary>
-/// Renders a single service status as a colored dot only (no text label).
-/// Green = connected/ok, Yellow = transitional, Red = disconnected/error.
+/// Renders a single service status as a label prefix with a colored dot, e.g.
+/// "GW:●" (green), "TTS:·" (yellow animating), "STT:●" (red).
+/// No status text label — just the service prefix + colored dot.
 /// When yellow, the dot animates by cycling through [·, •, ●, •] on each render.
 /// </summary>
 public sealed class ServiceStatusPart : StatusPartBase
@@ -12,21 +13,23 @@ public sealed class ServiceStatusPart : StatusPartBase
     // Animation frames for yellow/transitional state: thin → medium → full → medium
     private static readonly char[] YellowFrames = ['·', '•', '●', '•'];
 
+    private readonly string _label;
     private StatusColor _color = StatusColor.Yellow;
     private int _frameIndex;
 
-    public ServiceStatusPart(DisplayPosition defaultPosition = DisplayPosition.TopSeparatorRight, int order = 0)
+    /// <summary>
+    /// Creates a service status part with a label prefix (e.g. "GW:", "TTS:", "STT:").
+    /// </summary>
+    public ServiceStatusPart(string label, DisplayPosition defaultPosition = DisplayPosition.TopSeparatorRight, int order = 0)
         : base(defaultPosition, order)
     {
+        _label = label ?? throw new ArgumentNullException(nameof(label));
     }
 
     /// <inheritdoc />
     public override string SeparatorBefore => " ";
 
-    /// <summary>
-    /// Updates the status color. Marks dirty on actual change.
-    /// The label parameter is accepted for backward compatibility but ignored.
-    /// </summary>
+    /// <summary>Updates the status color. Marks dirty on actual change.</summary>
     public void SetStatus(StatusColor color)
     {
         if (_color != color)
@@ -38,7 +41,8 @@ public sealed class ServiceStatusPart : StatusPartBase
     }
 
     /// <summary>
-    /// Sets the status with an unused label (backward-compatible overload).
+    /// Sets the status with an unused text label (interface compat).
+    /// Only the color is used; the text label is ignored.
     /// </summary>
     public void SetStatus(string label, StatusColor color)
     {
@@ -61,15 +65,13 @@ public sealed class ServiceStatusPart : StatusPartBase
 
     protected override void BuildText()
     {
-        string dot;
-        if (_color == StatusColor.Yellow)
-        {
-            dot = YellowFrames[_frameIndex].ToString();
-        }
-        else
-        {
-            dot = "\u25CF"; // ●
-        }
+        // Label prefix (e.g. "GW:", "TTS:", "STT:")
+        Builder.Append(_label);
+
+        // Colored dot
+        string dot = _color == StatusColor.Yellow
+            ? YellowFrames[_frameIndex].ToString()
+            : "\u25CF"; // ●
 
         Builder.Append('[');
         Builder.Append(ToMarkupColor(_color));

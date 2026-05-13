@@ -73,9 +73,9 @@ public sealed class StatusService : IStatusService, IDisposable
         _thinkingLevelPart = new ThinkingLevelPart();
         _contextPart = new ContextPart();
         _conversationNamePart = new ConversationNamePart();
-        _gatewayStatusPart = new ServiceStatusPart(order: 1);
-        _ttsStatusPart = new ServiceStatusPart(order: 2);
-        _sttStatusPart = new ServiceStatusPart(order: 3);
+        _gatewayStatusPart = new ServiceStatusPart("GW:", order: 1);
+        _ttsStatusPart = new ServiceStatusPart("TTS:", order: 2);
+        _sttStatusPart = new ServiceStatusPart("STT:", order: 3);
         _directLlmStatusPart = new DirectLlmStatusPart();
 
         // Collect all animated parts for periodic frame advancement

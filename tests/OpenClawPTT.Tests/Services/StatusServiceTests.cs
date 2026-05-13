@@ -22,6 +22,7 @@ public class StatusServiceTests
 
         service.SetGatewayStatus("Connected", StatusColor.Green);
 
+        Assert.Contains("GW:", host.LastSeparatorRightText);
         Assert.Contains("[green]", host.LastSeparatorRightText);
         Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
     }
@@ -34,6 +35,7 @@ public class StatusServiceTests
 
         service.SetTtsStatus("Disconnected", StatusColor.Red);
 
+        Assert.Contains("TTS:", host.LastSeparatorRightText);
         Assert.Contains("[red]", host.LastSeparatorRightText);
         Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
     }
@@ -47,7 +49,9 @@ public class StatusServiceTests
         service.SetGatewayStatus("Connected", StatusColor.Green);
         service.SetTtsStatus("Starting", StatusColor.Yellow);
 
-        // Should show green dot and yellow dot
+        // Should show labels + green dot + yellow animating dot
+        Assert.Contains("GW:", host.LastSeparatorRightText);
+        Assert.Contains("TTS:", host.LastSeparatorRightText);
         Assert.Contains("[green]", host.LastSeparatorRightText);
         Assert.Contains("[yellow]", host.LastSeparatorRightText);
         // Yellow dot animates — first frame is '·'
@@ -536,17 +540,19 @@ public class StatusServiceTests
     }
 
     [Fact]
-    public void ServiceStatusPart_ShowsColoredDot()
+    public void ServiceStatusPart_ShowsLabelPrefixWithColoredDot()
     {
-        var part = new ServiceStatusPart();
+        var part = new ServiceStatusPart("GW:");
         part.SetStatus(StatusColor.Green);
 
         string text = part.GetText();
+        Assert.Contains("GW:", text);
         Assert.Contains("[green]", text);
         Assert.Contains("\u25CF", text); // ●
 
         part.SetStatus(StatusColor.Red);
         text = part.GetText();
+        Assert.Contains("GW:", text);
         Assert.Contains("[red]", text);
         Assert.Contains("\u25CF", text); // ●
     }
@@ -554,7 +560,7 @@ public class StatusServiceTests
     [Fact]
     public void ServiceStatusPart_IsDirtyTracking_Works()
     {
-        var part = new ServiceStatusPart();
+        var part = new ServiceStatusPart("TEST:");
         part.SetStatus(StatusColor.Green);
         Assert.True(part.IsDirty); // starts dirty
 
@@ -577,6 +583,7 @@ public class StatusServiceTests
 
         service.SetSttStatus("Connected", StatusColor.Green);
 
+        Assert.Contains("STT:", host.LastSeparatorRightText);
         Assert.Contains("[green]", host.LastSeparatorRightText);
         Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
     }
@@ -584,12 +591,13 @@ public class StatusServiceTests
     [Fact]
     public void ServiceStatusPart_YellowDot_AnimatesThroughFrames()
     {
-        var part = new ServiceStatusPart();
+        var part = new ServiceStatusPart("STT:");
         part.SetStatus(StatusColor.Yellow);
 
         // Yellow state: animation advances via AdvanceFrame() then GetText()
         // Frame 0: '·'
         string text1 = part.GetText();
+        Assert.Contains("STT:", text1);
         Assert.Contains("\u00B7", text1); // ·
         Assert.Contains("[yellow]", text1);
 
@@ -619,6 +627,7 @@ public class StatusServiceTests
         // Switch to green — stops animation
         part.SetStatus(StatusColor.Green);
         string text6 = part.GetText();
+        Assert.Contains("STT:", text6);
         Assert.Contains("\u25CF", text6); // ● (solid, no animation)
     }
 
