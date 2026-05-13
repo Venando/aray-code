@@ -2,14 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using OpenClawPTT.ConfigWizard;
 using StreamShell;
 
 namespace OpenClawPTT.Services.Commands;
 
 /// <summary>
-/// Native command: /appstatus — shows detailed status of gateway, TTS, STT, and Direct LLM services.
-/// Uses StreamShell PromptSelection to present an expandable/collapsible status overview.
+/// Native command: /appstatus — shows detailed status of gateway, TTS, STT, and Direct LLM
+/// in a bottom panel. Dismiss with Escape.
 /// </summary>
 public sealed class AppStatusCommand : ICommand
 {
@@ -33,74 +32,134 @@ public sealed class AppStatusCommand : ICommand
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
 
-    public Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
     {
-        // ── Gateway status ──────────────────────────────────────────────────
-        var gwColor = _statusService.GetServiceStatus(ServiceKind.Gateway);
-        var gwProvider = !string.IsNullOrWhiteSpace(_config.GatewayUrl)
-            ? _config.GatewayUrl
-            : "ws://localhost:8080/ws (default)";
+        StatusColor? Fetch(ServiceKind kind) => _statusService.GetServiceStatus(kind);
 
-        // ── TTS status ─────────────────────────────────────────────────────
-        var ttsColor = _statusService.GetServiceStatus(ServiceKind.Tts);
-        var ttsProvider = _config.TtsProvider.ToString();
-        var ttsConfigured = _config.TtsOutputMode != "off";
+        using var panel = new AppStatusBottomPanel(_config, Fetch);
+        _host.SetBottomPanel(panel);
 
-        // ── STT status ─────────────────────────────────────────────────────
-        var sttColor = _statusService.GetServiceStatus(ServiceKind.Stt);
-        var sttProvider = _config.SttProvider ?? "built-in (gateway)";
-        var sttModel = _config.FasterWhisperModel ?? _config.WhisperCppModel ?? "default";
-
-        // ── Direct LLM status ──────────────────────────────────────────────
-        var llmColor = _statusService.GetServiceStatus(ServiceKind.DirectLlm);
-        var llmConfigured = !string.IsNullOrWhiteSpace(_config.DirectLlmUrl)
-                          && !string.IsNullOrWhiteSpace(_config.DirectLlmModelName);
-        var llmUrl = _config.DirectLlmUrl ?? "(not configured)";
-        var llmModel = _config.DirectLlmModelName ?? "(not configured)";
-
-        // ── Build PromptSelection variants ──────────────────────────────────
-        var variants = new List<IVariant>(10)
+        try
         {
-            MakeRow("Gateway", gwColor, gwProvider),
-            MakeRow("TTS",    ttsColor, $"{ttsProvider} | Output: {_config.TtsOutputMode ?? "off"}"),
-            MakeRow("STT",    sttColor, $"{sttProvider} | Model: {sttModel}"),
-            MakeRow("DirectLLM", llmColor, llmConfigured
-                ? $"{llmUrl} | Model: {llmModel}"
-                : "(not configured)"),
-        };
+            // Wait for Escape press or cancellation
+            await Task.WhenAny(panel.WaitForDismissalAsync(), Task.Delay(Timeout.Infinite, ct));
+        }
+        catch (OperationCanceledException)
+        {
+            // Command cancelled — clean up below
+        }
+        finally
+        {
+            _host.ResetBottomPanel();
+        }
+    }
+}
 
-        // Spacer, then close option
-        variants.Add(new ConfigVariant("", ""));
-        variants.Add(new ConfigVariant("[bold]Close[/]", "__close__"));
+/// <summary>
+/// Bottom panel that displays detailed status of gateway, TTS, STT, and Direct LLM.
+/// Dismiss on Escape.
+/// </summary>
+public sealed class AppStatusBottomPanel : IBottomPanel
+{
+    private readonly AppConfig _config;
+    private readonly Func<ServiceKind, StatusColor?> _getStatus;
+    private readonly TaskCompletionSource _dismissedTcs = new();
 
-        _ = _host.PromptSelection("App Status — select Close to dismiss", variants.ToArray());
-
-        return Task.CompletedTask;
+    public AppStatusBottomPanel(AppConfig config, Func<ServiceKind, StatusColor?> getStatus)
+    {
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _getStatus = getStatus ?? throw new ArgumentNullException(nameof(getStatus));
     }
 
-    /// <summary>
-    /// Builds a single status row variant with a colored status dot and label.
-    /// </summary>
-    private static ConfigVariant MakeRow(string label, StatusColor? color, string detail)
+    public int LineCount => 6;
+    public bool IsDirty => true;
+    public string? CurrentSuggestion => null;
+    public bool ShowBottomSeparator => false;
+
+    public IReadOnlyList<string> GetLines(string currentInput)
+    {
+        var gwColor = _getStatus(ServiceKind.Gateway);
+        var ttsColor = _getStatus(ServiceKind.Tts);
+        var sttColor = _getStatus(ServiceKind.Stt);
+        var llmColor = _getStatus(ServiceKind.DirectLlm);
+
+        return new[]
+        {
+            MakeLine("GW:",  gwColor, FormatGateway()),
+            MakeLine("TTS:", ttsColor, FormatTts()),
+            MakeLine("STT:", sttColor, FormatStt()),
+            MakeLine("LLM:", llmColor, FormatLlm()),
+            "",
+            "  [grey]Press Escape to dismiss[/]"
+        };
+    }
+
+    public void ClearDirty() { /* always dirty, always fresh */ }
+
+    public bool TryHandleKey(ConsoleKeyInfo key)
+    {
+        if (key.Key == ConsoleKey.Escape)
+        {
+            _dismissedTcs.TrySetResult();
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>Returns a task that completes when the user presses Escape.</summary>
+    public Task WaitForDismissalAsync() => _dismissedTcs.Task;
+
+    public Task RunAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public void Dispose() { }
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    private static string MakeLine(string label, StatusColor? color, string detail)
     {
         var dotColor = color switch
         {
-            StatusColor.Green => "green",
+            StatusColor.Green  => "green",
             StatusColor.Yellow => "yellow",
-            StatusColor.Red => "red",
+            StatusColor.Red    => "red",
             _ => "grey",
         };
-
         var statusWord = color switch
         {
-            StatusColor.Green => "OK",
+            StatusColor.Green  => "OK",
             StatusColor.Yellow => "Pending",
-            StatusColor.Red => "Error",
+            StatusColor.Red    => "Error",
             _ => "Unknown",
         };
+        return $"  [{dotColor}]\u25CF[/] [bold]{label}[/] [{dotColor}]{statusWord}[/] [grey]\u2192 {detail}[/]";
+    }
 
-        return new ConfigVariant(
-            $"[{dotColor}]\u25CF[/] [bold]{label}:[/] [{dotColor}]{statusWord}[/] [grey]\u2192 {detail}[/]",
-            label); // value is unused — only the close option matters
+    private string FormatGateway()
+    {
+        return !string.IsNullOrWhiteSpace(_config.GatewayUrl)
+            ? _config.GatewayUrl
+            : "ws://localhost:8080/ws (default)";
+    }
+
+    private string FormatTts()
+    {
+        var provider = _config.TtsProvider.ToString();
+        var mode = _config.TtsOutputMode ?? "off";
+        return $"{provider} | Output: {mode}";
+    }
+
+    private string FormatStt()
+    {
+        var provider = _config.SttProvider ?? "built-in (gateway)";
+        var model = _config.FasterWhisperModel ?? _config.WhisperCppModel ?? "default";
+        return $"{provider} | Model: {model}";
+    }
+
+    private string FormatLlm()
+    {
+        var configured = !string.IsNullOrWhiteSpace(_config.DirectLlmUrl)
+                      && !string.IsNullOrWhiteSpace(_config.DirectLlmModelName);
+        if (!configured)
+            return "(not configured)";
+        return $"{_config.DirectLlmUrl} | Model: {_config.DirectLlmModelName}";
     }
 }
