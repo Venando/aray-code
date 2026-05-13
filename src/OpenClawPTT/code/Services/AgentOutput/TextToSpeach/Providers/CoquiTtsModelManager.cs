@@ -147,7 +147,7 @@ public sealed class CoquiTtsModelManager
                 var trimmedLine = line.Trim();
                 if (!string.IsNullOrWhiteSpace(trimmedLine))
                 {
-                    host.AddMessage($"[red]      {trimmedLine}[/]");
+                    host.AddMessage($"[red]      {EscapeSpectreMarkup(trimmedLine)}[/]");
                     shown++;
                 }
             }
@@ -246,7 +246,13 @@ public sealed class CoquiTtsModelManager
                             // Kill process immediately — no point waiting for timeout
                             try { if (!process.HasExited) process.Kill(true); } catch { }
 
-                            var errorDetail = string.Join("\n", stderrLines);
+                            // Show the last few non-empty stderr lines — most relevant for the error
+                            var relevantLines = stderrLines
+                                .Where(l => !string.IsNullOrWhiteSpace(l))
+                                .Select(l => l.Trim())
+                                .Reverse().Take(5).Reverse()
+                                .ToArray();
+                            var errorDetail = string.Join("\n", relevantLines);
                             progressCallback?.Invoke("Error encountered", trimmed, errorDetail);
                             // Continue reading remaining lines briefly then break
                         }
@@ -308,6 +314,17 @@ public sealed class CoquiTtsModelManager
                 ".openclaw-ptt"),
             "coqui-tts-env");
         Directory.CreateDirectory(_projectDir);
+    }
+
+    /// <summary>Converts a Coqui model name like tts_models/en/ljspeech/vits to a HuggingFace cache dir slug.</summary>
+    /// <summary>
+    /// Escapes raw process output so literal <c>[</c> and <c>]</c> characters
+    /// don't get interpreted as Spectre.Console markup tags.
+    /// </summary>
+    private static string EscapeSpectreMarkup(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return text.Replace("[", "[[").Replace("]", "]]");
     }
 
     /// <summary>Converts a Coqui model name like tts_models/en/ljspeech/vits to a HuggingFace cache dir slug.</summary>
@@ -433,7 +450,7 @@ public sealed class CoquiTtsModelManager
                     stderrLines.Add(line);
                     // Log uv/Python stderr for user visibility
                     if (!string.IsNullOrWhiteSpace(line))
-                        _host.AddMessage($"[grey]      [stderr] {line}[/]");
+                        _host.AddMessage($"[grey]      {EscapeSpectreMarkup(line)}[/]");
                     // HF download progress often shows percentages on stderr
                     if (line.Contains("%", StringComparison.Ordinal) || line.Contains("Download", StringComparison.OrdinalIgnoreCase) || line.Contains("Fetching", StringComparison.OrdinalIgnoreCase))
                         progressCallback?.Invoke(modelName, $"Downloading: {line.Trim()[..Math.Min(line.Trim().Length, 80)]}", null, null, false);
