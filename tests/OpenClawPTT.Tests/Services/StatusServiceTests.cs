@@ -6,7 +6,7 @@ using OpenClawPTT.Services.StatusParts;
 
 namespace OpenClawPTT.Tests;
 
-[Collection("ConversationNaming")]
+[Collection("AgentRegistryCollection")]
 public class StatusServiceTests
 {
     static StatusServiceTests()

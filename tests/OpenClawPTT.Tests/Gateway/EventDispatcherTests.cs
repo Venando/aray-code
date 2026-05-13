@@ -267,16 +267,17 @@ public class EventDispatcherTests
     }
 
     [Fact]
-    public async Task SessionMessageHandler_ChatFinal_FiresDeltaEvents()
+    public async Task SessionMessageHandler_ChatFinal_FiresAgentReplyFull()
     {
-        var startFired = false;
-        _mockEvents.Setup(x => x.RaiseAgentReplyDeltaStart()).Callback(() => startFired = true);
+        string? captured = null;
+        _mockEvents.Setup(x => x.RaiseAgentReplyFinal(It.IsAny<string>()))
+            .Callback<string>(t => captured = t);
 
         var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _contentExtractor, _mockConsole.Object);
         var payload = CreatePayload("{\"state\":\"final\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"final text\"}]}}");
         await handler.HandleAsync(new SessionMessageEvent("chat", payload));
 
-        Assert.True(startFired);
+        Assert.Equal("final text", captured);
     }
 
     // ─── GatewayConnectionHandler Tests ──────────────────────────
