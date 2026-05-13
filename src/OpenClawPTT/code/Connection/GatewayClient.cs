@@ -165,98 +165,16 @@ public sealed class GatewayClient : IGatewayClient
     {
         ThrowIfDisposed();
         if (_lifecycle == null || !_lifecycle.IsConnected)
-        {
             return null;
-        }
-
-
-        var parameters = new Dictionary<string, object?>
-        {
-            ["sessionKey"] = sessionKey,
-        };
 
         try
         {
-            // Try chat.history first (primary RPC for chat history)
-            var result = await TrySendAsync("chat.history", parameters, CancellationToken.None);
-
-
-            if (result.ValueKind == JsonValueKind.Undefined || result.ValueKind == JsonValueKind.Null)
-            {
-                // Fallback: try sessions.preview
-                result = await TrySendAsync("sessions.preview", new Dictionary<string, object?>
-                {
-                    ["sessionKey"] = sessionKey,
-                }, CancellationToken.None);
-
-                if (result.ValueKind == JsonValueKind.Undefined || result.ValueKind == JsonValueKind.Null)
-                    return null;
-            }
-
-
-            // Try different response shapes:
-            // 1. chat.history returns { messages: [...] }
-            // 2. sessions.preview might return { preview: [...] } or just an array
-            // Try to find the messages array
-            JsonElement messagesEl = default;
-            bool found = false;
-
-            if (result.TryGetProperty("messages", out var msgs) && msgs.ValueKind == JsonValueKind.Array)
-            {
-                messagesEl = msgs;
-                found = true;
-            }
-            else if (result.TryGetProperty("preview", out var prev) && prev.ValueKind == JsonValueKind.Array)
-            {
-                messagesEl = prev;
-                found = true;
-            }
-            else if (result.ValueKind == JsonValueKind.Array)
-            {
-                messagesEl = result;
-                found = true;
-            }
-
-            if (!found)
-            {
+            var messagesEl = await FetchSessionSnapshotAsync(sessionKey);
+            if (messagesEl == null)
                 return null;
-            }
 
-
-            var totalEntries = messagesEl.GetArrayLength();
-
-            // Only process the few messages — enough for status snapshots
-            // and chat history entries, in correct display order.
-            const int extractStatusesFromHistory = 2;
-            var statusExtractStartIdx = Math.Max(0, totalEntries - extractStatusesFromHistory);
-
-            for (int i = statusExtractStartIdx; i < totalEntries; i++)
-            {
-                // Chat history messages have a different schema from gateway events:
-                // Extract what we can and let the tracker merge with existing
-                var snapshot = AgentStatusExtractor.FromHistoryMessage(messagesEl[i], sessionKey);
-                if (snapshot != null)
-                {
-                    _agentStatusTracker?.Update(snapshot);
-                }
-            }
-
-            var entries = new List<ChatHistoryEntry>(limit);
-
-            var historyStartIndex = Math.Max(0, totalEntries - limit);
-
-            for (int i = totalEntries - 1; i > 0 && entries.Count < limit; i--)
-            {
-                if (!UserMessageHelper.TryGetChatHistoryEntry(messagesEl[i], out var entry))
-                {
-                    continue;
-                }
-                entries.Add(entry!);
-            }
-            
-            entries.Reverse();
-
-            return entries;
+            ExtractAgentStatusFromHistory(messagesEl.Value, sessionKey);
+            return BuildChatHistoryEntries(messagesEl.Value, limit);
         }
         catch (Exception)
         {
@@ -277,6 +195,77 @@ public sealed class GatewayClient : IGatewayClient
     }
 
     // ─── helpers ─────────────────────────────────────────────────────
+
+    /// <summary>Fetches the messages array from session history, trying chat.history then fallback to sessions.preview.</summary>
+    private async Task<JsonElement?> FetchSessionSnapshotAsync(string sessionKey)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            ["sessionKey"] = sessionKey,
+        };
+
+        // Try chat.history first (primary RPC for chat history)
+        var result = await TrySendAsync("chat.history", parameters, CancellationToken.None);
+
+        if (result.ValueKind == JsonValueKind.Undefined || result.ValueKind == JsonValueKind.Null)
+        {
+            // Fallback: try sessions.preview
+            result = await TrySendAsync("sessions.preview", new Dictionary<string, object?>
+            {
+                ["sessionKey"] = sessionKey,
+            }, CancellationToken.None);
+
+            if (result.ValueKind == JsonValueKind.Undefined || result.ValueKind == JsonValueKind.Null)
+                return null;
+        }
+
+        // Try different response shapes:
+        // 1. chat.history returns { messages: [...] }
+        // 2. sessions.preview may return { preview: [...] } or just an array
+        if (result.TryGetProperty("messages", out var msgs) && msgs.ValueKind == JsonValueKind.Array)
+            return msgs;
+        if (result.TryGetProperty("preview", out var prev) && prev.ValueKind == JsonValueKind.Array)
+            return prev;
+        if (result.ValueKind == JsonValueKind.Array)
+            return result;
+
+        return null;
+    }
+
+    /// <summary>Extracts agent status snapshots from the most recent history entries.</summary>
+    private void ExtractAgentStatusFromHistory(JsonElement messages, string sessionKey)
+    {
+        var totalEntries = messages.GetArrayLength();
+        const int extractStatusesFromHistory = 2;
+        var statusExtractStartIdx = Math.Max(0, totalEntries - extractStatusesFromHistory);
+
+        for (int i = statusExtractStartIdx; i < totalEntries; i++)
+        {
+            var snapshot = AgentStatusExtractor.FromHistoryMessage(messages[i], sessionKey);
+            if (snapshot != null)
+            {
+                _agentStatusTracker?.Update(snapshot);
+            }
+        }
+    }
+
+    /// <summary>Projects the messages array into a list of ChatHistoryEntry, respecting the limit.</summary>
+    private static List<ChatHistoryEntry> BuildChatHistoryEntries(JsonElement messages, int limit)
+    {
+        var entries = new List<ChatHistoryEntry>(limit);
+        var totalEntries = messages.GetArrayLength();
+
+        for (int i = totalEntries - 1; i > 0 && entries.Count < limit; i--)
+        {
+            if (UserMessageHelper.TryGetChatHistoryEntry(messages[i], out var entry))
+            {
+                entries.Add(entry!);
+            }
+        }
+
+        entries.Reverse();
+        return entries;
+    }
 
     private void ThrowIfDisposed()
     {
