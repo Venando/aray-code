@@ -31,9 +31,15 @@ public sealed class CoquiTtsConfigFlow
             config.EspeakNgPath);
         env.EnsureProjectFiles();
 
-        // Verify uv is available (checked in caller too, but guard here)
-        if (!CoquiUvEnvironment.IsUvAvailable())
-            return false;
+        var uvAvailable = CoquiUvEnvironment.IsUvAvailable();
+        if (!uvAvailable)
+        {
+            host.AddMessage($"[yellow]  ⚠ uv (Python package manager) is not installed.[/]");
+            host.AddMessage($"[grey]    Install: {CoquiUvEnvironment.GetInstallInstructions()}[/]");
+            host.AddMessage("[grey]    You can still select a model from the built-in list below.[/]");
+            host.AddMessage("[grey]    But you'll need uv to actually use Coqui TTS.[/]");
+            host.AddMessage("");
+        }
 
         var modelManager = new CoquiTtsModelManager(config.CustomDataDir ?? config.DataDir, host);
         var modelResult = await SelectModelAsync(
@@ -72,6 +78,20 @@ public sealed class CoquiTtsConfigFlow
         var allModels = await CoquiTtsModelManager.GetAvailableModelsAsync(
             host, config.CustomDataDir ?? config.DataDir, ct);
 
+        var isFallback = CoquiTtsModelManager.IsUsingFallbackModels;
+
+        // If the model list is from fallback, show a prominent warning before
+        // presenting the model selection list so the user knows what they're seeing.
+        if (isFallback)
+        {
+            host.AddMessage("");
+            host.AddMessage("[bold yellow]  ─── Using Built-in (Offline) Model List ───[/]");
+            host.AddMessage("[grey]    These are well-known Coqui TTS models hardcoded in OpenClawPTT.[/]");
+            host.AddMessage("[grey]    Live models from coqui/TTS could not be fetched. See errors above.[/]");
+            host.AddMessage("[grey]    Fix uv/Python issues and re-run to get the live model catalogue.[/]");
+            host.AddMessage("");
+        }
+
         var cachedModels = new HashSet<string>(
             CoquiTtsModelManager.GetCachedModels(),
             StringComparer.Ordinal);
@@ -83,7 +103,7 @@ public sealed class CoquiTtsConfigFlow
         {
             ct.ThrowIfCancellationRequested();
 
-            var variants = BuildVariants(allModels, cachedModels, currentModelRef);
+            var variants = BuildVariants(allModels, cachedModels, currentModelRef, isFallback: isFallback);
             variants.Add(new ConfigVariant("", ""));
             variants.Add(new ConfigVariant("[grey]Cancel[/]", CancelSentinel));
 
@@ -173,9 +193,24 @@ public sealed class CoquiTtsConfigFlow
 
     private static List<IVariant> BuildVariants(
         IReadOnlyList<CoquiTtsModelInfo> allModels,
-        HashSet<string> cachedModels, string? currentModel)
+        HashSet<string> cachedModels, string? currentModel,
+        bool isFallback = false)
     {
         var variants = new List<IVariant>(allModels.Count * 3 + 10);
+
+        // ── Source indicator header ──
+        if (isFallback)
+        {
+            variants.Add(new ConfigVariant(
+                "[bold yellow]── Built-in list (uv not available) ──[/]",
+                "__fallback_header__"));
+        }
+        else
+        {
+            variants.Add(new ConfigVariant(
+                "[bold green]── Live from Coqui TTS ──[/]",
+                "__live_header__"));
+        }
 
         // ── Cached models ──
         foreach (var info in allModels)
@@ -197,7 +232,7 @@ public sealed class CoquiTtsConfigFlow
 
         if (notCached.Count > 0)
         {
-            if (variants.Count > 0)
+            if (variants.Count > 1) // >1 because of the header
             {
                 variants.Add(new ConfigVariant("", ""));
                 variants.Add(new ConfigVariant("[bold cyan]── Available for download ──[/]", "__header__"));
