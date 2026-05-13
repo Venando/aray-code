@@ -27,6 +27,18 @@ public sealed class CoquiTtsModelManager
     private static readonly object s_liveLock = new();
 
     /// <summary>
+    /// True when the last <see cref="GetAvailableModelsAsync"/> call returned
+    /// the hardcoded fallback list rather than live models from the TTS package.
+    /// </summary>
+    public static bool IsUsingFallbackModels { get; private set; }
+
+    /// <summary>
+    /// Human-readable reason from the last fetch attempt (set even on success).
+    /// Empty if the last call hasn't been made yet.
+    /// </summary>
+    public static string LastFetchErrorDetail { get; private set; } = string.Empty;
+
+    /// <summary>
     /// Hardcoded fallback list — well-known Coqui TTS models.
     /// Used when uv is not available or the live fetch fails.
     /// </summary>
@@ -65,7 +77,10 @@ public sealed class CoquiTtsModelManager
 
         if (!CoquiUvEnvironment.IsUvAvailable())
         {
-            host.AddMessage("[grey]    uv not found — using built-in model list.[/]");
+            IsUsingFallbackModels = true;
+            LastFetchErrorDetail = "uv is not installed";
+            host.AddMessage("[yellow]    ⚠ uv not found — using built-in (offline) model list.[/]");
+            host.AddMessage($"[grey]      Install: {CoquiUvEnvironment.GetInstallInstructions()}[/]");
             return FallbackModels;
         }
 
@@ -82,12 +97,16 @@ public sealed class CoquiTtsModelManager
 
                 if (liveList is { Count: > 0 })
                 {
+                    IsUsingFallbackModels = false;
+                    LastFetchErrorDetail = string.Empty;
                     setupPanel.SetCompleted(true, $"Found {liveList.Count} models");
                     lock (s_liveLock) { s_liveModels = liveList; }
                     host.AddMessage($"[green]    \u2713 Found {liveList.Count} models live from Coqui TTS.[/]");
                     return liveList;
                 }
 
+                IsUsingFallbackModels = true;
+                LastFetchErrorDetail = "TTS package returned no models";
                 setupPanel.SetCompleted(false, "No models returned");
             }
             finally
@@ -99,17 +118,43 @@ public sealed class CoquiTtsModelManager
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            IsUsingFallbackModels = true;
+            LastFetchErrorDetail = "User cancelled";
             host.ResetBottomPanel();
             throw; // User cancelled — propagate
         }
         catch (OperationCanceledException)
         {
             // uv command timed out (5 min) — fall back to built-in list
-            host.AddMessage("[yellow]    \u26a0 Live model fetch timed out, using built-in list.[/]");
+            IsUsingFallbackModels = true;
+            LastFetchErrorDetail = "Live model fetch timed out after 5 minutes";
+            host.AddMessage("[yellow]    \u26a0 Live model fetch timed out after 5 minutes, using built-in list.[/]");
         }
         catch (Exception ex)
         {
-            host.AddMessage($"[yellow]    \u26a0 Live model fetch failed ({ex.Message}), using built-in list.[/]");
+            IsUsingFallbackModels = true;
+            // Show the full error detail — ex.Message contains stderr when thrown from FetchFromUvAsync
+            var errorMsg = ex.Message;
+            host.AddMessage("[red]    \u2717 Live model fetch failed. Error from uv:[/]");
+
+            // ex.Message from InvalidOperationException includes: "uv exit=N: <stderr>"
+            // Split into lines for readability; avoid flooding with too many lines
+            var errorLines = errorMsg.Split('\n');
+            var shown = 0;
+            foreach (var line in errorLines)
+            {
+                if (shown >= 20) { host.AddMessage("[red]      ... (output truncated)[/]"); break; }
+                var trimmedLine = line.Trim();
+                if (!string.IsNullOrWhiteSpace(trimmedLine))
+                {
+                    host.AddMessage($"[red]      {trimmedLine}[/]");
+                    shown++;
+                }
+            }
+
+            LastFetchErrorDetail = errorMsg;
+            host.AddMessage("[yellow]    \u26a0 Falling back to built-in (offline) model list.[/]");
+            host.AddMessage("[grey]      Fix the uv/Python issues above and re-run setup to get live models.[/]");
         }
 
         return FallbackModels;
@@ -233,8 +278,18 @@ public sealed class CoquiTtsModelManager
                 throw new InvalidOperationException($"uv exit={process.ExitCode}: {errorDetail.Trim()}");
             }
 
-            // Parse JSON array of model names
-            var modelNames = JsonSerializer.Deserialize<List<string>>(stdoutText.Trim());
+            // Parse JSON array of model names from stdout
+            // NB: stdout may have uv info lines prefixed; extract the last JSON array
+            var stdoutTrimmed = stdoutText.Trim();
+            var jsonStart = stdoutTrimmed.LastIndexOf('[');
+            var jsonEnd = stdoutTrimmed.LastIndexOf(']');
+            string jsonText;
+            if (jsonStart >= 0 && jsonEnd > jsonStart)
+                jsonText = stdoutTrimmed[jsonStart..(jsonEnd + 1)];
+            else
+                jsonText = stdoutTrimmed;
+
+            var modelNames = JsonSerializer.Deserialize<List<string>>(jsonText);
             if (modelNames == null || modelNames.Count == 0)
                 return null;
 
