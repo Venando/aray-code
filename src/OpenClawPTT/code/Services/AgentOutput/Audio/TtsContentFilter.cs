@@ -233,9 +233,15 @@ public static class TtsContentFilter
         sb.Append(s);
     }
 
+    // ── Special formatting detection ───────────────────────────────────────────
+
+    private static readonly Regex HeadingPattern = new(
+        @"^#{1,6}\s", RegexOptions.Multiline | RegexOptions.Compiled);
 
     /// <summary>
     /// Checks if text contains markdown or code that needs special handling.
+    /// Uses <c>^#{1,6} </c> regex for headings instead of bare <c>#</c> to avoid
+    /// false positives on plain hashtags like <c>#topic</c>.
     /// </summary>
     public static bool HasSpecialFormatting(string text)
     {
@@ -245,7 +251,7 @@ public static class TtsContentFilter
         return text.Contains("```") ||
                text.Contains("`") ||
                text.Contains("**") ||
-               text.Contains("#") ||
+               HeadingPattern.IsMatch(text) ||
                text.Contains("|") ||
                text.Contains("http");
     }
