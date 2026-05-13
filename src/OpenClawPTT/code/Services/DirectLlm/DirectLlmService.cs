@@ -210,7 +210,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
         delay = Math.Min(delay, 4000);
 
         // Add jitter: ±50%
-        var rng = new Random();
+        var rng = Random.Shared;
         double jitter = 1.0 + (rng.NextDouble() - 0.5); // 0.5 to 1.5
         return (int)(delay * jitter);
     }
@@ -257,9 +257,10 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
     /// </summary>
     private async Task<bool> ProbeOpenAiAsync(CancellationToken ct)
     {
+        var cfg = GetConfig();
         var requestBody = new OpenAiRequest
         {
-            Model = _config.DirectLlmModelName!,
+            Model = cfg.DirectLlmModelName!,
             Messages = new[]
             {
                 new OpenAiMessage { Role = "user", Content = "hi" }
@@ -268,7 +269,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
             Stream = false
         };
 
-        var url = BuildOpenAiUrl(_config.DirectLlmUrl!);
+        var url = BuildOpenAiUrl(cfg.DirectLlmUrl!);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(ProbeTimeoutSeconds));
@@ -282,8 +283,8 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
             })
         };
 
-        if (!string.IsNullOrWhiteSpace(_config.DirectLlmToken))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.DirectLlmToken);
+        if (!string.IsNullOrWhiteSpace(cfg.DirectLlmToken))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", cfg.DirectLlmToken);
 
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
         return response.IsSuccessStatusCode;
@@ -294,9 +295,10 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
     /// </summary>
     private async Task<bool> ProbeAnthropicAsync(CancellationToken ct)
     {
+        var cfg = GetConfig();
         var requestBody = new AnthropicRequest
         {
-            Model = _config.DirectLlmModelName!,
+            Model = cfg.DirectLlmModelName!,
             Messages = new[]
             {
                 new AnthropicMessage { Role = "user", Content = "hi" }
@@ -305,7 +307,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
             Stream = false
         };
 
-        var url = BuildAnthropicUrl(_config.DirectLlmUrl!);
+        var url = BuildAnthropicUrl(cfg.DirectLlmUrl!);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(ProbeTimeoutSeconds));
@@ -319,7 +321,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
             })
         };
 
-        request.Headers.Add("x-api-key", _config.DirectLlmToken ?? string.Empty);
+        request.Headers.Add("x-api-key", cfg.DirectLlmToken ?? string.Empty);
         request.Headers.Add("anthropic-version", "2023-06-01");
 
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
@@ -328,9 +330,10 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
 
     private async Task<string> SendOpenAiAsync(string message, CancellationToken ct)
     {
+        var cfg = GetConfig();
         var requestBody = new OpenAiRequest
         {
-            Model = _config.DirectLlmModelName!,
+            Model = cfg.DirectLlmModelName!,
             Messages = new[]
             {
                 new OpenAiMessage { Role = "user", Content = message }
@@ -339,7 +342,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
         };
 
         // Build OpenAI URL: host → /v1/chat/completions, /v1 → /v1/chat/completions
-        var url = BuildOpenAiUrl(_config.DirectLlmUrl!);
+        var url = BuildOpenAiUrl(cfg.DirectLlmUrl!);
 
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
@@ -350,9 +353,9 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
             })
         };
 
-        if (!string.IsNullOrWhiteSpace(_config.DirectLlmToken))
+        if (!string.IsNullOrWhiteSpace(cfg.DirectLlmToken))
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.DirectLlmToken);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", cfg.DirectLlmToken);
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -366,19 +369,20 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
 
     private async Task<string> SendAnthropicAsync(string message, CancellationToken ct)
     {
+        var cfg = GetConfig();
         var requestBody = new AnthropicRequest
         {
-            Model = _config.DirectLlmModelName!,
+            Model = cfg.DirectLlmModelName!,
             Messages = new[]
             {
                 new AnthropicMessage { Role = "user", Content = message }
             },
-            MaxTokens = _config.DirectLlmMaxTokens,
+            MaxTokens = cfg.DirectLlmMaxTokens,
             Stream = false
         };
 
         // Build Anthropic URL: host → /v1/messages, /v1 → /v1/messages
-        var url = BuildAnthropicUrl(_config.DirectLlmUrl!);
+        var url = BuildAnthropicUrl(cfg.DirectLlmUrl!);
 
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
@@ -389,7 +393,7 @@ public sealed class DirectLlmService : IDirectLlmService, IDisposable
             })
         };
 
-        request.Headers.Add("x-api-key", _config.DirectLlmToken ?? string.Empty);
+        request.Headers.Add("x-api-key", cfg.DirectLlmToken ?? string.Empty);
         request.Headers.Add("anthropic-version", "2023-06-01");
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

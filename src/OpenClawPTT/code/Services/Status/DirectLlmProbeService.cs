@@ -141,10 +141,10 @@ public sealed class DirectLlmProbeService : IDisposable
             using var freshService = _factory.CreateDirectLlmService(e.NewConfig);
             await ProbeAndUpdateAsync(freshService, e.NewConfig, CancellationToken.None);
 
-            // Stored references not updated here — the fresh service is disposed.
-            // The health check continues using _currentService from startup.
-            // App restart is needed for full config change to take effect
-            // (see analysis issue #6).
+            // The fresh service is disposed after probing. However, the live service
+            // already received the config change via StreamShellInputHandler.OnConfigSaved
+            // calling UpdateConfig(), so the health check timer will probe with new settings.
+            // No restart needed.
         }
         catch (Exception ex)
         {

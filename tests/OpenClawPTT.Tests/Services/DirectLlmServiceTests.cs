@@ -33,14 +33,6 @@ public class DirectLlmServiceTests
         return new HttpMessageHandlerStub(req => Task.FromResult(respond(req)));
     }
 
-    private static DirectLlmService CreateService(
-        AppConfig cfg,
-        HttpMessageHandler handler,
-        IDirectLlmFailureTracker? tracker = null)
-    {
-        // Use reflection or just call the constructor — we'll add the handler parameter
-        return null!; // Placeholder until we know the constructor signature
-    }
 
     // ── RED tests (will fail until retry + handler injection is implemented) ──
 
