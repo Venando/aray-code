@@ -183,18 +183,15 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Returns the file name (without extension) of the currently active theme,
-    /// or "Default" if no theme file is active.
+    /// Returns the display name of the currently active theme.
+    /// Uses <see cref="ThemeConfig.Name"/> from the loaded theme,
+    /// which reflects runtime swaps via <c>/theme</c>.
+    /// Falls back to "Default" if the theme name is empty.
     /// </summary>
     public string GetCurrentThemeName()
     {
-        if (!string.IsNullOrWhiteSpace(_appConfig.ThemeFile))
-        {
-            var name = Path.GetFileNameWithoutExtension(_appConfig.ThemeFile);
-            if (!string.IsNullOrWhiteSpace(name))
-                return name;
-        }
-        return "Default";
+        var name = _currentTheme?.Name;
+        return !string.IsNullOrWhiteSpace(name) ? name : "Default";
     }
 
     private static bool ThemesEqual(ThemeConfig a, ThemeConfig b)
