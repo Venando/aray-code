@@ -348,26 +348,32 @@ public sealed class CoquiTtsModelManager
     }
 
     /// <summary>Converts a Coqui model name like tts_models/en/ljspeech/vits to a HuggingFace cache dir slug.</summary>
-    private static string ModelToCacheSlug(string modelName)
-    {
-        // Coqui models are at: coqui/TTS → ... tts_models/en/ljspeech/vits
-        // The HF cache dir is: models--coqui--TTS
-        return "models--coqui--TTS";
-    }
-
-    /// <summary>Check if a model's files are cached in the HuggingFace hub.</summary>
+    /// <summary>
+    /// Check if a model's files are cached in the HuggingFace hub.
+    /// Scans ALL TTS-related cache directories (not just coqui/TTS),
+    /// since some models may live under different HF repos.
+    /// </summary>
     public static bool IsModelCached(string modelName)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var cacheDir = Path.Combine(home, ".cache", "huggingface", "hub", ModelToCacheSlug(modelName));
+        var hub = Path.Combine(home, ".cache", "huggingface", "hub");
 
-        if (!Directory.Exists(cacheDir))
+        if (!Directory.Exists(hub))
             return false;
 
-        // Check if the model path exists in any snapshot
-        var snapshots = Path.Combine(cacheDir, "snapshots");
-        if (Directory.Exists(snapshots))
+        // Scan all TTS-related cache dirs, matching the Python BuildListCachedCommand approach
+        foreach (var cacheDir in Directory.EnumerateDirectories(hub, "models--*"))
         {
+            var dirName = Path.GetFileName(cacheDir);
+            if (!dirName.Contains("TTS", StringComparison.OrdinalIgnoreCase) &&
+                !dirName.Contains("coqui", StringComparison.OrdinalIgnoreCase) &&
+                !dirName.Contains("tts_models", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var snapshots = Path.Combine(cacheDir, "snapshots");
+            if (!Directory.Exists(snapshots))
+                continue;
+
             foreach (var snap in Directory.EnumerateDirectories(snapshots))
             {
                 var modelPath = Path.Combine(snap, modelName);
@@ -379,11 +385,6 @@ public sealed class CoquiTtsModelManager
                     return true;
             }
         }
-
-        // Also check blobs directory (some HF cache layouts)
-        var blobs = Path.Combine(cacheDir, "blobs");
-        if (Directory.Exists(blobs) && Directory.EnumerateFiles(blobs).Any())
-            return true;
 
         return false;
     }
@@ -554,8 +555,11 @@ public sealed class CoquiTtsModelManager
                 throw new InvalidOperationException($"Coqui TTS download failed (exit={process.ExitCode}): {summary}");
             }
 
-            _host.AddMessage($"[grey]    Process exited OK. Checking cache...[/]");
-            var isCached = IsModelCached(modelName);
+            // Python prints "OK" after successful TTS(model_name=...) + del m.
+            // Trust this as a stronger signal than IsModelCached (which can have
+            // false negatives if the model lives under an unexpected HF repo).
+            var okInStdout = stdoutText.Contains("OK", StringComparison.Ordinal);
+            var isCached = okInStdout || IsModelCached(modelName);
             if (isCached)
             {
                 _host.AddMessage($"[green]    ✓ Model {modelName} cached successfully.[/]");
@@ -588,16 +592,26 @@ public sealed class CoquiTtsModelManager
     public static bool DeleteModel(string modelName)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var cacheDir = Path.Combine(home, ".cache", "huggingface", "hub", ModelToCacheSlug(modelName));
+        var hub = Path.Combine(home, ".cache", "huggingface", "hub");
 
-        if (!Directory.Exists(cacheDir))
+        if (!Directory.Exists(hub))
             return false;
 
-        // Delete the model directory from all snapshots
-        var snapshots = Path.Combine(cacheDir, "snapshots");
         var deleted = false;
-        if (Directory.Exists(snapshots))
+
+        // Scan all TTS-related cache dirs (matching IsModelCached)
+        foreach (var cacheDir in Directory.EnumerateDirectories(hub, "models--*"))
         {
+            var dirName = Path.GetFileName(cacheDir);
+            if (!dirName.Contains("TTS", StringComparison.OrdinalIgnoreCase) &&
+                !dirName.Contains("coqui", StringComparison.OrdinalIgnoreCase) &&
+                !dirName.Contains("tts_models", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var snapshots = Path.Combine(cacheDir, "snapshots");
+            if (!Directory.Exists(snapshots))
+                continue;
+
             foreach (var snap in Directory.EnumerateDirectories(snapshots))
             {
                 var modelPath = Path.Combine(snap, modelName);
