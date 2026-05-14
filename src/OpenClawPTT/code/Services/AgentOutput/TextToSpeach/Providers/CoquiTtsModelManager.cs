@@ -385,40 +385,31 @@ public sealed class CoquiTtsModelManager
     }
 
     /// <summary>
-    /// Check if a model's files are cached in the HuggingFace hub.
-    /// Scans ALL TTS-related cache directories, since models may
-    /// live under different HF repos.
+    /// Check if a model's files are cached in the Coqui TTS storage directory.
+    /// Coqui stores models in <c>%LOCALAPPDATA%/tts</c> (Windows) or
+    /// <c>~/.local/share/tts</c> (Linux/macOS) with <c>--</c> separators.
     /// </summary>
     public static bool IsModelCached(string modelName)
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var hub = Path.Combine(home, ".cache", "huggingface", "hub");
-
-        if (!Directory.Exists(hub))
-            return false;
-
-        foreach (var cacheDir in Directory.EnumerateDirectories(hub, "models--*"))
+        // Coqui TTS uses its own storage: %LOCALAPPDATA%/tts/ (Win) or ~/.local/share/tts/
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var ttsDir = Path.Combine(localAppData, "tts");
+        if (!Directory.Exists(ttsDir))
         {
-            var dirName = Path.GetFileName(cacheDir);
-            if (!dirName.Contains("TTS", StringComparison.OrdinalIgnoreCase) &&
-                !dirName.Contains("coqui", StringComparison.OrdinalIgnoreCase) &&
-                !dirName.Contains("tts_models", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var snapshots = Path.Combine(cacheDir, "snapshots");
-            if (!Directory.Exists(snapshots))
-                continue;
-
-            foreach (var snap in Directory.EnumerateDirectories(snapshots))
-            {
-                var modelPath = Path.Combine(snap, modelName);
-                if (Directory.Exists(modelPath))
-                    return true;
-                var pthFile = modelPath + ".pth";
-                if (File.Exists(pthFile))
-                    return true;
-            }
+            // Fallback: Linux/macOS
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            ttsDir = Path.Combine(home, ".local", "share", "tts");
+            if (!Directory.Exists(ttsDir))
+                return false;
         }
+
+        // Convert model name to Coqui dir format: en/jenny/jenny → en--jenny--jenny
+        var coquiDirName = modelName.Replace("/", "--");
+
+        var modelDir = Path.Combine(ttsDir, coquiDirName);
+        if (Directory.Exists(modelDir) &&
+            Directory.EnumerateFileSystemEntries(modelDir).Any())
+            return true;
 
         return false;
     }
@@ -580,44 +571,26 @@ public sealed class CoquiTtsModelManager
         }
     }
 
-    /// <summary>Deletes a cached Coqui TTS model from the HuggingFace cache.</summary>
+    /// <summary>Deletes a cached Coqui TTS model from the Coqui TTS storage dir.</summary>
     public static bool DeleteModel(string modelName)
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var hub = Path.Combine(home, ".cache", "huggingface", "hub");
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var ttsDir = Path.Combine(localAppData, "tts");
+        if (!Directory.Exists(ttsDir))
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            ttsDir = Path.Combine(home, ".local", "share", "tts");
+            if (!Directory.Exists(ttsDir))
+                return false;
+        }
 
-        if (!Directory.Exists(hub))
+        var coquiDirName = modelName.Replace("/", "--");
+        var modelDir = Path.Combine(ttsDir, coquiDirName);
+        if (!Directory.Exists(modelDir))
             return false;
 
-        var deleted = false;
-
-        foreach (var cacheDir in Directory.EnumerateDirectories(hub, "models--*"))
-        {
-            var dirName = Path.GetFileName(cacheDir);
-            if (!dirName.Contains("TTS", StringComparison.OrdinalIgnoreCase) &&
-                !dirName.Contains("coqui", StringComparison.OrdinalIgnoreCase) &&
-                !dirName.Contains("tts_models", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var snapshots = Path.Combine(cacheDir, "snapshots");
-            if (!Directory.Exists(snapshots))
-                continue;
-
-            foreach (var snap in Directory.EnumerateDirectories(snapshots))
-            {
-                var modelPath = Path.Combine(snap, modelName);
-                if (Directory.Exists(modelPath))
-                {
-                    try { Directory.Delete(modelPath, recursive: true); deleted = true; } catch { }
-                }
-                var pthFile = modelPath + ".pth";
-                if (File.Exists(pthFile))
-                {
-                    try { File.Delete(pthFile); deleted = true; } catch { }
-                }
-            }
-        }
-        return deleted;
+        try { Directory.Delete(modelDir, recursive: true); return true; }
+        catch { return false; }
     }
 }
 
