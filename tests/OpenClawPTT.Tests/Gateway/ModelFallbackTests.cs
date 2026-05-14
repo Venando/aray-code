@@ -154,7 +154,6 @@ public class SessionMessageHandlerFallbackTests
         _handler = new SessionMessageHandler(
             _mockEvents.Object,
             _cfg,
-            new ContentExtractor(),
             _mockConsole.Object);
     }
 

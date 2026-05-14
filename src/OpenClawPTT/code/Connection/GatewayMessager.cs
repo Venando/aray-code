@@ -21,7 +21,6 @@ public class GatewayMessager : IDisposable, IRpcCaller
     private readonly Func<MessageFraming>? _framingFactory;
     private readonly MessageFraming _framing;
     private readonly Action<CancellationToken>? _onDisconnection;
-    private readonly IContentExtractor _contentExtractor;
     private readonly IColorConsole _console;
     private readonly IEventDispatcher _dispatcher;
     private readonly IBackgroundJobRunner _jobRunner;
@@ -35,7 +34,6 @@ public class GatewayMessager : IDisposable, IRpcCaller
         AppConfig cfg,
         Action<CancellationToken>? onDisconnection = null,
         Func<MessageFraming>? framingFactory = null,
-        IContentExtractor? contentExtractor = null,
         IColorConsole? console = null,
         IEventDispatcher? dispatcher = null,
         IBackgroundJobRunner? jobRunner = null,
@@ -47,7 +45,6 @@ public class GatewayMessager : IDisposable, IRpcCaller
         _framingFactory = framingFactory;
         _framing = _framingFactory != null ? _framingFactory() : new MessageFraming(_ws, _cfg);
         _onDisconnection = onDisconnection;
-        _contentExtractor = contentExtractor ?? new ContentExtractor();
         _console = console ?? new ColorConsole(new StreamShellHost());
         _dispatcher = dispatcher ?? new EventDispatcher(_console);
         _jobRunner = jobRunner ?? new BackgroundJobRunner(msg => _console.Log("jobrunner", msg));
@@ -55,7 +52,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
 
         // Register default handlers
         _dispatcher.RegisterHandler<SessionMessageEvent>(
-            new SessionMessageHandler(_events, _cfg, _contentExtractor, _console));
+            new SessionMessageHandler(_events, _cfg, _console));
         _dispatcher.RegisterHandler<GatewayDisconnectedEvent>(
             new GatewayConnectionHandler(_console, _onDisconnection));
         _dispatcher.RegisterHandler<ModelFallbackEvent>(

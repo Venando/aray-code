@@ -79,7 +79,7 @@ public class GatewayMessagerTests : IDisposable
     {
         var mockDispatcher = new Mock<IEventDispatcher>();
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         // Verify default handlers are still registered
         mockDispatcher.Verify(x => x.RegisterHandler(It.IsAny<IEventHandler<SessionMessageEvent>>()), Times.Once);
@@ -95,17 +95,13 @@ public class GatewayMessagerTests : IDisposable
     public void TestProcessFrame_SessionMessageEvent_FiresAgentReplyFull()
     {
         string? capturedText = null;
-        string? capturedFinal = null;
         _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>()))
             .Callback<string>(t => capturedText = t);
-        _mockEvents.Setup(x => x.RaiseAgentReplyFinal(It.IsAny<string>()))
-            .Callback<string>(t => capturedFinal = t);
 
         var json = @"{""type"":""event"",""event"":""session.message"",""payload"":{""message"":{""role"":""assistant"",""content"":[{""type"":""text"",""text"":""hello world""}]}}}";
         _messager.TestProcessFrame(json);
 
         Assert.Equal("hello world", capturedText);
-        Assert.Equal("hello world", capturedFinal);
     }
 
     [Fact]
@@ -179,7 +175,7 @@ public class GatewayMessagerTests : IDisposable
             .Callback<SessionMessageEvent>(e => dispatchedEvent = e);
 
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         var json = @"{""type"":""event"",""event"":""session.message"",""payload"":{""message"":{""role"":""assistant"",""content"":[]}}}";
         messager.TestProcessFrame(json);
@@ -198,7 +194,7 @@ public class GatewayMessagerTests : IDisposable
             .Callback<SessionMessageEvent>(e => dispatchedEvent = e);
 
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         var json = @"{""type"":""event"",""event"":""agent"",""payload"":{""data"":{""phase"":""start""}}}";
         messager.TestProcessFrame(json);
@@ -217,7 +213,7 @@ public class GatewayMessagerTests : IDisposable
             .Callback<SessionMessageEvent>(e => dispatchedEvent = e);
 
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         var json = @"{""type"":""event"",""event"":""chat"",""payload"":{""state"":""final"",""message"":{""content"":[]}}}";
         messager.TestProcessFrame(json);
@@ -236,7 +232,7 @@ public class GatewayMessagerTests : IDisposable
             .Callback<GatewayEvent>(e => dispatchedEvent = e);
 
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         var json = @"{""type"":""event"",""event"":""unknown.event"",""payload"":{}}";
         messager.TestProcessFrame(json);
@@ -257,7 +253,7 @@ public class GatewayMessagerTests : IDisposable
             .Callback<SideResultEvent>(e => dispatchedEvent = e);
 
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         var json = @"{""type"":""event"",""event"":""chat.side_result"",""payload"":{""kind"":""btw"",""question"":""yo"",""text"":""response"",""isError"":false}}";
         messager.TestProcessFrame(json);
@@ -275,7 +271,7 @@ public class GatewayMessagerTests : IDisposable
             .Callback<SideResultEvent>(e => dispatchedEvent = e);
 
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         // sessionKey in payload points to btw target session, NOT the active session.
         // This must NOT be filtered out.
@@ -295,7 +291,7 @@ public class GatewayMessagerTests : IDisposable
             .Callback<SessionMessageEvent>(e => sessionEvent = e);
 
         var messager = new GatewayMessager(_mockWs.Object, _mockEvents.Object, _cfg,
-            null, () => _realFraming, null, null, mockDispatcher.Object);
+            null, () => _realFraming, null, mockDispatcher.Object);
 
         var json = @"{""type"":""event"",""event"":""chat.side_result"",""payload"":{""kind"":""btw"",""question"":""yo"",""text"":""response"",""isError"":false}}";
         messager.TestProcessFrame(json);

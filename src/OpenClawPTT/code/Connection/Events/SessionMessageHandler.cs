@@ -19,7 +19,6 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
 {
     private readonly IGatewayEventSource _events;
     private readonly AppConfig _cfg;
-    private readonly IContentExtractor _contentExtractor;
     private readonly IColorConsole _console;
 
     // Per-session error tracking for fallback detection.
@@ -50,12 +49,10 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
     public SessionMessageHandler(
         IGatewayEventSource events,
         AppConfig cfg,
-        IContentExtractor? contentExtractor = null,
         IColorConsole? console = null)
     {
         _events = events;
         _cfg = cfg;
-        _contentExtractor = contentExtractor ?? new ContentExtractor();
         _console = console ?? new ColorConsole(new StreamShellHost());
     }
 
@@ -128,24 +125,13 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
                 var text = textEl.GetString() ?? string.Empty;
                 if (!string.IsNullOrEmpty(text))
                 {
-                    var (hasAudio, hasText, audioText, textContent) = _contentExtractor.ExtractMarkedContent(text);
                     if (emitDelta && !startFired)
                     {
                         _events.RaiseAgentReplyDeltaStart();
                         startFired = true;
                     }
 
-                    if (hasText)
-                    {
-                        _events.RaiseAgentReplyFull(textContent);
-                        _events.RaiseAgentReplyFinal(textContent);
-                    }
-                    else if (hasAudio)
-                    {
-                        var stripped = _contentExtractor.StripAudioTags(text);
-                        _events.RaiseAgentReplyFull(stripped);
-                        _events.RaiseAgentReplyFinal(stripped);
-                    }
+                    _events.RaiseAgentReplyFull(text);
                 }
             }
             else if (type == "audio" && block.TryGetProperty("audio", out var audioEl))
