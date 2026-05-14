@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using OpenClawPTT.Services.StatusParts;
+using OpenClawPTT.Services.Themes;
 
 namespace OpenClawPTT.Services;
 
@@ -15,8 +16,7 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public sealed class StatusRenderer
 {
-    private const string RepeatedCharacterMarkup = "white";
-    private const string LeftSeparator = "──────────────── ";
+    private static ToolTheme Style => ThemeProvider.Current.Tools;
 
     private readonly IStreamShellHost _shellHost;
 
@@ -82,7 +82,7 @@ public sealed class StatusRenderer
             string topLeftText = BuildTopLeftText(ComposePositionText(_topLeft));
             string topRightText = ComposePositionText(_topRight);
             _shellHost.SetTopSeparator(leftText: topLeftText, rightText: topRightText,
-                repeatedCharacter: '─', repeatedCharMarkup: RepeatedCharacterMarkup);
+                repeatedCharacter: Style.SeparatorChar[0], repeatedCharMarkup: Style.SeparatorCharMarkup);
 
             // Build and set bottom separator if any parts are assigned to it
             if (_bottomLeft.Count > 0 || _bottomRight.Count > 0)
@@ -90,7 +90,7 @@ public sealed class StatusRenderer
                 string bottomLeftText = ComposePositionText(_bottomLeft);
                 string bottomRightText = ComposePositionText(_bottomRight);
                 _shellHost.SetBottomSeparator(leftText: bottomLeftText, rightText: bottomRightText,
-                    repeatedCharacter: '─', repeatedCharMarkup: RepeatedCharacterMarkup);
+                    repeatedCharacter: Style.SeparatorChar[0], repeatedCharMarkup: Style.SeparatorCharMarkup);
             }
         }
         catch (Exception ex)
@@ -122,7 +122,7 @@ public sealed class StatusRenderer
             return string.Empty;
 
         _sbLeft.Clear();
-        _sbLeft.Append(LeftSeparator);
+        _sbLeft.Append(Style.TopLeftSeparatorPrefix);
         _sbLeft.Append(partsText);
         _sbLeft.Append(' ');
         return _sbLeft.ToString();

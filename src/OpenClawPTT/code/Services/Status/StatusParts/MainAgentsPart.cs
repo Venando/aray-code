@@ -1,5 +1,6 @@
 using System.Text;
 using OpenClawPTT.Formatting;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.StatusParts;
@@ -22,7 +23,8 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
 
     private const int MaxAgentNameLength = 10;
     private const string NoAgentsText = "No agents connected";
-    private const string NoAgentsTextMarkup = $"[grey]{NoAgentsText}[/]";
+    private static string NoAgentsTextMarkup
+        => $"[{ThemeProvider.Current.Tools.StatusNoAgentsText}]{NoAgentsText}[/]";
 
     private const string ReadyEmoji = "🟢";
     private const string NotificationEmoji = "❗";
@@ -195,7 +197,8 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
             {
                 if (!first)
                 {
-                    Builder.Append(" [white bold]│[/] ");
+                    var pipeStyle = ThemeProvider.Current.Tools.StatusSegmentPipe;
+                    Builder.Append($" [{pipeStyle}]│[/] ");
                 }
                 first = false;
 

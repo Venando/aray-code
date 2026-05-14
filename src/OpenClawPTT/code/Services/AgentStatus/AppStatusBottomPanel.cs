@@ -1,5 +1,6 @@
 using System.Text;
 using OpenClawPTT.Services.StatusParts;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 using StreamShell;
 
@@ -19,7 +20,8 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
 {
     private const int DefaultLineCount = 2;
     private const string NoAgentsInfoText = "No agents connected";
-    private const string NoAgentsInfoTextMarkup = $"[grey]{NoAgentsInfoText}[/]";
+    private static string NoAgentsInfoTextMarkup
+        => $"[{ThemeProvider.Current.Tools.StatusNoAgentsText}]{NoAgentsInfoText}[/]";
 
     private readonly MainAgentsPart _agentsPart;
     private readonly StringBuilder _capBuilder = new(256);
@@ -119,7 +121,8 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
                     {
                         if (!first)
                         {
-                            statusBuilder.Append(" [white bold]│[/] ");
+                            var pipeStyle = ThemeProvider.Current.Tools.StatusSegmentPipe;
+                            statusBuilder.Append($" [{pipeStyle}]│[/] ");
                             contentWidth += 3;
                         }
                         first = false;

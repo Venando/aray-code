@@ -98,4 +98,20 @@ public sealed class ToolTheme
     // WebFetch
     public string FetchUrl { get; set; } = "grey";
     public string FetchMaxInfo { get; set; } = "grey";
+
+    // ── Separator / status bar ──────────────────────────────────────
+    /// <summary>The repeated fill character for separator lines.</summary>
+    public string SeparatorChar { get; set; } = "─";
+    /// <summary>Spectre markup for the repeated separator character.</summary>
+    public string SeparatorCharMarkup { get; set; } = "white";
+    /// <summary>Decorative prefix on the top-left separator line.</summary>
+    public string TopLeftSeparatorPrefix { get; set; } = "──────────────── ";
+    /// <summary>Style for │ dividers in the status bar (e.g. conv name borders).</summary>
+    public string StatusVerticalPipe { get; set; } = "grey";
+    /// <summary>Style for │ between agent segments in the bottom panel.</summary>
+    public string StatusSegmentPipe { get; set; } = "white bold";
+    /// <summary>Style for \"(no agents)\" placeholder text in status panels.</summary>
+    public string StatusNoAgentsText { get; set; } = "grey";
+    /// <summary>Style for conversation / session name in the top status bar.</summary>
+    public string ConversationNameStyle { get; set; } = "italic white";
 }
