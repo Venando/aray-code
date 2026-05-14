@@ -295,11 +295,11 @@ public sealed class CoquiTtsModelManager
 
         if (!CoquiUvEnvironment.IsUvAvailable())
         {
-            host.AddMessage("[grey]    [GetCachedModels] uv not available[/]");
+            host.AddMessage("[grey]    [[GetCachedModels]] uv not available[/]");
             return Array.Empty<string>();
         }
 
-        host.AddMessage($"[grey]    [GetCachedModels] Running Python cache scan via list_cached.py...[/]");
+        host.AddMessage($"[grey]    [[GetCachedModels]] Running Python cache scan via list_cached.py...[/]");
 
         // Write the Python script to a temp file (avoids -c escaping/syntax issues)
         var scriptPath = Path.Combine(projectDir, "list_cached.py");
@@ -324,7 +324,7 @@ public sealed class CoquiTtsModelManager
             using var process = Process.Start(psi);
             if (process == null)
             {
-                host.AddMessage("[red]    [GetCachedModels] Process.Start returned null[/]");
+                host.AddMessage("[red]    [[GetCachedModels]] Process.Start returned null[/]");
                 return Array.Empty<string>();
             }
 
@@ -332,7 +332,7 @@ public sealed class CoquiTtsModelManager
             var stderr = await process.StandardError.ReadToEndAsync(linkedCts.Token);
             await process.WaitForExitAsync(linkedCts.Token);
 
-            host.AddMessage($"[grey]    [GetCachedModels] exit={process.ExitCode}, stdout_len={stdout.Length}, stderr_len={stderr.Length}[/]");
+            host.AddMessage($"[grey]    [[GetCachedModels]] exit={process.ExitCode}, stdout_len={stdout.Length}, stderr_len={stderr.Length}[/]");
 
             if (!string.IsNullOrWhiteSpace(stderr))
             {
@@ -346,16 +346,16 @@ public sealed class CoquiTtsModelManager
 
             if (process.ExitCode != 0)
             {
-                host.AddMessage($"[red]    [GetCachedModels] non-zero exit code, stderr excerpt: {EscapeSpectreMarkup(stderr.Trim()[..Math.Min(stderr.Trim().Length, 200)])}[/]");
+                host.AddMessage($"[red]    [[GetCachedModels]] non-zero exit code, stderr excerpt: {EscapeSpectreMarkup(stderr.Trim()[..Math.Min(stderr.Trim().Length, 200)])}[/]");
                 return Array.Empty<string>();
             }
 
             var trimmed = stdout.Trim();
-            host.AddMessage($"[grey]    [GetCachedModels] stdout trimmed: '{EscapeSpectreMarkup(trimmed[..Math.Min(trimmed.Length, 500)])}'[/]");
+            host.AddMessage($"[grey]    [[GetCachedModels]] stdout trimmed: '{EscapeSpectreMarkup(trimmed[..Math.Min(trimmed.Length, 500)])}'[/]");
 
             if (string.IsNullOrEmpty(trimmed))
             {
-                host.AddMessage("[yellow]    [GetCachedModels] stdout empty after trim[/]");
+                host.AddMessage("[yellow]    [[GetCachedModels]] stdout empty after trim[/]");
                 return Array.Empty<string>();
             }
 
@@ -365,21 +365,21 @@ public sealed class CoquiTtsModelManager
                 ? trimmed[jsonStart..(jsonEnd + 1)]
                 : trimmed;
 
-            host.AddMessage($"[grey]    [GetCachedModels] json: '{EscapeSpectreMarkup(jsonText[..Math.Min(jsonText.Length, 300)])}'[/]");
+            host.AddMessage($"[grey]    [[GetCachedModels]] json: '{EscapeSpectreMarkup(jsonText[..Math.Min(jsonText.Length, 300)])}'[/]");
 
             var names = JsonSerializer.Deserialize<List<string>>(jsonText);
             if (names == null)
             {
-                host.AddMessage("[yellow]    [GetCachedModels] Deserialize returned null[/]");
+                host.AddMessage("[yellow]    [[GetCachedModels]] Deserialize returned null[/]");
                 return Array.Empty<string>();
             }
 
-            host.AddMessage($"[green]    [GetCachedModels] Found {names.Count} cached models[/]");
+            host.AddMessage($"[green]    [[GetCachedModels]] Found {names.Count} cached models[/]");
             return names;
         }
         catch (Exception ex)
         {
-            host.AddMessage($"[red]    [GetCachedModels] Exception: {EscapeSpectreMarkup(ex.Message)}[/]");
+            host.AddMessage($"[red]    [[GetCachedModels]] Exception: {EscapeSpectreMarkup(ex.Message)}[/]");
             return Array.Empty<string>();
         }
     }
