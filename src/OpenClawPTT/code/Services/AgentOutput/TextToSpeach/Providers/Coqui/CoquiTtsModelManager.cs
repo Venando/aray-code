@@ -491,6 +491,126 @@ public sealed class CoquiTtsModelManager
     }
 
     /// <summary>
+    /// Fetches model sizes from HuggingFace Hub using a Python helper script.
+    /// Uses parallel workers and local JSON caching — first call may take ~15 s
+    /// for 1000+ models, subsequent calls are instant from cache.
+    /// Returns a dictionary of model name → size in bytes (missing = no size).
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<string, long>> FetchHuggingFaceSizesAsync(
+        IStreamShellHost host,
+        IReadOnlyList<string> modelNames,
+        string? dataDir,
+        CancellationToken ct = default)
+    {
+        if (modelNames.Count == 0)
+            return new Dictionary<string, long>();
+
+        var projectDir = CoquiUvEnvironment.GetProjectDir(dataDir);
+
+        if (!CoquiUvEnvironment.IsUvAvailable())
+            return new Dictionary<string, long>();
+
+        // Write model names to a temp JSON file
+        var namesPath = Path.Combine(projectDir, "hf_model_names.json");
+        File.WriteAllText(namesPath, JsonSerializer.Serialize(modelNames));
+
+        var cachePath = Path.Combine(projectDir, "hf_model_sizes_cache.json");
+
+        // Write the Python helper script
+        var scriptPath = Path.Combine(projectDir, "fetch_hf_sizes.py");
+        File.WriteAllText(scriptPath, CoquiUvEnvironment.HfSizesScript());
+
+        // Load existing cache to show progress
+        var existingCount = 0;
+        if (File.Exists(cachePath))
+        {
+            try
+            {
+                var existing = JsonSerializer.Deserialize<Dictionary<string, long>>(
+                    File.ReadAllText(cachePath));
+                existingCount = existing?.Count ?? 0;
+            }
+            catch { }
+        }
+
+        var missingCount = modelNames.Count - existingCount;
+        var statusMsg = missingCount > 0
+            ? $"Fetching sizes for {missingCount} new models from HuggingFace..."
+            : "Loading model sizes from cache...";
+        host.AddMessage($"[grey]      {statusMsg}[/]");
+
+        var uvPath = CoquiUvEnvironment.ResolveUvPath();
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = uvPath,
+            Arguments = $"run{CoquiUvEnvironment.GetPythonArg()} --directory \"{projectDir}\" python \"{scriptPath}\" \"{namesPath}\" \"{cachePath}\"",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            using var process = Process.Start(psi);
+            if (process == null)
+            {
+                host.AddMessage("[red]      Failed to start Python for HF size fetch.[/]");
+                return new Dictionary<string, long>();
+            }
+
+            var stdout = await process.StandardOutput.ReadToEndAsync(linkedCts.Token);
+            var stderr = await process.StandardError.ReadToEndAsync(linkedCts.Token);
+            await process.WaitForExitAsync(linkedCts.Token);
+
+            if (process.ExitCode != 0)
+            {
+                host.AddMessage($"[yellow]      HF size fetch exited with code {process.ExitCode}[/]");
+                // Try to load from cache anyway
+                if (File.Exists(cachePath))
+                {
+                    var cached = JsonSerializer.Deserialize<Dictionary<string, long>>(
+                        File.ReadAllText(cachePath));
+                    return cached ?? new Dictionary<string, long>();
+                }
+                return new Dictionary<string, long>();
+            }
+
+            var jsonText = ExtractJsonArray(stdout);
+            var sizes = JsonSerializer.Deserialize<Dictionary<string, long>>(jsonText);
+            var found = sizes?.Count ?? 0;
+            host.AddMessage($"[green]      Sizes known for {found}/{modelNames.Count} models.[/]");
+            return sizes ?? new Dictionary<string, long>();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            host.AddMessage($"[yellow]      HF size fetch failed: {ex.Message}. Using cache if available.[/]");
+            if (File.Exists(cachePath))
+            {
+                try
+                {
+                    var cached = JsonSerializer.Deserialize<Dictionary<string, long>>(
+                        File.ReadAllText(cachePath));
+                    if (cached is { Count: > 0 })
+                    {
+                        host.AddMessage($"[grey]      Loaded {cached.Count} sizes from cache.[/]");
+                        return cached;
+                    }
+                }
+                catch { }
+            }
+            return new Dictionary<string, long>();
+        }
+    }
+
+    /// <summary>
     /// Returns the total disk size (bytes) of a cached model's directory,
     /// or <c>null</c> if the model isn't cached or the directory is empty.
     /// </summary>

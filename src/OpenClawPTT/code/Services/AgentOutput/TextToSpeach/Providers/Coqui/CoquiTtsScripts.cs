@@ -220,4 +220,57 @@ for root_dir in (tts_home, old_home):
 print(f'tts_home={tts_home} found={len(seen)}', file=sys.stderr)
 print(json.dumps(sorted(seen)))
 """ + "\n";
+
+    /// <summary>
+    /// Returns a Python script that fetches model sizes from HuggingFace Hub.
+    /// Reads model names from a JSON file (path passed as first argument),
+    /// queries HF API with parallel workers, caches results to a second file,
+    /// and prints the merged size dict as JSON to stdout.
+    /// </summary>
+    internal static string HfSizesScript => """
+import json, sys, os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from huggingface_hub import HfApi
+
+def _get_size(api, name):
+    try:
+        info = api.model_info(name)
+        return name, sum(s.size or 0 for s in info.siblings)
+    except Exception:
+        return name, None
+
+def main():
+    names_file = sys.argv[1]
+    cache_file = sys.argv[2] if len(sys.argv) > 2 else None
+
+    with open(names_file) as f:
+        model_names = json.load(f)
+
+    cache = {}
+    if cache_file and os.path.exists(cache_file):
+        with open(cache_file) as f:
+            cache = json.load(f)
+
+    missing = [m for m in model_names if m not in cache]
+
+    if missing:
+        api = HfApi()
+        # 15 workers balances speed vs HF API rate limits
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            futures = {executor.submit(_get_size, api, m): m for m in missing}
+            for future in as_completed(futures):
+                name, size = future.result()
+                if size is not None:
+                    cache[name] = size
+
+    if cache_file:
+        os.makedirs(os.path.dirname(cache_file) or '.', exist_ok=True)
+        with open(cache_file, 'w') as f:
+            json.dump(cache, f)
+
+    print(json.dumps(cache))
+
+if __name__ == '__main__':
+    main()
+""" + "\n";
 }

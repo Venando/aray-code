@@ -217,11 +217,26 @@ public sealed class CoquiTtsConfigFlow
     {
         var (allModels, cachedModels) = await FetchModelListsAsync(host, dataDir, ct);
 
-        // Enrich cached models with their disk size
-        foreach (var model in allModels)
+        // Enrich models with sizes: disk size for cached (accurate), HF size for others
+        if (allModels.Count > 0)
         {
-            if (cachedModels.Contains(model.Name))
-                model.SizeBytes = CoquiTtsModelManager.GetModelSizeBytes(model.Name);
+            // Disk sizes for cached models (most accurate)
+            foreach (var model in allModels)
+            {
+                if (cachedModels.Contains(model.Name))
+                    model.SizeBytes = CoquiTtsModelManager.GetModelSizeBytes(model.Name);
+            }
+
+            // HF sizes for all models (fills in the blanks, cached for future runs)
+            var allNames = allModels.Select(m => m.Name).ToList();
+            var hfSizes = await CoquiTtsModelManager.FetchHuggingFaceSizesAsync(
+                host, allNames, dataDir, ct);
+
+            foreach (var model in allModels)
+            {
+                if (model.SizeBytes == null && hfSizes.TryGetValue(model.Name, out var hfSize) && hfSize > 0)
+                    model.SizeBytes = hfSize;
+            }
         }
 
         if (allModels.Count == 0)
@@ -417,10 +432,10 @@ public sealed class CoquiTtsConfigFlow
             var isActive = info.Name == currentModel;
             var activeMarker = isActive ? " [cyan][[active]][/]" : "";
             var sizeText = !string.IsNullOrEmpty(info.FormattedSize)
-                ? $", {info.FormattedSize}"
+                ? $"  [grey]— {info.FormattedSize}[/]"
                 : "";
             variants.Add(new ConfigVariant(
-                $"[green]✓ {info.Name}[/] [grey]({info.Description}{sizeText})[/]{activeMarker}",
+                $"[green]✓ {info.Description}[/]{sizeText}{activeMarker}",
                 $"{ActionUse}{info.Name}"));
         }
     }
@@ -445,8 +460,11 @@ public sealed class CoquiTtsConfigFlow
 
         foreach (var info in notCached)
         {
+            var sizeText = !string.IsNullOrEmpty(info.FormattedSize)
+                ? $"  [grey]— {info.FormattedSize}[/]"
+                : "";
             variants.Add(new ConfigVariant(
-                $"[grey]⬇ {info.Name} ({info.Description})[/]",
+                $"[grey]⬇ {info.Description}{sizeText}[/]",
                 $"{ActionDownload}{info.Name}"));
         }
     }
@@ -466,7 +484,7 @@ public sealed class CoquiTtsConfigFlow
             if (!cachedModels.Contains(info.Name))
                 continue;
             variants.Add(new ConfigVariant(
-                $"[red]Remove: {info.Name}[/]",
+                $"[red]Remove: {info.Description}[/]",
                 $"{ActionRemove}{info.Name}"));
         }
     }

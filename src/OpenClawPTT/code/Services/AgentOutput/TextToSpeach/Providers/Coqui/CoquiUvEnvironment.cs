@@ -498,6 +498,8 @@ public sealed class CoquiUvEnvironment
     /// </summary>
     public static string ListCachedModelPathsScript() => CoquiTtsScripts.ListCachedModelPathsScript();
 
+    public static string HfSizesScript() => CoquiTtsScripts.HfSizesScript;
+
     /// <summary>
     /// Builds a uv run command to list locally cached Coqui TTS model repos.
     /// </summary>
