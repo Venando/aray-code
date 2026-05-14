@@ -375,6 +375,12 @@ public sealed class CoquiTtsModelManager
             }
 
             host.AddMessage($"[green]    [[GetCachedModels]] Found {names.Count} cached models[/]");
+
+            // Successful uv run proves the environment works — clear any stale
+            // broken flag set by a previous TTS service startup failure.
+            if (CoquiUvEnvironment.IsUvBuildBroken)
+                CoquiUvEnvironment.ClearBrokenFlagKeepPython();
+
             return names;
         }
         catch (Exception ex)
@@ -583,7 +589,7 @@ public sealed class CoquiTtsModelManager
     /// unpacking before TTS can load them. Deletes the ZIP after extraction.
     /// Returns the number of archives extracted.
     /// </summary>
-    private static int ExtractModelZips(string modelName)
+    internal static int ExtractModelZips(string modelName)
     {
         var modelDir = GetModelDir(modelName);
         if (modelDir == null)

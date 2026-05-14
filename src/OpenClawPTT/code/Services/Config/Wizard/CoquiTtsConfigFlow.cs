@@ -76,6 +76,12 @@ public sealed class CoquiTtsConfigFlow
         if (modelResult == null)
             return false;
 
+        // Some models (e.g. jenny) are distributed as ZIP archives.
+        // Extract them now so the TTS service can find the files.
+        var extractedZips = CoquiTtsModelManager.ExtractModelZips(modelResult);
+        if (extractedZips > 0)
+            host.AddMessage($"[green]    ✓ Extracted {extractedZips} archive(s) for {modelResult}[/]");
+
         bool modelChanged = modelResult != config.CoquiModelName;
 
         // ── Phase 3: Download (prompt when not cached, regardless of model change) ──
