@@ -44,7 +44,7 @@ public sealed class CoquiTtsConfigFlow
         // ── Phase 2: Model selection ──
         var modelManager = new CoquiTtsModelManager(dataDir, host);
         var modelResult = await SelectModelAsync(
-            host, modelManager, config, config.CoquiModelName, ct);
+            host, modelManager, config, config.CoquiModelName, dataDir, ct);
 
         if (modelResult == null)
             return false;
@@ -147,12 +147,16 @@ public sealed class CoquiTtsConfigFlow
         if (shouldDownload is not { Length: > 0 } || shouldDownload[0] is not ConfigVariant cv)
             return false;
 
-        return cv.Value switch
+        switch (cv.Value)
         {
-            "cancel" => false,
-            "download" => await ExecuteDownloadAsync(host, modelManager, modelName, ct),
-            _ => false, // "select" or unknown
-        };
+            case "cancel":
+                return false;
+            case "download":
+                return await ExecuteDownloadAsync(host, modelManager, modelName, ct);
+            default: // "select" or unknown
+                host.AddMessage("[grey]  Model selected without downloading. Use /reconfigure to download later.[/]");
+                return false;
+        }
     }
 
     /// <summary>
@@ -189,23 +193,14 @@ public sealed class CoquiTtsConfigFlow
     /// </summary>
     internal static async Task<string?> SelectModelAsync(
         IStreamShellHost host, CoquiTtsModelManager modelManager,
-        AppConfig config, string? currentModel, CancellationToken ct)
+        AppConfig config, string? currentModel, string? dataDir, CancellationToken ct)
     {
-        var dataDir = config.CustomDataDir ?? config.DataDir;
-
-        // Fetch live model list from Coqui TTS
-        var allModels = await CoquiTtsModelManager.GetAvailableModelsAsync(
-            host, dataDir, ct);
+        var (allModels, cachedModels) = await FetchModelListsAsync(host, dataDir, ct);
 
         if (allModels.Count == 0)
         {
             return await HandleNoModelsAsync(host, currentModel);
         }
-
-        // Use Python to get actually-cached model paths (accurate)
-        var cachedModels = new HashSet<string>(
-            await CoquiTtsModelManager.GetCachedModelsAsync(host, dataDir, ct),
-            StringComparer.Ordinal);
 
         string? result = null;
 
@@ -231,11 +226,7 @@ public sealed class CoquiTtsConfigFlow
             // Only refresh model lists after a remove action
             if (result == null && cachedModels.Count > 0 && cv.Value.StartsWith(ActionRemove))
             {
-                cachedModels = new HashSet<string>(
-                    await CoquiTtsModelManager.GetCachedModelsAsync(host, dataDir, ct),
-                    StringComparer.Ordinal);
-                allModels = await CoquiTtsModelManager.GetAvailableModelsAsync(
-                    host, dataDir, ct);
+                (allModels, cachedModels) = await FetchModelListsAsync(host, dataDir, ct);
             }
         }
 
@@ -270,6 +261,20 @@ public sealed class CoquiTtsConfigFlow
         (errorDetail.Contains("Failed to build", StringComparison.Ordinal) ||
          errorDetail.Contains("build_wheel", StringComparison.Ordinal) ||
          errorDetail.Contains("build backend", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Fetches both available and cached model lists in one call.
+    /// Extracted to deduplicate the paired fetch pattern (DRY).
+    /// </summary>
+    private static async Task<(IReadOnlyList<CoquiTtsModelInfo> AllModels, HashSet<string> CachedModels)> FetchModelListsAsync(
+        IStreamShellHost host, string? dataDir, CancellationToken ct)
+    {
+        var allModels = await CoquiTtsModelManager.GetAvailableModelsAsync(host, dataDir, ct);
+        var cachedModels = new HashSet<string>(
+            await CoquiTtsModelManager.GetCachedModelsAsync(host, dataDir, ct),
+            StringComparer.Ordinal);
+        return (allModels, cachedModels);
+    }
 
     /// <summary>
     /// Routes a user selection to the correct action: use, download, remove, or none.

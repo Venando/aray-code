@@ -62,9 +62,12 @@ public sealed class TtsConfigSection : ConfigSectionBase
 
         AddOpenAiItems();
         AddEdgeItems();
-        AddCoquiItems();
-        AddPythonItems();
         AddPiperItems();
+
+        // Note: "Coqui" and "Python" tagged items are intentionally omitted.
+        // The old Coqui/Python provider-specific config fields (CoquiModelPath,
+        // PythonPath, CoquiModelName) are now managed through the unified CoquiUv
+        // provider flow instead of the tagged-item system.
     }
 
     private void AddOpenAiItems()
@@ -86,26 +89,6 @@ public sealed class TtsConfigSection : ConfigSectionBase
         AddConfigItem("Edge", ConfigSetupItem.ForString(
             title: "Azure TTS region",
             fieldName: nameof(AppConfig.TtsRegion)));
-    }
-
-    private void AddCoquiItems()
-    {
-        AddConfigItem("Coqui", ConfigSetupItem.ForString(
-            title: "Path to Coqui model file",
-            fieldName: nameof(AppConfig.CoquiModelPath),
-            isEmptyToDefault: true));
-    }
-
-    private void AddPythonItems()
-    {
-        AddConfigItem("Python", ConfigSetupItem.ForString(
-            title: "Python path",
-            fieldName: nameof(AppConfig.PythonPath),
-            isEmptyToDefault: true));
-
-        AddConfigItem("Python", ConfigSetupItem.ForString(
-            title: "Coqui model name",
-            fieldName: nameof(AppConfig.CoquiModelName)));
     }
 
     private void AddPiperItems()
