@@ -46,8 +46,8 @@ public sealed class TtsSummarizer : ITtsSummarizer, IDisposable
         var summary = await _directLlm.SendAsync(prompt, ct);
         sw.Stop();
 
-        _console?.PrintFormatted("[gray]Summary: [/]", summary);
-        _console?.PrintMarkup($"[grey]  TTS summary: [bold]{text.Length}[/] → [bold]{summary.Trim().Length}[/] chars in [bold]{sw.ElapsedMilliseconds}ms[/][/]\n");
+        _console?.PrintFormatted("[gray]  Summary: [/]", summary);
+        _console?.PrintMarkup($"[grey]  TTS summary: [bold]{text.Length}[/] → [bold]{summary.Trim().Length}[/] chars in [bold]{sw.ElapsedMilliseconds}ms[/][/]");
         if (string.IsNullOrWhiteSpace(summary) || summary == "(No response)")
             throw new InvalidOperationException("LLM returned no usable content for summarization");
 

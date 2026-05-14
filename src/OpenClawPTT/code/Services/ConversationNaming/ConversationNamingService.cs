@@ -29,10 +29,10 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
     /// <summary>How many messages (user + agent) trigger the first naming attempt.
     /// Set to 1 so a single user message immediately triggers naming (backward compat.
     /// with the original behavior). Adaptive re-naming happens as more messages arrive.</summary>
-    private const int InitialNamingThreshold = 1;
+    private const int InitialNamingThreshold = 3;
 
     /// <summary>After this many messages, re-evaluate the name.</summary>
-    private const int ReNamingThreshold = 6;
+    private const int ReNamingThreshold = 5;
 
     /// <summary>Maximum number of renames per session to avoid churn.</summary>
     private const int MaxRenamesPerSession = 3;
@@ -41,7 +41,7 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
     private const int MaxPromptMessages = 8;
 
     /// <summary>Maximum session history messages to include as context.</summary>
-    private const int MaxHistoryContextMessages = 4;
+    private const int MaxHistoryContextMessages = 0;
 
     // ── State ──────────────────────────────────────────────────────────────────
 
@@ -111,6 +111,15 @@ public sealed class ConversationNamingService : IConversationNamingService, IDis
     }
 
     public void OnAgentReplyReceived(string replyText)
+    {
+        ProcessAgentReply(replyText);
+    }
+
+    public void OnAgentReplyFinalReceived(string replyText)
+    {
+    }
+
+    private void ProcessAgentReply(string replyText)
     {
         if (string.IsNullOrWhiteSpace(replyText) || _disposed)
             return;

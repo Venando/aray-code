@@ -27,6 +27,12 @@ public interface IConversationNamingService : IDisposable
     void OnAgentReplyReceived(string replyText);
 
     /// <summary>
+    /// Called when an agent reply final is received. Accumulates agent replies and
+    /// triggers adaptive naming as the conversation grows.
+    /// </summary>
+    void OnAgentReplyFinalReceived(string replyText);
+
+    /// <summary>
     /// Provides session history entries for the current session.
     /// These are used to build richer naming context (past messages before this session).
     /// </summary>

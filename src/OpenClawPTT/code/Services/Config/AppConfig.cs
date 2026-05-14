@@ -147,7 +147,7 @@ public sealed class AppConfig
 
     // Conversation naming prompt (Direct LLM)
     public string ConversationNamingPrompt { get; set; } =
-        "Give a very short 4-6 word descriptive name for a conversation that starts with this message. Return ONLY the name, no quotes, no explanation, no punctuation at the end.\n\nMessage: {message}";
+        "Give a very short 4-6 word descriptive name for a conversation that starts with this message. Return ONLY the name.\n\nMessage: {message}";
 
     [JsonIgnore]
     public string ClientVersion => "1.0.0";
