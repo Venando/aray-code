@@ -1,59 +1,47 @@
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
 
 namespace OpenClawPTT.TTS.Providers;
 
 /// <summary>
-/// OpenAI TTS provider (tts-1, tts-1-hd)
+/// OpenAI TTS provider (tts-1, tts-1-hd).
 /// </summary>
-public sealed class OpenAiTtsProvider : ITextToSpeech
+public sealed class OpenAiTtsProvider : ITextToSpeech, IDisposable
 {
     private readonly HttpClient _http;
-    private readonly string _apiKey;
+    private bool _disposed;
 
     public string ProviderName => "OpenAI";
 
     // https://platform.openai.com/docs/guides/text-to-speech
-    public IReadOnlyList<string> AvailableVoices { get; } = new[]
-    {
-        "alloy", "echo", "fable", "onyx", "nova", "shimmer"
-    };
+    public IReadOnlyList<string> AvailableVoices { get; } =
+    [
+        "alloy", "echo", "fable", "onyx", "nova", "shimmer",
+    ];
 
-    public IReadOnlyList<string> AvailableModels { get; } = new[]
-    {
-        "tts-1", "tts-1-hd"
-    };
+    public IReadOnlyList<string> AvailableModels { get; } =
+    [
+        "tts-1", "tts-1-hd",
+    ];
 
     public OpenAiTtsProvider(string apiKey)
     {
-        _apiKey = apiKey ?? throw new ArgumentNullException(nameof(apiKey));
+        ArgumentNullException.ThrowIfNull(apiKey);
+
         _http = new HttpClient();
-        _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+        _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
     }
 
     public async Task<byte[]> SynthesizeAsync(string text, string? voice = null, string? model = null, CancellationToken ct = default)
     {
-        var selectedVoice = voice ?? "alloy";
-        var selectedModel = model ?? "tts-1";
-
-        // Validate voice
-        if (!AvailableVoices.Contains(selectedVoice, StringComparer.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException($"Invalid voice '{selectedVoice}'. Available: {string.Join(", ", AvailableVoices)}");
-        }
-
-        // Validate model
-        if (!AvailableModels.Contains(selectedModel, StringComparer.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException($"Invalid model '{selectedModel}'. Available: {string.Join(", ", AvailableModels)}");
-        }
+        var selectedVoice = ResolveVoice(voice);
+        var selectedModel = ResolveModel(model);
 
         var request = new
         {
             model = selectedModel,
             voice = selectedVoice,
             input = text,
-            response_format = "wav"
+            response_format = "wav",
         };
 
         var response = await _http.PostAsJsonAsync(
@@ -62,8 +50,37 @@ public sealed class OpenAiTtsProvider : ITextToSpeech
             ct);
 
         response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
 
-        var audio = await response.Content.ReadAsByteArrayAsync(ct);
-        return audio;
+    /// <summary>Validates the voice, falling back to "alloy".</summary>
+    private string ResolveVoice(string? voice)
+    {
+        var selected = voice ?? "alloy";
+        if (!AvailableVoices.Contains(selected, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Invalid voice '{selected}'. Available: {string.Join(", ", AvailableVoices)}");
+        }
+        return selected;
+    }
+
+    /// <summary>Validates the model, falling back to "tts-1".</summary>
+    private string ResolveModel(string? model)
+    {
+        var selected = model ?? "tts-1";
+        if (!AvailableModels.Contains(selected, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Invalid model '{selected}'. Available: {string.Join(", ", AvailableModels)}");
+        }
+        return selected;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _http.Dispose();
     }
 }
