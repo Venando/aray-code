@@ -299,16 +299,18 @@ public sealed class CoquiTtsModelManager
             return Array.Empty<string>();
         }
 
-        host.AddMessage($"[grey]    [GetCachedModels] Running Python cache scan...[/]");
+        host.AddMessage($"[grey]    [GetCachedModels] Running Python cache scan via list_cached.py...[/]");
 
-        var pythonCmd = CoquiUvEnvironment.BuildListCachedModelPathsCommand();
+        // Write the Python script to a temp file (avoids -c escaping/syntax issues)
+        var scriptPath = Path.Combine(projectDir, "list_cached.py");
+        File.WriteAllText(scriptPath, CoquiUvEnvironment.ListCachedModelPathsScript());
+
         var uvPath = CoquiUvEnvironment.FindUv() ?? "uv";
-        var escapedCmd = pythonCmd.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
         var psi = new ProcessStartInfo
         {
             FileName = uvPath,
-            Arguments = $"run{CoquiUvEnvironment.GetPythonArg()} --directory \"{projectDir}\" python -c \"{escapedCmd}\"",
+            Arguments = $"run{CoquiUvEnvironment.GetPythonArg()} --directory \"{projectDir}\" python \"{scriptPath}\"",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

@@ -432,40 +432,42 @@ public sealed class CoquiUvEnvironment
     }
 
     /// <summary>
-    /// Builds a uv run command to list individual cached Coqui TTS model paths
-    /// (e.g. "tts_models/en/ljspeech/vits") across all HF cache repos.
+    /// Returns the content for a Python helper script that lists cached model paths.
+    /// Saved to <c>list_cached.py</c> in the project dir and executed via
+    /// <c>uv run python list_cached.py</c>.
     /// </summary>
-    public static string BuildListCachedModelPathsCommand()
-    {
-        // Walk each TTS-related HF cache dir, enumerate snapshot subdirs,
-        // and collect directories that look like model paths (tts_models/* or
-        // vocoder_models/*). Returns JSON array of unique model paths.
-        return "import os, json, glob; " +
-               "seen = set(); " +
-               "cache = os.path.expanduser('~/.cache/huggingface/hub'); " +
-               "for repo in glob.glob(cache + '/models--*'): " +
-               "    base = os.path.basename(repo); " +
-               "    if not any(k in base.lower() for k in ('tts','coqui','tts_models')): continue; " +
-               "    snaps = os.path.join(repo, 'snapshots'); " +
-               "    if not os.path.isdir(snaps): continue; " +
-               "    for snap in os.listdir(snaps): " +
-               "        root = os.path.join(snaps, snap); " +
-               "        if not os.path.isdir(root): continue; " +
-               "        for sub in ['tts_models','vocoder_models']: " +
-               "            sub_path = os.path.join(root, sub); " +
-               "            if os.path.isdir(sub_path): " +
-               "                for lang in os.listdir(sub_path): " +
-               "                    lang_path = os.path.join(sub_path, lang); " +
-               "                    if not os.path.isdir(lang_path): continue; " +
-               "                    for ds in os.listdir(lang_path): " +
-               "                        ds_path = os.path.join(lang_path, ds); " +
-               "                        if not os.path.isdir(ds_path): continue; " +
-               "                        for arch in os.listdir(ds_path): " +
-               "                            arch_path = os.path.join(ds_path, arch); " +
-               "                            if os.path.isdir(arch_path): " +
-               "                                seen.add(f'{sub}/{lang}/{ds}/{arch}'); " +
-               "print(json.dumps(sorted(seen)))";
-    }
+    public static string ListCachedModelPathsScript() => """
+import os, json, glob
+seen = set()
+cache = os.path.expanduser('~/.cache/huggingface/hub')
+for repo in glob.glob(cache + '/models--*'):
+    base = os.path.basename(repo)
+    if not any(k in base.lower() for k in ('tts','coqui','tts_models')):
+        continue
+    snaps = os.path.join(repo, 'snapshots')
+    if not os.path.isdir(snaps):
+        continue
+    for snap in os.listdir(snaps):
+        root = os.path.join(snaps, snap)
+        if not os.path.isdir(root):
+            continue
+        for sub in ['tts_models','vocoder_models']:
+            sub_path = os.path.join(root, sub)
+            if os.path.isdir(sub_path):
+                for lang in os.listdir(sub_path):
+                    lang_path = os.path.join(sub_path, lang)
+                    if not os.path.isdir(lang_path):
+                        continue
+                    for ds in os.listdir(lang_path):
+                        ds_path = os.path.join(lang_path, ds)
+                        if not os.path.isdir(ds_path):
+                            continue
+                        for arch in os.listdir(ds_path):
+                            arch_path = os.path.join(ds_path, arch)
+                            if os.path.isdir(arch_path):
+                                seen.add(f'{sub}/{lang}/{ds}/{arch}')
+print(json.dumps(sorted(seen)))
+""" + "\n";
 
     /// <summary>
     /// Builds a uv run command to list locally cached Coqui TTS model repos.
