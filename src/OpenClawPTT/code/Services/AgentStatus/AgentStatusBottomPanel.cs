@@ -25,21 +25,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     private const int GapAfterName = 2;
     private const int GapBeforeTime = 2;
 
-    // ── Hardcoded fallback data (when store has no activity yet) ──────────
-    private static readonly string[] FallbackActions =
-    {
-        "Editing src/components/Settings.tsx",
-        "github.com/acme-web-app/pull",
-        "Updated 4 docs pages with the new CLI flags",
-        "Should the API client retry on 439, or surface the error to the caller?",
-        "n/a",
-        "reviewing PR #142 — auth refactor",
-        "Looking at build pipeline logs",
-        "Drafting release notes for v2.4",
-    };
-
-    private static readonly string[] FallbackTimes = { "12m", "3m", "40m", "1h", "5m", "22m", "2h", "8m" };
-
     private const int MaxNameDisplayLength = 10;
 
     // ── Dependencies ──────────────────────────────────────────────────────
@@ -173,10 +158,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
                 var name = GetAgentName(agentId, sessionKey);
                 var bullet = _store.GetStatusEmoji(sessionKey);
-                var action = _store.GetLastActionDescription(sessionKey)
-                    ?? FallbackActions[i % FallbackActions.Length];
-                var timeAgo = FormatRelativeTime(_store.GetLastActivityTime(sessionKey))
-                    ?? FallbackTimes[i % FallbackTimes.Length];
+                var action = _store.GetLastActionDescription(sessionKey) ?? "[grey]…[/]";
+                var timeAgo = FormatRelativeTime(_store.GetLastActivityTime(sessionKey)) ?? "…";
 
                 _lines.Add(RenderAgentLine(name, bullet, action, timeAgo, selected));
             }
