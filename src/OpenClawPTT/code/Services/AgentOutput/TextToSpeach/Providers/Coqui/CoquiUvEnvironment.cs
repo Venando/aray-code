@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -80,6 +81,47 @@ public sealed class CoquiUvEnvironment
         IsUvBuildBroken = false;
         UvBuildErrorDetail = null;
         ValidatedPythonPath = null;
+    }
+
+    /// <summary>
+    /// Checks whether the error text indicates a uv build/dependency failure.
+    /// Centralized here so both <see cref="CoquiTtsModelManager"/> and
+    /// <see cref="ConfigWizard.CoquiTtsConfigFlow"/> share the same patterns.
+    /// </summary>
+    public static bool IsBuildError(string? errorText)
+    {
+        if (string.IsNullOrWhiteSpace(errorText)) return false;
+        return errorText.Contains("Failed to build", StringComparison.Ordinal)
+            || errorText.Contains("build_wheel", StringComparison.Ordinal)
+            || errorText.Contains("build backend", StringComparison.Ordinal)
+            || errorText.Contains("RuntimeError", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Extracts a concise, human-readable summary from a uv build error.
+    /// Centralized to avoid duplication with <see cref="CoquiTtsModelManager"/>.
+    /// </summary>
+    public static string SummarizeBuildError(string errorText)
+    {
+        if (string.IsNullOrWhiteSpace(errorText))
+            return "Build failed (no details)";
+
+        var lines = errorText.Split('\n');
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Contains("requires python", StringComparison.OrdinalIgnoreCase))
+                return trimmed;
+            if (trimmed.Contains("RuntimeError", StringComparison.Ordinal))
+                return trimmed;
+            if (trimmed.Contains("Failed to build", StringComparison.Ordinal))
+                return trimmed;
+            if (trimmed.Contains("TypeError", StringComparison.Ordinal))
+                return trimmed;
+        }
+
+        var first = lines.FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
+        return first?.Trim() ?? "Build failed";
     }
 
     public CoquiUvEnvironment(string? dataDir, string modelName, string? modelPath, string? ttsConfigPath, string? espeakNgPath)

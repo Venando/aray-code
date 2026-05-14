@@ -39,9 +39,11 @@ public sealed class CoquiTtsConfigFlow
         env.EnsureProjectFiles();
 
         // ── Phase 1: Gate — validate uv and Python before anything else ──
+        ct.ThrowIfCancellationRequested();
         await ValidateEnvironmentAsync(host, dataDir, ct);
 
         // ── Phase 2: Model selection ──
+        ct.ThrowIfCancellationRequested();
         var modelManager = new CoquiTtsModelManager(dataDir, host);
         var modelResult = await SelectModelAsync(
             host, modelManager, config, config.CoquiModelName, dataDir, ct);
@@ -58,23 +60,41 @@ public sealed class CoquiTtsConfigFlow
         bool modelChanged = modelResult != config.CoquiModelName;
 
         // ── Phase 3: Download (prompt when not cached, regardless of model change) ──
+        ct.ThrowIfCancellationRequested();
         var downloadSucceeded = await HandleDownloadAsync(
             host, modelManager, modelResult, modelChanged, ct);
 
         // ── Phase 4: Apply config change AFTER download resolution ──
         if (modelChanged)
         {
+            ct.ThrowIfCancellationRequested();
+
+            // Save old values for rollback on failure (SC-3: avoid data loss)
+            var previousModel = config.CoquiModelName;
+            var previousSttProvider = config.SttProvider;
+
             config.CoquiModelName = modelResult;
-            config.SttProvider = null; // ensure TTS provider is CoquiUv
-            host.AddMessage($"[green]  Model: {modelResult}[/]");
+            // Reset STT so the config wizard flow doesn't retain a stale
+            // provider selection — config will default to Coqui TTS for
+            // this config session. The STT provider and TTS provider are
+            // separate settings; null here means "no explicit override."
+            config.SttProvider = null;
 
             if (!downloadSucceeded && !CoquiTtsModelManager.IsModelCached(modelResult))
             {
-                host.AddMessage("[yellow]  ⚠ Model not cached yet — TTS won't work until downloaded.[/]");
+                // Rollback config change — model is not usable without download.
+                config.CoquiModelName = previousModel;
+                config.SttProvider = previousSttProvider;
+                host.AddMessage("[yellow]  ⚠ Model change rolled back — model not cached yet.[/]");
+                host.AddMessage("[grey]    Use /reconfigure TTS to try again and download the model.[/]");
+            }
+            else
+            {
+                host.AddMessage($"[green]  Model: {modelResult}[/]");
             }
         }
 
-        return modelChanged;
+        return modelChanged && downloadSucceeded;
     }
 
     // ── Phase 1: Environment validation ─────────────────────────────
@@ -246,7 +266,7 @@ public sealed class CoquiTtsConfigFlow
         host.AddMessage("[grey]    Then re-run /reconfigure TTS to select a model.[/]");
 
         var errorDetail = CoquiTtsModelManager.LastFetchErrorDetail;
-        if (IsUvBuildError(errorDetail))
+        if (CoquiUvEnvironment.IsBuildError(errorDetail))
         {
             if (!string.IsNullOrEmpty(currentModel))
                 host.AddMessage($"[grey]    Current model: {currentModel}[/]");
@@ -255,12 +275,6 @@ public sealed class CoquiTtsConfigFlow
 
         return null;
     }
-
-    private static bool IsUvBuildError(string? errorDetail) =>
-        !string.IsNullOrEmpty(errorDetail) &&
-        (errorDetail.Contains("Failed to build", StringComparison.Ordinal) ||
-         errorDetail.Contains("build_wheel", StringComparison.Ordinal) ||
-         errorDetail.Contains("build backend", StringComparison.Ordinal));
 
     /// <summary>
     /// Fetches both available and cached model lists in one call.
