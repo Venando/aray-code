@@ -130,6 +130,13 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             _lastCurrentInput = currentInput ?? string.Empty;
             _agentsPart.RefreshVisibleAgents();
 
+            if (_lastCurrentInput.Length > 0)
+            {
+                _cachedLineCount = 1;
+                _renderedVersion = _version;
+                return new string[1] { "" };
+            }
+
             // ── Gather data ───────────────────────────────────────────────
             var activeSessionKey = AgentRegistry.ActiveSessionKey;
             var activeSnapshot = activeSessionKey is not null
@@ -180,9 +187,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
                 // Header row (only row with │)
                 _lines.Add(LeftPad + RenderHeaderRow(colW));
-
-                // spacer
-                _lines.Add(string.Empty);
 
                 // Active row
                 if (activeData is not null)
@@ -341,21 +345,21 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         public static CellData FromAgent(AgentStatusSnapshot? snapshot, AgentInfo? info)
         {
             if (snapshot is null || info is null)
-                return new CellData("?", "—", "[grey]…[/]", "[grey]…[/]");
+                return new CellData("?", "—", "…", "…");
 
             var name = info.Name ?? "?";
             name = name.Length > MaxNameDisplayLength
                 ? Markup.Escape(name[..MaxNameDisplayLength])
                 : Markup.Escape(name);
 
-            var status = Markup.Escape(snapshot.GetStatusEmoji());
+            var status = snapshot.GetStatusEmoji();
 
             var model = !string.IsNullOrWhiteSpace(snapshot.Model)
                 ? Markup.Escape(ModelPart.ShortenModelName(snapshot.Model))
-                : "[grey]…[/]";
+                : "…";
 
             var context = ContextPart.FormatContextDisplay(snapshot.ContextTokens, snapshot.TotalTokens)
-                ?? "[grey]…[/]";
+                ?? "…";
 
             return new CellData(name, status, model, context);
         }
@@ -400,11 +404,15 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     /// </summary>
     private static string RenderHeaderRow(ColumnWidths w)
     {
-        return "│ "
-            + CenterPadded(HeaderName,    w.Name,    bold: true) + " │ "
-            + CenterPadded(HeaderStatus,  w.Status,  bold: true) + " │ "
-            + CenterPadded(HeaderModel,   w.Model,   bold: true) + " │ "
-            + CenterPadded(HeaderContext, w.Context, bold: true) + " │";
+        const string leftEdge = "  "; // "│ ";
+        const string midEdge = "   "; //" │ ";
+        const string rightdge = "  "; //" │";
+
+        return leftEdge
+            + CenterPadded(HeaderName,    w.Name,    bold: true) + midEdge
+            + CenterPadded(HeaderStatus,  w.Status,  bold: true) + midEdge
+            + CenterPadded(HeaderModel,   w.Model,   bold: true) + midEdge
+            + CenterPadded(HeaderContext, w.Context, bold: true) + rightdge;
     }
 
     /// <summary>
@@ -436,8 +444,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         int pad = colWidth - text.Length;
         int left = pad / 2;
         int right = pad - left;
-        var padded = $"{new string(' ', left)}{text}{new string(' ', right)}";
-        return bold ? $"[bold]{padded}[/]" : padded;
+        var padded = $"{new string(' ', left)}{(bold ? $"[bold underline]{text}[/]" : text)}{new string(' ', right)}";
+        return padded;
     }
 
     /// <summary>Centres a Spectre-markup value within the column width.</summary>

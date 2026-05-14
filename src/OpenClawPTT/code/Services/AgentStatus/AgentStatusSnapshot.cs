@@ -242,13 +242,13 @@ public sealed record AgentStatusSnapshot
 
     // Status emoji constants — single source of truth for all agent state visuals.
     // Use these instead of literal emoji strings everywhere.
-    public const string AbortedEmoji = "🔄";
-    public const string ToolExecutingEmoji = "🔄";
-    public const string FinishedEmoji = "✅";
-    public const string SpawningEmoji = "🔄";
-    public const string UnknownSubagentEmoji = "⚪";
-    public const string YieldingEmoji = "🔄";
-    public const string ReadyEmoji = "🟢";
+    public const string AbortedEmoji = "▶";
+    public const string ToolExecutingEmoji = "▶";
+    public const string FinishedEmoji = "[green]•[/]";
+    public const string SpawningEmoji = "▶";//◦
+    public const string UnknownSubagentEmoji = "◘";
+    public const string YieldingEmoji = "▶";
+    public const string ReadyEmoji = "[green]•[/]";
 
 
     /// <summary>Returns a single emoji representing the agent's current state.</summary>
