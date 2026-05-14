@@ -33,22 +33,9 @@ public sealed class ContextPart : StatusPartBase
 
     protected override void BuildText()
     {
-        if (_contextTokens is null or <= 0 || _totalTokens is null or <= 0)
-            return;
-
-        double percent = (double)_totalTokens.Value / _contextTokens.Value * 100.0;
-
-        if (percent < 10.0)
-            AppendDouble(Builder, percent, 1);
-        else
-            AppendDouble(Builder, percent, 0);
-        Builder.Append('%');
-
-        Builder.Append(" (");
-        AppendTokenCountToBuilder(Builder, _totalTokens.Value);
-        Builder.Append('/');
-        AppendTokenCountToBuilder(Builder, _contextTokens.Value);
-        Builder.Append(')');
+        var display = FormatContextDisplay(_contextTokens, _totalTokens);
+        if (display is not null)
+            Builder.Append(display);
     }
 
     private static void AppendDouble(StringBuilder sb, double value, int decimals)
@@ -65,6 +52,38 @@ public sealed class ContextPart : StatusPartBase
             sb.Append('.');
             sb.Append(fracPart);
         }
+    }
+
+    /// <summary>
+    /// Formats the full context display, e.g. "44% (112k/256k)".
+    /// Returns null when either value is unavailable or ≤ 0
+    /// (matching the original <see cref="BuildText"/> behaviour).
+    /// </summary>
+    internal static string? FormatContextDisplay(long? contextTokens, long? totalTokens)
+    {
+        var ctx = contextTokens.GetValueOrDefault();
+        var tot = totalTokens.GetValueOrDefault();
+
+        // Original BuildText used OR: if EITHER is missing, show nothing.
+        if (ctx <= 0 || tot <= 0)
+            return null;
+
+        var sb = new StringBuilder(32);
+
+        double percent = (double)tot / ctx * 100.0;
+        if (percent < 10.0)
+            AppendDouble(sb, percent, 1);
+        else
+            AppendDouble(sb, percent, 0);
+        sb.Append('%');
+
+        sb.Append(" (");
+        AppendTokenCountToBuilder(sb, tot);
+        sb.Append('/');
+        AppendTokenCountToBuilder(sb, ctx);
+        sb.Append(')');
+
+        return sb.ToString();
     }
 
     /// <summary>

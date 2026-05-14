@@ -340,7 +340,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                 ? Markup.Escape(ModelPart.ShortenModelName(snapshot.Model))
                 : "[grey]…[/]";
 
-            var context = FormatContextInfo(snapshot.ContextTokens, snapshot.TotalTokens);
+            var context = ContextPart.FormatContextDisplay(snapshot.ContextTokens, snapshot.TotalTokens)
+                ?? "[grey]…[/]";
 
             return new CellData(name, status, model, context);
         }
@@ -408,33 +409,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     }
 
     // ── Context formatting ────────────────────────────────────────────────
-
-    /// <summary>
-    /// Formats context as "15% (118k/800k)".  When both values are available
-    /// the percentage of total/context is shown; otherwise just the total.
-    /// </summary>
-    private static string FormatContextInfo(long? contextTokens, long? totalTokens)
-    {
-        var ctx = contextTokens.GetValueOrDefault();
-        var tot = totalTokens.GetValueOrDefault();
-
-        if (ctx <= 0)
-        {
-            if (tot > 0)
-                return ContextPart.FormatTokenCount(tot);
-            return "[grey]…[/]";
-        }
-
-        if (tot <= 0)
-            return ContextPart.FormatTokenCount(ctx);
-
-        double percent = (double)tot / ctx * 100.0;
-        string pctStr = percent < 10.0
-            ? $"{percent:F1}%"
-            : $"{percent:F0}%";
-
-        return $"{pctStr} ({ContextPart.FormatTokenCount(tot)}/{ContextPart.FormatTokenCount(ctx)})";
-    }
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
