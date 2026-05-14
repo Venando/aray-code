@@ -23,7 +23,7 @@ public class AudioResponseHandlerTests
                 summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         // Act: should not throw (TTS not configured is handled gracefully)
-        await handler.HandleAudioMarkerAsync("Hello world");
+        await handler.PlayTtsAsync("Hello world");
 
         // Assert: IsPlaying is false since no audio was started
         Assert.False(handler.IsPlaying);
@@ -40,7 +40,7 @@ public class AudioResponseHandlerTests
                 summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         // Act: should not throw (TTS init failure is caught and logged)
-        await handler.HandleAudioMarkerAsync("Test audio text");
+        await handler.PlayTtsAsync("Test audio text");
 
         // Assert: handler is in valid state
         Assert.False(handler.IsPlaying);

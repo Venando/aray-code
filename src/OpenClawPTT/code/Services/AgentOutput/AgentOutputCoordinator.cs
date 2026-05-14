@@ -58,7 +58,7 @@ public sealed class AgentOutputCoordinator : IDisposable
             handler = _audioHandler;
         }
         if (handler != null && !string.IsNullOrWhiteSpace(body))
-            _ = handler.HandleAudioMarkerAsync(body);
+            _ = handler.PlayTtsAsync(body);
     }
 
     public void OnAgentThinking(string thinking)
@@ -80,7 +80,7 @@ public sealed class AgentOutputCoordinator : IDisposable
             handler = _audioHandler;
         }
         if (handler != null && !string.IsNullOrWhiteSpace(_replyCoordinator.AccumulatedText))
-            _ = handler.HandleAudioMarkerAsync(_replyCoordinator.AccumulatedText);
+            _ = handler.PlayTtsAsync(_replyCoordinator.AccumulatedText);
     }
 
     /// <summary>

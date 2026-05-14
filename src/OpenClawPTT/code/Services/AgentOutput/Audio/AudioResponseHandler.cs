@@ -49,18 +49,10 @@ public sealed class AudioResponseHandler : IDisposable
         _onSynthesisStatus = onSynthesisStatus;
     }
 
-    /// <summary>
-    /// Handle [audio] marker specifically - synthesize and play.
-    /// </summary>
-    public Task HandleAudioMarkerAsync(string text, CancellationToken ct = default)
+    public async Task PlayTtsAsync(string text, CancellationToken ct = default)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(AudioResponseHandler));
 
-        return PlayTtsAsync(text, ct);
-    }
-
-    private async Task PlayTtsAsync(string text, CancellationToken ct)
-    {
         if (!CanPlayTts(text, out var reason))
         {
             if (reason != null)

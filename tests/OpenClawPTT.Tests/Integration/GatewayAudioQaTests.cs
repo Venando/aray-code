@@ -158,7 +158,7 @@ public class GatewayAudioQaTests
             summarizer: null, pttStateMachine: null, ttsProvider: null);
 
         // In text-only mode, should return completed task (no-op)
-        var task = handler.HandleAudioMarkerAsync("any text");
+        var task = handler.PlayTtsAsync("any text");
         Assert.True(task.IsCompleted);
 
         handler.Dispose();
@@ -188,7 +188,7 @@ public class GatewayAudioQaTests
         handler.Dispose();
 
         // Subsequent calls should throw ObjectDisposedException
-        var ex = Assert.Throws<ObjectDisposedException>(() => handler.HandleAudioMarkerAsync("text").Wait());
+        var ex = Assert.Throws<ObjectDisposedException>(() => handler.PlayTtsAsync("text").Wait());
         Assert.Equal(nameof(AudioResponseHandler), ex.ObjectName);
     }
 
@@ -201,7 +201,7 @@ public class GatewayAudioQaTests
         var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
             summarizer: null, pttStateMachine: null, ttsProvider: null);
 
-        var task = handler.HandleAudioMarkerAsync("");
+        var task = handler.PlayTtsAsync("");
         Assert.True(task.IsCompleted);
 
         handler.Dispose();
@@ -216,7 +216,7 @@ public class GatewayAudioQaTests
         var handler = new AudioResponseHandler(cfg, CreateMockConsole(), jobRunner, audioPlayer,
             summarizer: null, pttStateMachine: null, ttsProvider: null);
 
-        var task = handler.HandleAudioMarkerAsync("   \t\n  ");
+        var task = handler.PlayTtsAsync("   \t\n  ");
         Assert.True(task.IsCompleted);
 
         handler.Dispose();
