@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenClawPTT.Services;
@@ -14,21 +15,25 @@ public sealed class TtsConfigSection : ConfigSectionBase
     public override string Name => "Text-To-Speech";
     public override string Description => "TTS provider and voice settings";
 
+    // ── Option tables (static, moved to top for clarity) ────────────
+
     private static readonly (string Name, string Value)[] TtsProviderOptions =
-    {
+    [
         ("OpenAI", "OpenAI"),
         ("Edge", "Edge"),
         ("Coqui TTS (uv)", "CoquiUv"),
         ("Piper", "Piper"),
         ("ElevenLabs (not supported)", "ElevenLabs"),
-    };
+    ];
 
     private static readonly (string Name, string Value)[] TtsModeOptions =
-    {
+    [
         ("Always on", "always-on"),
         ("SISO (Sound-in-Sound-out)", "siso"),
         ("Off", "off"),
-    };
+    ];
+
+    // ── Item indices ────────────────────────────────────────────────
 
     private const int IndexProvider = 0;
     private const int IndexVoice = 1;
@@ -36,9 +41,9 @@ public sealed class TtsConfigSection : ConfigSectionBase
 
     public TtsConfigSection()
     {
-        // Order matters: provider (index 0) runs first so ElevenLabs check + tagged items come next
-        _configItems.AddRange(new[]
-        {
+        // Order matters: provider (index 0) runs first so tagged items come next
+        _configItems.AddRange(
+        [
             ConfigSetupItem.ForSelectionWithBack(
                 title: "Choose TTS provider",
                 fieldName: nameof(AppConfig.TtsProvider),
@@ -53,15 +58,25 @@ public sealed class TtsConfigSection : ConfigSectionBase
                 title: "TTS output mode",
                 fieldName: nameof(AppConfig.TtsOutputMode),
                 options: TtsModeOptions),
-        });
+        ]);
 
-        // ── OpenAI items ──
+        AddOpenAiItems();
+        AddEdgeItems();
+        AddCoquiItems();
+        AddPythonItems();
+        AddPiperItems();
+    }
+
+    private void AddOpenAiItems()
+    {
         AddConfigItem("OpenAI", ConfigSetupItem.ForString(
             title: "OpenAI API key for TTS",
             fieldName: nameof(AppConfig.TtsOpenAiApiKey),
             isSecret: true));
+    }
 
-        // ── Edge items ──
+    private void AddEdgeItems()
+    {
         AddConfigItem("Edge", ConfigSetupItem.ForString(
             title: "Azure TTS subscription key",
             fieldName: nameof(AppConfig.TtsSubscriptionKey),
@@ -71,14 +86,18 @@ public sealed class TtsConfigSection : ConfigSectionBase
         AddConfigItem("Edge", ConfigSetupItem.ForString(
             title: "Azure TTS region",
             fieldName: nameof(AppConfig.TtsRegion)));
+    }
 
-        // ── Coqui items (also falls through to Python) ──
+    private void AddCoquiItems()
+    {
         AddConfigItem("Coqui", ConfigSetupItem.ForString(
             title: "Path to Coqui model file",
             fieldName: nameof(AppConfig.CoquiModelPath),
             isEmptyToDefault: true));
+    }
 
-        // ── Python items ──
+    private void AddPythonItems()
+    {
         AddConfigItem("Python", ConfigSetupItem.ForString(
             title: "Python path",
             fieldName: nameof(AppConfig.PythonPath),
@@ -87,8 +106,10 @@ public sealed class TtsConfigSection : ConfigSectionBase
         AddConfigItem("Python", ConfigSetupItem.ForString(
             title: "Coqui model name",
             fieldName: nameof(AppConfig.CoquiModelName)));
+    }
 
-        // ── Piper items ──
+    private void AddPiperItems()
+    {
         AddConfigItem("Piper", ConfigSetupItem.ForString(
             title: "Piper binary path",
             fieldName: nameof(AppConfig.PiperPath)));
@@ -98,6 +119,8 @@ public sealed class TtsConfigSection : ConfigSectionBase
             fieldName: nameof(AppConfig.PiperModelPath),
             isEmptyToDefault: true));
     }
+
+    // ── Section runner ──────────────────────────────────────────────
 
     public override async Task<ConfigSectionResult> RunAsync(
         IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
@@ -116,7 +139,7 @@ public sealed class TtsConfigSection : ConfigSectionBase
 
         ConfigSelectionHelper.PrintSubSection(host, "proceeding");
 
-        // ── Provider selection (index 0, must run before ElevenLabs check) ──
+        // ── Provider selection (index 0, must run before tagged items) ──
         if (await _configItems[IndexProvider].RunAsync(host, config, isInitialSetup, ct))
             changed = true;
         result.Settings.Add(new ConfigSectionResult.SettingRecord(
@@ -124,19 +147,7 @@ public sealed class TtsConfigSection : ConfigSectionBase
 
         ConfigSelectionHelper.PrintSubSection(host, config.TtsProvider.ToString());
 
-        // ── Coqui TTS (uv): delegate to model download/choose flow ──
-        if (config.TtsProvider == TtsProviderType.CoquiUv)
-        {
-            var coquiFlow = new CoquiTtsConfigFlow();
-            if (await coquiFlow.RunAsync(host, config, ct))
-                changed = true;
-
-            result.Settings.Add(new ConfigSectionResult.SettingRecord(
-                "Coqui TTS Model", config.CoquiModelName ?? "none"));
-        }
-        else
-        {
-        // ── ElevenLabs is not supported yet ──
+        // ── ElevenLabs is not supported yet — exit early ──
         if (config.TtsProvider == TtsProviderType.ElevenLabs)
         {
             host.AddMessage("[yellow]  ElevenLabs TTS is not yet supported.[/]");
@@ -144,41 +155,60 @@ public sealed class TtsConfigSection : ConfigSectionBase
             return result;
         }
 
+        // ── Coqui TTS (uv): delegate to model download/choose flow ──
+        if (config.TtsProvider == TtsProviderType.CoquiUv)
+        {
+            if (await RunCoquiFlowAsync(host, config, ct))
+                changed = true;
+
+            result.Settings.Add(new ConfigSectionResult.SettingRecord(
+                "Coqui TTS Model", config.CoquiModelName ?? "none"));
+        }
+
         // ── Seed provider-specific defaults ──
+        SeedDefaults(config);
+
+        // ── Run provider-specific config items by tag ──
+        if (config.TtsProvider != TtsProviderType.CoquiUv)
+        {
+            string[] providerTags = [config.TtsProvider.ToString()];
+            foreach (var tag in providerTags)
+            {
+                if (await RunConfigItemsByTagAsync(tag, host, config, isInitialSetup, ct, result))
+                    changed = true;
+            }
+        }
+
+        // ── Voice and TTS output mode (indices 1..) ──
+        // For CoquiUv, skip "Voice name" (it expects a speaker_wav path, not a simple name)
+        var startIndex = config.TtsProvider == TtsProviderType.CoquiUv ? IndexTtsMode : IndexVoice;
+        if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: startIndex))
+            changed = true;
+
+        result.IsChanged = changed;
+        return result;
+    }
+
+    /// <summary>
+    /// Runs the Coqui TTS model selection/download flow.
+    /// Extracted from <see cref="RunAsync"/> (SRP).
+    /// </summary>
+    private static async Task<bool> RunCoquiFlowAsync(
+        IStreamShellHost host, AppConfig config, CancellationToken ct)
+    {
+        var coquiFlow = new CoquiTtsConfigFlow();
+        return await coquiFlow.RunAsync(host, config, ct);
+    }
+
+    /// <summary>
+    /// Seeds sensible defaults for provider-specific configuration values.
+    /// Extracted from <see cref="RunAsync"/> (SRP).
+    /// </summary>
+    private static void SeedDefaults(AppConfig config)
+    {
         config.TtsRegion ??= "eastus";
         config.PythonPath ??= "python";
         config.CoquiModelName ??= "tts_models/multilingual/mxtts/vits";
         config.PiperPath ??= "piper";
-
-        // ── Run provider-specific items by tag ──
-        string[] providerTags = config.TtsProvider switch
-        {
-            TtsProviderType.ElevenLabs => Array.Empty<string>(),
-            _ => new[] { config.TtsProvider.ToString() },
-        };
-
-        foreach (var tag in providerTags)
-        {
-            if (await RunConfigItemsByTagAsync(tag, host, config, isInitialSetup, ct, result))
-                changed = true;
-        }
-        }
-
-        // ── Voice and TTS output mode (indices 1..) ──
-        // For CoquiUv, skip "Voice name" (it expects a speaker_wav file path, not a simple name)
-        if (config.TtsProvider == TtsProviderType.CoquiUv)
-        {
-            // Only run TTS output mode (index 2), skip voice (index 1)
-            if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexTtsMode))
-                changed = true;
-        }
-        else
-        {
-            if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: IndexVoice))
-                changed = true;
-        }
-
-        result.IsChanged = changed;
-        return result;
     }
 }

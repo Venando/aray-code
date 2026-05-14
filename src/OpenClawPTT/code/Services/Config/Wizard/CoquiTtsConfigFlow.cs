@@ -18,6 +18,10 @@ namespace OpenClawPTT.ConfigWizard;
 /// </summary>
 public sealed class CoquiTtsConfigFlow
 {
+    // Action marker prefixes used in variant values (SRP: kept as constants for clarity)
+    private const string ActionUse = "use:";
+    private const string ActionDownload = "download:";
+    private const string ActionRemove = "remove:";
     private const string CancelSentinel = "__cancel__";
 
     public async Task<bool> RunAsync(
@@ -35,38 +39,7 @@ public sealed class CoquiTtsConfigFlow
         env.EnsureProjectFiles();
 
         // ── Phase 1: Gate — validate uv and Python before anything else ──
-        var uvAvailable = CoquiUvEnvironment.IsUvAvailable();
-        if (!uvAvailable)
-        {
-            host.AddMessage($"[yellow]  ⚠ uv (Python package manager) is not installed.[/]");
-            host.AddMessage($"[grey]    Install: {CoquiUvEnvironment.GetInstallInstructions()}[/]");
-            host.AddMessage("[grey]    You can still select a model from the built-in list below.[/]");
-            host.AddMessage("[grey]    But you'll need uv to actually use Coqui TTS.[/]");
-            host.AddMessage("");
-        }
-        else
-        {
-            // Quick Python version check — uses uv python list (fast, no downloads)
-            host.AddMessage("[grey]    Checking Python environment...[/]");
-            var versionResult = await CoquiUvEnvironment.ValidatePythonVersionAsync(
-                dataDir,
-                onProgress: msg => host.AddMessage($"[grey]      {msg}[/]"),
-                ct);
-
-            if (versionResult.Ok)
-            {
-                host.AddMessage($"[green]    ✓ Python {versionResult.PythonVersion} found at {versionResult.PythonPath}[/]");
-            }
-            else
-            {
-                host.AddMessage($"[red]    ✗ Python environment check failed: {versionResult.Error}[/]");
-                host.AddMessage("[yellow]    Coqui TTS requires Python >=3.9 and <3.12.[/]");
-                host.AddMessage("[grey]    uv can download the right Python automatically when running TTS.[/]");
-                host.AddMessage("[grey]    You can still select a model from the built-in list below,[/]");
-                host.AddMessage("[grey]    but TTS won't work until a compatible Python is available.[/]");
-                host.AddMessage("");
-            }
-        }
+        await ValidateEnvironmentAsync(host, dataDir, ct);
 
         // ── Phase 2: Model selection ──
         var modelManager = new CoquiTtsModelManager(dataDir, host);
@@ -85,50 +58,8 @@ public sealed class CoquiTtsConfigFlow
         bool modelChanged = modelResult != config.CoquiModelName;
 
         // ── Phase 3: Download (prompt when not cached, regardless of model change) ──
-        var downloadSucceeded = true;
-        if (!CoquiTtsModelManager.IsModelCached(modelResult))
-        {
-            string promptText = modelChanged
-                ? $"Model '{modelResult}' is not cached. Download now?"
-                : $"Model '{modelResult}' (already configured) is not cached. Download now?";
-
-            var shouldDownload = await host.PromptSelection(
-                promptText,
-                [new ConfigVariant("[green]Download now[/]", "download"),
-                 new ConfigVariant("[yellow]Select without downloading[/]", "select"),
-                 new ConfigVariant("[grey]Cancel[/]", "cancel")]);
-
-            if (shouldDownload is not { Length: > 0 } || shouldDownload[0] is not ConfigVariant cv)
-                return false;
-
-            var choice = cv.Value;
-            if (choice == "cancel")
-                return false;
-
-            if (choice == "download")
-            {
-                try
-                {
-                    await DownloadModelAsync(host, modelManager, modelResult, ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    host.AddMessage("[yellow]  Download cancelled — model selected but not downloaded.[/]");
-                    downloadSucceeded = false;
-                }
-                catch (Exception ex)
-                {
-                    host.AddMessage($"[red]  Download failed: {EscapeLine(ex.Message)}[/]");
-                    host.AddMessage("[yellow]  Model selected but download failed. You can retry later.[/]");
-                    downloadSucceeded = false;
-                }
-            }
-            else
-            {
-                host.AddMessage("[grey]  Model selected without downloading. Use /reconfigure to download later.[/]");
-                downloadSucceeded = false; // model not cached yet
-            }
-        }
+        var downloadSucceeded = await HandleDownloadAsync(
+            host, modelManager, modelResult, modelChanged, ct);
 
         // ── Phase 4: Apply config change AFTER download resolution ──
         if (modelChanged)
@@ -146,6 +77,116 @@ public sealed class CoquiTtsConfigFlow
         return modelChanged;
     }
 
+    // ── Phase 1: Environment validation ─────────────────────────────
+
+    /// <summary>
+    /// Checks uv availability and Python version compatibility.
+    /// Extracted from <see cref="RunAsync"/> to keep the main flow focused (SRP).
+    /// </summary>
+    private static async Task ValidateEnvironmentAsync(
+        IStreamShellHost host, string? dataDir, CancellationToken ct)
+    {
+        var uvAvailable = CoquiUvEnvironment.IsUvAvailable();
+        if (!uvAvailable)
+        {
+            host.AddMessage($"[yellow]  ⚠ uv (Python package manager) is not installed.[/]");
+            host.AddMessage($"[grey]    Install: {CoquiUvEnvironment.GetInstallInstructions()}[/]");
+            host.AddMessage("[grey]    You can still select a model from the built-in list below.[/]");
+            host.AddMessage("[grey]    But you'll need uv to actually use Coqui TTS.[/]");
+            host.AddMessage("");
+            return;
+        }
+
+        // Quick Python version check — uses uv python list (fast, no downloads)
+        host.AddMessage("[grey]    Checking Python environment...[/]");
+        var versionResult = await CoquiUvEnvironment.ValidatePythonVersionAsync(
+            dataDir,
+            onProgress: msg => host.AddMessage($"[grey]      {msg}[/]"),
+            ct);
+
+        if (versionResult.Ok)
+        {
+            host.AddMessage($"[green]    ✓ Python {versionResult.PythonVersion} found at {versionResult.PythonPath}[/]");
+        }
+        else
+        {
+            host.AddMessage($"[red]    ✗ Python environment check failed: {versionResult.Error}[/]");
+            host.AddMessage("[yellow]    Coqui TTS requires Python >=3.9 and <3.12.[/]");
+            host.AddMessage("[grey]    uv can download the right Python automatically when running TTS.[/]");
+            host.AddMessage("[grey]    You can still select a model from the built-in list below,[/]");
+            host.AddMessage("[grey]    but TTS won't work until a compatible Python is available.[/]");
+            host.AddMessage("");
+        }
+    }
+
+    // ── Phase 3: Download handling ──────────────────────────────────
+
+    /// <summary>
+    /// Prompts the user to download the model if not cached, then
+    /// executes the download. Returns true if the model is cached after
+    /// this phase (either was already cached or was successfully downloaded).
+    /// Extracted from <see cref="RunAsync"/> (SRP).
+    /// </summary>
+    private static async Task<bool> HandleDownloadAsync(
+        IStreamShellHost host, CoquiTtsModelManager modelManager,
+        string modelName, bool modelChanged, CancellationToken ct)
+    {
+        if (CoquiTtsModelManager.IsModelCached(modelName))
+            return true;
+
+        var promptText = modelChanged
+            ? $"Model '{modelName}' is not cached. Download now?"
+            : $"Model '{modelName}' (already configured) is not cached. Download now?";
+
+        var shouldDownload = await host.PromptSelection(
+            promptText,
+            [new ConfigVariant("[green]Download now[/]", "download"),
+             new ConfigVariant("[yellow]Select without downloading[/]", "select"),
+             new ConfigVariant("[grey]Cancel[/]", "cancel")]);
+
+        if (shouldDownload is not { Length: > 0 } || shouldDownload[0] is not ConfigVariant cv)
+            return false;
+
+        return cv.Value switch
+        {
+            "cancel" => false,
+            "download" => await ExecuteDownloadAsync(host, modelManager, modelName, ct),
+            _ => false, // "select" or unknown
+        };
+    }
+
+    /// <summary>
+    /// Executes the model download with a bottom panel progress indicator.
+    /// Returns true on success, false on cancellation or failure.
+    /// </summary>
+    private static async Task<bool> ExecuteDownloadAsync(
+        IStreamShellHost host, CoquiTtsModelManager modelManager,
+        string modelName, CancellationToken ct)
+    {
+        try
+        {
+            await DownloadModelAsync(host, modelManager, modelName, ct);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            host.AddMessage("[yellow]  Download cancelled — model selected but not downloaded.[/]");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            host.AddMessage($"[red]  Download failed: {Markup.Escape(ex.Message)}[/]");
+            host.AddMessage("[yellow]  Model selected but download failed. You can retry later.[/]");
+            return false;
+        }
+    }
+
+    // ── Model selection ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Presents a live model list from Coqui TTS with cached/available/
+    /// removable states. Returns the selected model name, or null if cancelled.
+    /// </summary>
     internal static async Task<string?> SelectModelAsync(
         IStreamShellHost host, CoquiTtsModelManager modelManager,
         AppConfig config, string? currentModel, CancellationToken ct)
@@ -158,22 +199,7 @@ public sealed class CoquiTtsConfigFlow
 
         if (allModels.Count == 0)
         {
-            host.AddMessage("");
-            host.AddMessage("[red]  ✗ No models available — live fetch from coqui/TTS failed.[/]");
-            host.AddMessage("[grey]    Check the errors above and fix uv/Python issues.[/]");
-            host.AddMessage("[grey]    Then re-run /reconfigure TTS to select a model.[/]");
-
-            var errorDetail = CoquiTtsModelManager.LastFetchErrorDetail;
-            var isUvBuildBroken = !string.IsNullOrEmpty(errorDetail) &&
-                (errorDetail.Contains("Failed to build", StringComparison.Ordinal) ||
-                 errorDetail.Contains("build_wheel", StringComparison.Ordinal) ||
-                 errorDetail.Contains("build backend", StringComparison.Ordinal));
-            if (isUvBuildBroken)
-            {
-                if (!string.IsNullOrEmpty(currentModel))
-                    host.AddMessage($"[grey]    Current model: {currentModel}[/]");
-                return currentModel;
-            }
+            return await HandleNoModelsAsync(host, currentModel);
         }
 
         // Use Python to get actually-cached model paths (accurate)
@@ -182,63 +208,127 @@ public sealed class CoquiTtsConfigFlow
             StringComparer.Ordinal);
 
         string? result = null;
-        var currentModelRef = currentModel;
 
         while (result == null)
         {
             ct.ThrowIfCancellationRequested();
 
-            List<IVariantEntry> variants = BuildVariants(allModels, cachedModels, currentModelRef);
+            var variants = BuildVariantList(allModels, cachedModels, currentModel);
             variants.Add(new ConfigDecoration(""));
             variants.Add(new ConfigVariant("[grey]Cancel[/]", CancelSentinel));
 
             var selection = await host.PromptSelection(
                 "Select Coqui TTS model, download, remove, or cancel:",
-                variants.ToArray(), new SelectionInfo { Rows = 16});
+                variants.ToArray(), new SelectionInfo { Rows = 16 });
 
             if (selection is not { Length: > 0 } || selection[0] is not ConfigVariant cv)
                 return result;
 
-            var choice = cv.Value;
-            if (choice == CancelSentinel)
-                return result;
+            result = await HandleSelectionAsync(
+                host, modelManager, cv, allModels, cachedModels,
+                dataDir, currentModel, ct);
 
-            if (choice.StartsWith("use:") || choice.StartsWith("download:"))
+            // Only refresh model lists after a remove action
+            if (result == null && cachedModels.Count > 0 && cv.Value.StartsWith(ActionRemove))
             {
-                result = choice[(choice.StartsWith("use:") ? "use:" : "download:").Length..];
-            }
-            else if (choice.StartsWith("remove:"))
-            {
-                var modelName = choice["remove:".Length..];
-                var confirm = await host.PromptSelection(
-                    $"Remove model '{modelName}'?",
-                    [new ConfigVariant("[red]Yes, remove[/]", "yes"),
-                     new ConfigVariant("Cancel", "no")]);
-
-                if (confirm is { Length: > 0 } && confirm[0] is ConfigVariant cv2 && cv2.Value == "yes")
-                {
-                    bool removed = CoquiTtsModelManager.DeleteModel(modelName);
-                    if (removed)
-                    {
-                        host.AddMessage($"[green]  ✓ Removed {modelName}[/]");
-                        cachedModels = new HashSet<string>(
-                            await CoquiTtsModelManager.GetCachedModelsAsync(host, dataDir, ct),
-                            StringComparer.Ordinal);
-                        allModels = await CoquiTtsModelManager.GetAvailableModelsAsync(
-                            host, dataDir, ct);
-                    }
-                    else
-                    {
-                        host.AddMessage($"[grey]  Could not remove {modelName} (not found or partial cache).[/]");
-                    }
-                }
+                cachedModels = new HashSet<string>(
+                    await CoquiTtsModelManager.GetCachedModelsAsync(host, dataDir, ct),
+                    StringComparer.Ordinal);
+                allModels = await CoquiTtsModelManager.GetAvailableModelsAsync(
+                    host, dataDir, ct);
             }
         }
 
         return result;
     }
 
-    // ── Download (bottom panel progress) ────────────────────────────
+    /// <summary>
+    /// Handles the case where no models are available from the live fetch.
+    /// If uv is broken but a model is already configured, keep it.
+    /// </summary>
+    private static async Task<string?> HandleNoModelsAsync(
+        IStreamShellHost host, string? currentModel)
+    {
+        host.AddMessage("");
+        host.AddMessage("[red]  ✗ No models available — live fetch from coqui/TTS failed.[/]");
+        host.AddMessage("[grey]    Check the errors above and fix uv/Python issues.[/]");
+        host.AddMessage("[grey]    Then re-run /reconfigure TTS to select a model.[/]");
+
+        var errorDetail = CoquiTtsModelManager.LastFetchErrorDetail;
+        if (IsUvBuildError(errorDetail))
+        {
+            if (!string.IsNullOrEmpty(currentModel))
+                host.AddMessage($"[grey]    Current model: {currentModel}[/]");
+            return currentModel;
+        }
+
+        return null;
+    }
+
+    private static bool IsUvBuildError(string? errorDetail) =>
+        !string.IsNullOrEmpty(errorDetail) &&
+        (errorDetail.Contains("Failed to build", StringComparison.Ordinal) ||
+         errorDetail.Contains("build_wheel", StringComparison.Ordinal) ||
+         errorDetail.Contains("build backend", StringComparison.Ordinal));
+
+    /// <summary>
+    /// Routes a user selection to the correct action: use, download, remove, or none.
+    /// Returns the selected model name or null to re-prompt.
+    /// </summary>
+    private static async Task<string?> HandleSelectionAsync(
+        IStreamShellHost host, CoquiTtsModelManager modelManager,
+        ConfigVariant cv, IReadOnlyList<CoquiTtsModelInfo> allModels,
+        HashSet<string> cachedModels, string? dataDir,
+        string? currentModel, CancellationToken ct)
+    {
+        var choice = cv.Value;
+
+        if (choice == CancelSentinel)
+            return null; // signals "finished, no selection"
+
+        if (choice.StartsWith(ActionUse) || choice.StartsWith(ActionDownload))
+            return choice[(choice.StartsWith(ActionUse) ? ActionUse : ActionDownload).Length..];
+
+        if (choice.StartsWith(ActionRemove))
+        {
+            return await HandleRemoveAsync(host, modelManager, allModels,
+                cachedModels, choice[ActionRemove.Length..], dataDir, ct);
+        }
+
+        return null; // unknown — re-prompt
+    }
+
+    /// <summary>
+    /// Handles the remove-model flow: confirmation prompt, deletion, and cache refresh.
+    /// </summary>
+    private static async Task<string?> HandleRemoveAsync(
+        IStreamShellHost host, CoquiTtsModelManager modelManager,
+        IReadOnlyList<CoquiTtsModelInfo> allModels,
+        HashSet<string> cachedModels, string modelName,
+        string? dataDir, CancellationToken ct)
+    {
+        var confirm = await host.PromptSelection(
+            $"Remove model '{modelName}'?",
+            [new ConfigVariant("[red]Yes, remove[/]", "yes"),
+             new ConfigVariant("Cancel", "no")]);
+
+        if (confirm is not { Length: > 0 } || confirm[0] is not ConfigVariant cv || cv.Value != "yes")
+            return null; // re-prompt
+
+        bool removed = CoquiTtsModelManager.DeleteModel(modelName);
+        if (removed)
+        {
+            host.AddMessage($"[green]  ✓ Removed {modelName}[/]");
+        }
+        else
+        {
+            host.AddMessage($"[grey]  Could not remove {modelName} (not found or partial cache).[/]");
+        }
+
+        return null; // re-prompt after removal
+    }
+
+    // ── Download execution ──────────────────────────────────────────
 
     private static async Task DownloadModelAsync(
         IStreamShellHost host, CoquiTtsModelManager modelManager,
@@ -259,15 +349,6 @@ public sealed class CoquiTtsConfigFlow
 
             await Task.Delay(500, ct);
         }
-        catch (OperationCanceledException)
-        {
-            host.AddMessage("[yellow]  Download cancelled.[/]");
-        }
-        catch (Exception ex)
-        {
-            var errorText = ex.Message;
-            host.AddMessage($"[red]  Download failed: {EscapeLine(errorText)}[/]");
-        }
         finally
         {
             host.ResetBottomPanel();
@@ -276,13 +357,12 @@ public sealed class CoquiTtsConfigFlow
 
     // ── Variant builder ─────────────────────────────────────────────
 
-    private static string EscapeLine(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return "";
-        return Markup.Escape(text);
-    }
-
-    private static List<IVariantEntry> BuildVariants(
+    /// <summary>
+    /// Builds the complete list of selection variants from available,
+    /// cached, and current models. Extracted from <see cref="SelectModelAsync"/>
+    /// to keep selection loop focused (SRP).
+    /// </summary>
+    private static List<IVariantEntry> BuildVariantList(
         IReadOnlyList<CoquiTtsModelInfo> allModels,
         HashSet<string> cachedModels, string? currentModel)
     {
@@ -291,7 +371,18 @@ public sealed class CoquiTtsConfigFlow
         variants.Add(new ConfigDecoration(
             $"[bold green]── {allModels.Count} models from Coqui TTS ──[/]"));
 
-        // ── Cached models ──
+        AddCachedModelVariants(variants, allModels, cachedModels, currentModel);
+        AddDownloadableModelVariants(variants, allModels, cachedModels);
+        AddRemoveVariants(variants, allModels, cachedModels);
+
+        return variants;
+    }
+
+    private static void AddCachedModelVariants(
+        List<IVariantEntry> variants,
+        IReadOnlyList<CoquiTtsModelInfo> allModels,
+        HashSet<string> cachedModels, string? currentModel)
+    {
         foreach (var info in allModels)
         {
             if (!cachedModels.Contains(info.Name))
@@ -301,45 +392,53 @@ public sealed class CoquiTtsConfigFlow
             var activeMarker = isActive ? " [cyan][[active]][/]" : "";
             variants.Add(new ConfigVariant(
                 $"[green]✓ {info.Name}[/] [grey]({info.Description})[/]{activeMarker}",
-                $"use:{info.Name}"));
+                $"{ActionUse}{info.Name}"));
         }
+    }
 
-        // ── Not cached (downloadable) ──
+    private static void AddDownloadableModelVariants(
+        List<IVariantEntry> variants,
+        IReadOnlyList<CoquiTtsModelInfo> allModels,
+        HashSet<string> cachedModels)
+    {
         var notCached = allModels
             .Where(m => !cachedModels.Contains(m.Name))
             .ToList();
 
-        if (notCached.Count > 0)
-        {
-            if (variants.Count > 1) // >1 because of the header
-            {
-                variants.Add(new ConfigDecoration(""));
-                variants.Add(new ConfigDecoration("[bold cyan]── Available for download ──[/]"));
-            }
+        if (notCached.Count == 0)
+            return;
 
-            foreach (var info in notCached)
-            {
-                variants.Add(new ConfigVariant(
-                    $"[grey]⬇ {info.Name} ({info.Description})[/]",
-                    $"download:{info.Name}"));
-            }
-        }
-
-        // ── Remove ──
-        if (cachedModels.Count > 0)
+        if (variants.Count > 1) // >1 because of the header
         {
             variants.Add(new ConfigDecoration(""));
-            variants.Add(new ConfigDecoration("[bold red]── Remove ──[/]"));
-            foreach (var info in allModels)
-            {
-                if (!cachedModels.Contains(info.Name))
-                    continue;
-                variants.Add(new ConfigVariant(
-                    $"[red]Remove: {info.Name}[/]",
-                    $"remove:{info.Name}"));
-            }
+            variants.Add(new ConfigDecoration("[bold cyan]── Available for download ──[/]"));
         }
 
-        return variants;
+        foreach (var info in notCached)
+        {
+            variants.Add(new ConfigVariant(
+                $"[grey]⬇ {info.Name} ({info.Description})[/]",
+                $"{ActionDownload}{info.Name}"));
+        }
+    }
+
+    private static void AddRemoveVariants(
+        List<IVariantEntry> variants,
+        IReadOnlyList<CoquiTtsModelInfo> allModels,
+        HashSet<string> cachedModels)
+    {
+        if (cachedModels.Count == 0)
+            return;
+
+        variants.Add(new ConfigDecoration(""));
+        variants.Add(new ConfigDecoration("[bold red]── Remove ──[/]"));
+        foreach (var info in allModels)
+        {
+            if (!cachedModels.Contains(info.Name))
+                continue;
+            variants.Add(new ConfigVariant(
+                $"[red]Remove: {info.Name}[/]",
+                $"{ActionRemove}{info.Name}"));
+        }
     }
 }
