@@ -11,8 +11,7 @@ namespace OpenClawPTT.TTS.Providers;
 ///
 /// <para>
 /// Because Coqui TTS models take 10-30s to load, we use a long-running
-/// subprocess with a JSON stdin/stdout protocol (identical to the legacy
-/// <c>PythonTtsProvider</c>). Unlike the legacy approach, <c>uv</c> handles:
+/// subprocess with a JSON stdin/stdout protocol. <c>uv</c> handles:
 /// <list type="bullet">
 ///   <item>Python download and version management</item>
 ///   <item>Package dependencies (TTS, torch, etc.) via pyproject.toml</item>

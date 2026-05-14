@@ -10,7 +10,7 @@ namespace OpenClawPTT.TTS.Providers;
 /// Coqui TTS provider using <c>uv</c> + a long-running <c>tts_service.py</c> subprocess.
 ///
 /// <para>
-/// This is the <c>uv</c>-backed replacement for the legacy <see cref="PythonTtsProvider"/>.
+/// Coqui TTS provider using <c>uv</c> + a long-running <c>tts_service.py</c> subprocess.
 /// Uses the same JSON stdin/stdout protocol but <c>uv</c> handles Python, packages,
 /// and dependencies automatically. No PythonPath config required.
 /// </para>
