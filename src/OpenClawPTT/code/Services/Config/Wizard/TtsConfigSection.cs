@@ -19,9 +19,7 @@ public sealed class TtsConfigSection : ConfigSectionBase
         ("OpenAI", "OpenAI"),
         ("Edge", "Edge"),
         ("Coqui TTS (uv)", "CoquiUv"),
-        ("Coqui TTS (legacy)", "Coqui"),
         ("Piper", "Piper"),
-        ("Python (legacy)", "Python"),
         ("ElevenLabs (not supported)", "ElevenLabs"),
     };
 
@@ -155,7 +153,6 @@ public sealed class TtsConfigSection : ConfigSectionBase
         // ── Run provider-specific items by tag ──
         string[] providerTags = config.TtsProvider switch
         {
-            TtsProviderType.Coqui => new[] { "Coqui", "Python" },
             TtsProviderType.ElevenLabs => Array.Empty<string>(),
             _ => new[] { config.TtsProvider.ToString() },
         };

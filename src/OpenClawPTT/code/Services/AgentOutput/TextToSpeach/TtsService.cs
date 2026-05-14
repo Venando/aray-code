@@ -11,11 +11,8 @@ public enum TtsProviderType
 {
     OpenAI,
     Edge,
-    [Obsolete("Use CoquiUv instead — it uses uv for automatic Python/package management.")]
-    Coqui,
+    // Coqui + Python removed — use CoquiUv
     Piper,
-    [Obsolete("Use CoquiUv instead — it uses uv for automatic Python/package management.")]
-    Python,
     ElevenLabs,
     /// <summary>
     /// Coqui TTS via <c>uv</c> — automatic Python/packages/dependencies.
@@ -55,28 +52,10 @@ public sealed class TtsService : ITtsService
                 config.CoquiConfigPath,
                 config.EspeakNgPath,
                 true),
-            TtsProviderType.Coqui => new Providers.PythonTtsProvider(
-                console,
-                "",
-                config.PythonPath ?? "",
-                config.CoquiModelPath ?? "",
-                config.CoquiModelName ?? "tts_models/multilingual/mxtts/vits",
-                config.CoquiConfigPath,
-                config.EspeakNgPath,
-                true),
             TtsProviderType.Piper => new Providers.PiperTtsProvider(config.PiperPath ?? "piper", config.PiperModelPath ?? "", config.PiperVoice ?? "en_US-lessac"),
             TtsProviderType.Edge => config.TtsSubscriptionKey != null
                 ? new Providers.EdgeTtsProvider(config.TtsSubscriptionKey, config.TtsRegion ?? "eastus")
                 : null,
-            TtsProviderType.Python => new Providers.PythonTtsProvider(
-                console,
-                "",
-                config.PythonPath ?? "",
-                config.CoquiModelPath ?? "",
-                config.CoquiModelName ?? "tts_models/multilingual/mxtts/vits",
-                config.CoquiConfigPath,
-                null,
-                true),
             _ => null
         };
 
@@ -105,23 +84,6 @@ public sealed class TtsService : ITtsService
             }
         }
 
-        if (_provider is Providers.PythonTtsProvider pythonProvider)
-        {
-            try
-            {
-                pythonProvider.InitializeAsync(_cts.Token).GetAwaiter().GetResult();
-            }
-            catch (AggregateException ae)
-            {
-                // Unwrap TargetInvocationException from Reflection.
-                // When a .ctor is called via reflection (e.g. via Activator or mock framework),
-                // actual exceptions are wrapped in TargetInvocationException.
-                // We want the inner exception to surface clearly for easier debugging.
-                if (ae.InnerException is System.Reflection.TargetInvocationException tie)
-                    throw tie.InnerException ?? ae;
-                throw ae.InnerException ?? ae;
-            }
-        }
     }
 
     /// <summary>
