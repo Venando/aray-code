@@ -236,21 +236,11 @@ public sealed class GatewayClient : IGatewayClient
         return null;
     }
 
-    /// <summary>Extracts agent status snapshots from the most recent history entries.</summary>
+    /// <summary>Extracts agent activity from the most recent history entries into the activity store.</summary>
     private void ExtractAgentStatusFromHistory(JsonElement messages, string sessionKey)
     {
-        var totalEntries = messages.GetArrayLength();
-        const int extractStatusesFromHistory = 2;
-        var statusExtractStartIdx = Math.Max(0, totalEntries - extractStatusesFromHistory);
-
-        for (int i = statusExtractStartIdx; i < totalEntries; i++)
-        {
-            var state = AgentStatusExtractor.FromHistoryMessage(messages[i], sessionKey);
-            if (state != null)
-            {
-                _activityStore?.Store(state);
-            }
-        }
+        if (_activityStore is null) return;
+        HistoryMessageParser.ExtractRecent(messages, sessionKey, _activityStore);
     }
 
     /// <summary>Projects the messages array into a list of ChatHistoryEntry, respecting the limit.</summary>
