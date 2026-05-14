@@ -439,9 +439,16 @@ public sealed class CoquiTtsModelManager
     }
 
     /// <summary>Lists names of locally cached Coqui TTS models (from known list).</summary>
+    /// <summary>
+    /// Returns model names that are currently cached on disk.
+    /// Checks both the live model list (if fetched) and the fallback list.
+    /// </summary>
     public static IReadOnlyList<string> GetCachedModels()
     {
-        return FallbackModels
+        // Prefer live models if available, fall back to hardcoded list
+        var candidates = (s_liveModels as IReadOnlyList<CoquiTtsModelInfo>)
+                         ?? FallbackModels;
+        return candidates
             .Where(m => IsModelCached(m.Name))
             .Select(m => m.Name)
             .ToList();
