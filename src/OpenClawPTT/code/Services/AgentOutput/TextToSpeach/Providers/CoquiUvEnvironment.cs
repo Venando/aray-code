@@ -435,15 +435,30 @@ public sealed class CoquiUvEnvironment
     /// Returns the content for a Python helper script that lists cached model paths.
     /// Saved to <c>list_cached.py</c> in the project dir and executed via
     /// <c>uv run python list_cached.py</c>.
+    /// Respects HF_HOME / HUGGINGFACE_HUB_CACHE env vars for custom cache locations.
     /// </summary>
     public static string ListCachedModelPathsScript() => """
-import os, json, glob
+import os, json, glob, sys
+
+# Respect HF env vars for cache location (same as huggingface_hub)
+cache_home = os.environ.get('HUGGINGFACE_HUB_CACHE')
+if not cache_home:
+    hf_home = os.environ.get('HF_HOME')
+    if hf_home:
+        cache_home = os.path.join(hf_home, 'hub')
+if not cache_home:
+    cache_home = os.path.expanduser('~/.cache/huggingface/hub')
+
 seen = set()
-cache = os.path.expanduser('~/.cache/huggingface/hub')
-for repo in glob.glob(cache + '/models--*'):
+repos_scanned = 0
+repos_matched = 0
+
+for repo in glob.glob(os.path.join(cache_home, 'models--*')):
+    repos_scanned += 1
     base = os.path.basename(repo)
     if not any(k in base.lower() for k in ('tts','coqui','tts_models')):
         continue
+    repos_matched += 1
     snaps = os.path.join(repo, 'snapshots')
     if not os.path.isdir(snaps):
         continue
@@ -466,6 +481,11 @@ for repo in glob.glob(cache + '/models--*'):
                             arch_path = os.path.join(ds_path, arch)
                             if os.path.isdir(arch_path):
                                 seen.add(f'{sub}/{lang}/{ds}/{arch}')
+
+# Debug info on stderr so it doesn't contaminate JSON stdout
+print(f'cache_home={cache_home}', file=sys.stderr)
+print(f'repos_scanned={repos_scanned} repos_matched={repos_matched} models_found={len(seen)}', file=sys.stderr)
+
 print(json.dumps(sorted(seen)))
 """ + "\n";
 
