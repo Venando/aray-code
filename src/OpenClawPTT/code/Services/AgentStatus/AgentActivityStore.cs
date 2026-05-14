@@ -26,6 +26,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         public readonly List<UserMessageEvent> UserMessages = new();
         public readonly List<AgentLifecycleEvent> Lifecycles = new();
         public readonly List<AgentItemEvent> Items = new();
+        public readonly List<HistoryMessageEvent> HistoryMessages = new();
     }
 
     private SessionRecord GetOrCreate(string sessionKey)
@@ -319,6 +320,80 @@ public sealed class AgentActivityStore : IAgentActivityStore
         // Items are noisy — don't fire Changed for every item
     }
 
+    public void Store(HistoryMessageEvent e)
+    {
+        if (string.IsNullOrEmpty(e.SessionKey)) return;
+
+        lock (_lock)
+        {
+            var rec = GetOrCreate(e.SessionKey);
+            rec.HistoryMessages.Add(e);
+
+            // Also store summary data in the directly-queryable collections
+            // so GetLastActionDescription / GetLastActivityTime work.
+
+            // Session-level metadata
+            if (rec.State is null || e.Timestamp > (rec.State.UpdatedAt ?? 0))
+            {
+                rec.State = new SessionStateEvent
+                {
+                    SessionKey = e.SessionKey,
+                    Model = e.Model,
+                    ModelProvider = e.Provider,
+                    UpdatedAt = e.Timestamp,
+                    InputTokens = e.InputTokens,
+                    OutputTokens = e.OutputTokens,
+                    TotalTokens = e.TotalTokens,
+                };
+            }
+
+            // Tool calls
+            for (int t = 0; t < e.ToolCalls.Count; t++)
+            {
+                var tc = e.ToolCalls[t];
+                rec.ToolCalls.Add(new ToolEvent
+                {
+                    SessionKey = e.SessionKey,
+                    RunId = "history",
+                    ToolCallId = $"hist_{rec.HistoryMessages.Count - 1}_{t}",
+                    ToolName = tc.Name,
+                    Phase = "start",
+                    Ts = e.Timestamp,
+                    ArgsJson = tc.ArgumentsJson,
+                });
+            }
+
+            // Assistant metadata
+            if (e.Role == "assistant")
+            {
+                rec.AssistantMessages.Add(new AssistantMessageEvent
+                {
+                    SessionKey = e.SessionKey,
+                    MessageId = $"hist_{rec.HistoryMessages.Count - 1}",
+                    MessageSeq = rec.HistoryMessages.Count - 1,
+                    Timestamp = e.Timestamp,
+                    StopReason = e.StopReason,
+                    Model = e.Model,
+                    ModelProvider = e.Provider,
+                });
+            }
+
+            // User message
+            if (e.Role == "user")
+            {
+                rec.UserMessages.Add(new UserMessageEvent
+                {
+                    SessionKey = e.SessionKey,
+                    MessageId = $"hist_{rec.HistoryMessages.Count - 1}",
+                    MessageSeq = rec.HistoryMessages.Count - 1,
+                    Timestamp = e.Timestamp,
+                    ContentText = e.ContentText,
+                });
+            }
+        }
+        Changed?.Invoke(e.SessionKey);
+    }
+
     public void Remove(string sessionKey)
     {
         lock (_lock)
@@ -355,6 +430,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
                 rec.UserMessages.Clear();
                 rec.Lifecycles.Clear();
                 rec.Items.Clear();
+                rec.HistoryMessages.Clear();
             }
         }
         Changed?.Invoke(sessionKey);

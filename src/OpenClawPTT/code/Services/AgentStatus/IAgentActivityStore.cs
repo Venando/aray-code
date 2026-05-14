@@ -66,6 +66,7 @@ public interface IAgentActivityStore
     void Store(UserMessageEvent e);
     void Store(AgentLifecycleEvent e);
     void Store(AgentItemEvent e);
+    void Store(HistoryMessageEvent e);
 
     void Remove(string sessionKey);
     void Reset(string sessionKey);

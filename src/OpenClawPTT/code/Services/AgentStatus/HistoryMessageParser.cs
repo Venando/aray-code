@@ -31,63 +31,8 @@ public static class HistoryMessageParser
         for (int i = start; i < total; i++)
         {
             var evt = Extract(messages[i], sessionKey, console);
-            if (evt is null) continue;
-
-            // Store session-level metadata (model, tokens)
-            store.Store(new SessionStateEvent
-            {
-                SessionKey = sessionKey,
-                Model = evt.Model,
-                ModelProvider = evt.Provider,
-                UpdatedAt = evt.Timestamp,
-                InputTokens = evt.InputTokens,
-                OutputTokens = evt.OutputTokens,
-                TotalTokens = evt.TotalTokens,
-            });
-
-            // Store tool calls
-            for (int t = 0; t < evt.ToolCalls.Count; t++)
-            {
-                var tc = evt.ToolCalls[t];
-                store.Store(new ToolEvent
-                {
-                    SessionKey = sessionKey,
-                    RunId = "history",
-                    ToolCallId = $"hist_{i}_{t}",
-                    ToolName = tc.Name,
-                    Phase = "start",
-                    Ts = evt.Timestamp,
-                    ArgsJson = tc.ArgumentsJson,
-                });
-            }
-
-            // Store assistant metadata
-            if (evt.Role == "assistant")
-            {
-                store.Store(new AssistantMessageEvent
-                {
-                    SessionKey = sessionKey,
-                    MessageId = $"hist_{i}",
-                    MessageSeq = i,
-                    Timestamp = evt.Timestamp,
-                    StopReason = evt.StopReason,
-                    Model = evt.Model,
-                    ModelProvider = evt.Provider,
-                });
-            }
-
-            // Store user message
-            if (evt.Role == "user")
-            {
-                store.Store(new UserMessageEvent
-                {
-                    SessionKey = sessionKey,
-                    MessageId = $"hist_{i}",
-                    MessageSeq = i,
-                    Timestamp = evt.Timestamp,
-                    ContentText = evt.ContentText,
-                });
-            }
+            if (evt is not null)
+                store.Store(evt);
         }
     }
 
