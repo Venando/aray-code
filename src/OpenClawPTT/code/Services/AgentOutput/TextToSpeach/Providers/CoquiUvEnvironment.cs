@@ -555,22 +555,41 @@ def load_model():
     torch.load = functools.partial(torch.load, weights_only=False)
     from TTS.api import TTS
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    log.info("Loading Coqui TTS on %s...", device)
+    can_use_cuda = torch.cuda.is_available()
+    log.info("CUDA available: %s", can_use_cuda)
 
-    t0 = time.monotonic()
+    # Try CUDA first, fall back to CPU if loading fails (OOM, driver mismatch, etc.)
+    def _load(use_cuda):
+        dev = "cuda" if use_cuda else "cpu"
+        t0 = time.monotonic()
+        if model_path and config_path:
+            if not os.path.isfile(model_path):
+                raise ValueError(f"TTS_MODEL_PATH is not a file: {model_path!r}")
+            if not os.path.isfile(config_path):
+                raise ValueError(f"TTS_CONFIG_PATH is not a file: {config_path!r}")
+            t = TTS(model_path=model_path, config_path=config_path, progress_bar=False, gpu=use_cuda)
+            if use_cuda:
+                t = t.to(dev)
+        else:
+            t = TTS(model_name=model_name, progress_bar=False, gpu=use_cuda)
+            if use_cuda:
+                t = t.to(dev)
+        elapsed = time.monotonic() - t0
+        log.info("Coqui TTS loaded on %s in %.1fs", dev.upper(), elapsed)
+        return t
 
-    if model_path and config_path:
-        if not os.path.isfile(model_path):
-            raise ValueError(f"TTS_MODEL_PATH is not a file: {model_path!r}")
-        if not os.path.isfile(config_path):
-            raise ValueError(f"TTS_CONFIG_PATH is not a file: {config_path!r}")
-        tts = TTS(model_path=model_path, config_path=config_path, progress_bar=False).to(device)
+    if can_use_cuda:
+        try:
+            tts = _load(use_cuda=True)
+        except Exception:
+            log.warning("CUDA load failed, falling back to CPU")
+            try:
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
+            tts = _load(use_cuda=False)
     else:
-        tts = TTS(model_name=model_name, progress_bar=False).to(device)
-
-    elapsed = time.monotonic() - t0
-    log.info("Coqui TTS loaded on %s in %.1fs", device, elapsed)
+        tts = _load(use_cuda=False)
 
     # Fix for TTS 0.22.0 compat
     if tts.config is not None and not hasattr(tts.config, "languages"):
