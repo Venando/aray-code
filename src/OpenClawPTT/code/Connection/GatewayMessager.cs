@@ -184,7 +184,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
         _console.Log("debug", $"Event name={name}", LogLevel.Debug);
 
         // ── Dispatch to typed records and store ──────────────────────────
-        var dispatched = GatewayEventDispatcher.Dispatch(root);
+        var dispatched = GatewayEventDispatcher.Dispatch(root, _console);
         switch (dispatched)
         {
             case SessionStateEvent sse:
