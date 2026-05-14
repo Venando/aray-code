@@ -51,7 +51,7 @@ public sealed class CoquiTtsModelManager
         if (!CoquiUvEnvironment.IsUvAvailable())
         {
             LastFetchErrorDetail = "uv is not installed";
-            host.AddMessage("[red]    ✗ uv is not installed — cannot fetch model list.[/]");
+            host.AddMessage("[red]    \u2717 uv is not installed \u2014 cannot fetch model list.[/]");
             host.AddMessage($"[grey]      Install: {CoquiUvEnvironment.GetInstallInstructions()}[/]");
             return Array.Empty<CoquiTtsModelInfo>();
         }
@@ -94,13 +94,13 @@ public sealed class CoquiTtsModelManager
         catch (OperationCanceledException)
         {
             LastFetchErrorDetail = "Live model fetch timed out after 5 minutes";
-            host.AddMessage("[red]    ✗ Live model fetch timed out after 5 minutes.[/]");
+            host.AddMessage("[red]    \u2717 Live model fetch timed out after 5 minutes.[/]");
             host.AddMessage("[grey]      Check network and uv/Python setup, then re-run /reconfigure TTS.[/]");
         }
         catch (Exception ex)
         {
             var errorMsg = ex.Message;
-            host.AddMessage("[red]    ✗ Live model fetch failed. Error from uv:[/]");
+            host.AddMessage("[red]    \u2717 Live model fetch failed. Error from uv:[/]");
 
             var errorLines = errorMsg.Split('\n');
             var shown = 0;
@@ -110,7 +110,7 @@ public sealed class CoquiTtsModelManager
                 var trimmedLine = line.Trim();
                 if (!string.IsNullOrWhiteSpace(trimmedLine))
                 {
-                    host.AddMessage($"[red]      {EscapeSpectreMarkup(trimmedLine)}[/]");
+                    host.AddMessage($"[red]      {CoquiMarkupHelper.EscapeSpectreMarkup(trimmedLine)}[/]");
                     shown++;
                 }
             }
@@ -273,12 +273,6 @@ public sealed class CoquiTtsModelManager
         Directory.CreateDirectory(_projectDir);
     }
 
-    private static string EscapeSpectreMarkup(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return "";
-        return text.Replace("[", "[[").Replace("]", "]]");
-    }
-
     /// <summary>
     /// Returns model names that are currently cached on disk by running
     /// a Python command that walks the HuggingFace cache directly.
@@ -340,18 +334,18 @@ public sealed class CoquiTtsModelManager
                 {
                     var t = line.Trim();
                     if (!string.IsNullOrEmpty(t))
-                        host.AddMessage($"[grey]    [GetCachedModels:stderr] {EscapeSpectreMarkup(t[..Math.Min(t.Length, 120)])}[/]");
+                        host.AddMessage($"[grey]    [GetCachedModels:stderr] {CoquiMarkupHelper.EscapeSpectreMarkup(t[..Math.Min(t.Length, 120)])}[/]");
                 }
             }
 
             if (process.ExitCode != 0)
             {
-                host.AddMessage($"[red]    [[GetCachedModels]] non-zero exit code, stderr excerpt: {EscapeSpectreMarkup(stderr.Trim()[..Math.Min(stderr.Trim().Length, 200)])}[/]");
+                host.AddMessage($"[red]    [[GetCachedModels]] non-zero exit code, stderr excerpt: {CoquiMarkupHelper.EscapeSpectreMarkup(stderr.Trim()[..Math.Min(stderr.Trim().Length, 200)])}[/]");
                 return Array.Empty<string>();
             }
 
             var trimmed = stdout.Trim();
-            host.AddMessage($"[grey]    [[GetCachedModels]] stdout trimmed: '{EscapeSpectreMarkup(trimmed[..Math.Min(trimmed.Length, 500)])}'[/]");
+            host.AddMessage($"[grey]    [[GetCachedModels]] stdout trimmed: '{CoquiMarkupHelper.EscapeSpectreMarkup(trimmed[..Math.Min(trimmed.Length, 500)])}'[/]");
 
             if (string.IsNullOrEmpty(trimmed))
             {
@@ -365,7 +359,7 @@ public sealed class CoquiTtsModelManager
                 ? trimmed[jsonStart..(jsonEnd + 1)]
                 : trimmed;
 
-            host.AddMessage($"[grey]    [[GetCachedModels]] json: '{EscapeSpectreMarkup(jsonText[..Math.Min(jsonText.Length, 300)])}'[/]");
+            host.AddMessage($"[grey]    [[GetCachedModels]] json: '{CoquiMarkupHelper.EscapeSpectreMarkup(jsonText[..Math.Min(jsonText.Length, 300)])}'[/]");
 
             var names = JsonSerializer.Deserialize<List<string>>(jsonText);
             if (names == null)
@@ -385,7 +379,7 @@ public sealed class CoquiTtsModelManager
         }
         catch (Exception ex)
         {
-            host.AddMessage($"[red]    [[GetCachedModels]] Exception: {EscapeSpectreMarkup(ex.Message)}[/]");
+            host.AddMessage($"[red]    [[GetCachedModels]] Exception: {CoquiMarkupHelper.EscapeSpectreMarkup(ex.Message)}[/]");
             return Array.Empty<string>();
         }
     }
@@ -447,7 +441,7 @@ public sealed class CoquiTtsModelManager
         if (CoquiUvEnvironment.IsUvBuildBroken)
         {
             var detail = CoquiUvEnvironment.UvBuildErrorDetail ?? "uv environment is broken";
-            _host.AddMessage($"[red]    Cannot download — uv environment is broken: {EscapeSpectreMarkup(detail)}[/]");
+            _host.AddMessage($"[red]    Cannot download \u2014 uv environment is broken: {CoquiMarkupHelper.EscapeSpectreMarkup(detail)}[/]");
             throw new InvalidOperationException($"uv environment is broken: {detail}");
         }
 
@@ -503,7 +497,7 @@ public sealed class CoquiTtsModelManager
                     if (line == null) break;
                     stderrLines.Add(line);
                     if (!string.IsNullOrWhiteSpace(line))
-                        _host.AddMessage($"[grey]      {EscapeSpectreMarkup(line)}[/]");
+                        _host.AddMessage($"[grey]      {CoquiMarkupHelper.EscapeSpectreMarkup(line)}[/]");
                     if (line.Contains("%", StringComparison.Ordinal) || line.Contains("Download", StringComparison.OrdinalIgnoreCase) || line.Contains("Fetching", StringComparison.OrdinalIgnoreCase))
                         progressCallback?.Invoke(modelName, $"Downloading: {line.Trim()[..Math.Min(line.Trim().Length, 80)]}", null, null, false);
                 }
@@ -523,7 +517,7 @@ public sealed class CoquiTtsModelManager
                 if (IsBuildError(errorDetail))
                     CoquiUvEnvironment.MarkUvBuildBroken(summary);
 
-                _host.AddMessage($"[red]    Download failed (exit={process.ExitCode}): {EscapeSpectreMarkup(summary)}[/]");
+                _host.AddMessage($"[red]    Download failed (exit={process.ExitCode}): {CoquiMarkupHelper.EscapeSpectreMarkup(summary)}[/]");
                 progressCallback?.Invoke(modelName, $"Failed (exit={process.ExitCode})", null, null, false);
                 throw new InvalidOperationException($"Coqui TTS download failed (exit={process.ExitCode}): {summary}");
             }
@@ -536,13 +530,13 @@ public sealed class CoquiTtsModelManager
                 // Extract them so TTS can find the model files at the expected level.
                 var extracted = ExtractModelZips(modelName);
                 if (extracted > 0)
-                    _host.AddMessage($"[green]    ✓ Model {modelName} cached (extracted {extracted} archive(s)).[/]");
+                    _host.AddMessage($"[green]    \u2713 Model {modelName} cached (extracted {extracted} archive(s)).[/]");
                 else
-                    _host.AddMessage($"[green]    ✓ Model {modelName} cached successfully.[/]");
+                    _host.AddMessage($"[green]    \u2713 Model {modelName} cached successfully.[/]");
             }
             else
             {
-                _host.AddMessage($"[yellow]    ⚠ Process completed but model not found in cache. stdout/stderr above may help diagnose.[/]");
+                _host.AddMessage($"[yellow]    \u26a0 Process completed but model not found in cache. stdout/stderr above may help diagnose.[/]");
             }
             progressCallback?.Invoke(modelName,
                 isCached ? "Download complete" : "Process completed but model not found in cache",
@@ -677,33 +671,5 @@ public sealed class CoquiTtsModelManager
 
         try { Directory.Delete(modelDir, recursive: true); return true; }
         catch { return false; }
-    }
-}
-
-/// <summary>Info about an available Coqui TTS model.</summary>
-public sealed class CoquiTtsModelInfo
-{
-    public string Name { get; }
-    public string Description { get; }
-
-    public CoquiTtsModelInfo(string name, string description)
-    {
-        Name = name;
-        Description = description;
-    }
-
-    public static CoquiTtsModelInfo FromModelName(string modelName)
-    {
-        var parts = modelName.Split('/');
-        if (parts.Length < 3)
-            return new CoquiTtsModelInfo(modelName, modelName);
-
-        var lang = parts.Length > 1 ? parts[1] : "";
-        var dataset = parts.Length > 2 ? parts[2] : "";
-        var arch = parts.Length > 3 ? parts[3] : "";
-
-        var desc = string.Join(" · ", new[] { lang, dataset, arch }
-            .Where(s => !string.IsNullOrEmpty(s)));
-        return new CoquiTtsModelInfo(modelName, desc);
     }
 }

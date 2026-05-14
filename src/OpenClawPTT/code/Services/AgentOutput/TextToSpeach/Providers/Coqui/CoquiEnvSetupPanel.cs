@@ -19,7 +19,6 @@ public sealed class CoquiEnvSetupPanel : IBottomPanel
     private string _status = "Initializing...";
     private string _latestLine = "";
     private string _errorDetail = "";
-    private bool _completed;
     private bool _isDirty = true;
 
     public int LineCount => 3;
@@ -44,10 +43,9 @@ public sealed class CoquiEnvSetupPanel : IBottomPanel
     {
         lock (_sync)
         {
-            _completed = true;
             _status = success
-                ? $"[green]✓[/] {message}"
-                : $"[yellow]⚠[/] {message}";
+                ? $"[green]\u2713[/] {message}"
+                : $"[yellow]\u26a0[/] {message}";
             _isDirty = true;
         }
     }
@@ -56,13 +54,13 @@ public sealed class CoquiEnvSetupPanel : IBottomPanel
     {
         lock (_sync)
         {
-            _lines[0] = $"[bold]Coqui TTS Setup[/] — {_status}";
+            _lines[0] = $"[bold]Coqui TTS Setup[/] \u2014 {_status}";
             _lines[1] = string.IsNullOrEmpty(_latestLine)
                 ? "[grey]Waiting for uv...[/]"
-                : $"[grey]{EscapeMarkup(_latestLine)}[/]";
+                : $"[grey]{CoquiMarkupHelper.EscapeMarkup(_latestLine)}[/]";
             _lines[2] = string.IsNullOrEmpty(_errorDetail)
                 ? ""
-                : $"[yellow]{EscapeMarkup(_errorDetail)}[/]";
+                : $"[yellow]{CoquiMarkupHelper.EscapeMarkup(_errorDetail)}[/]";
             _isDirty = false;
             return _lines;
         }
@@ -78,14 +76,4 @@ public sealed class CoquiEnvSetupPanel : IBottomPanel
     public Task RunAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public void Dispose() { }
-
-    /// <summary>
-    /// Escapes Spectre.Console markup characters so raw process output
-    /// won't break the rendering.
-    /// </summary>
-    private static string EscapeMarkup(string text)
-    {
-        if (string.IsNullOrEmpty(text)) return "";
-        return text.Replace("[", "[[").Replace("]", "]]");
-    }
 }
