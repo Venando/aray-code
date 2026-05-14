@@ -491,9 +491,11 @@ public sealed class CoquiTtsModelManager
     }
 
     /// <summary>
-    /// Fetches model sizes from HuggingFace Hub using a Python helper script.
-    /// Uses parallel workers and local JSON caching — first call may take ~15 s
-    /// for 1000+ models, subsequent calls are instant from cache.
+    /// Fetches model download sizes by looking up download URLs from the Coqui TTS
+    /// model registry and making HEAD requests for Content-Length. Uses a Python
+    /// helper script from the installed TTS environment.
+    /// First call may take ~15 s for 1000+ models (parallel HEAD requests),
+    /// subsequent calls are instant from cache.
     /// Returns a dictionary of model name → size in bytes (missing = no size).
     /// </summary>
     public static async Task<IReadOnlyDictionary<string, long>> FetchHuggingFaceSizesAsync(
@@ -511,13 +513,13 @@ public sealed class CoquiTtsModelManager
             return new Dictionary<string, long>();
 
         // Write model names to a temp JSON file
-        var namesPath = Path.Combine(projectDir, "hf_model_names.json");
+        var namesPath = Path.Combine(projectDir, "model_names.json");
         File.WriteAllText(namesPath, JsonSerializer.Serialize(modelNames));
 
-        var cachePath = Path.Combine(projectDir, "hf_model_sizes_cache.json");
+        var cachePath = Path.Combine(projectDir, "model_download_sizes_cache.json");
 
         // Write the Python helper script
-        var scriptPath = Path.Combine(projectDir, "fetch_hf_sizes.py");
+        var scriptPath = Path.Combine(projectDir, "fetch_model_sizes.py");
         File.WriteAllText(scriptPath, CoquiUvEnvironment.HfSizesScript());
 
         // Load existing cache to show progress
@@ -535,7 +537,7 @@ public sealed class CoquiTtsModelManager
 
         var missingCount = modelNames.Count - existingCount;
         var statusMsg = missingCount > 0
-            ? $"Fetching sizes for {missingCount} new models from HuggingFace..."
+            ? $"Fetching download sizes for {missingCount} new models..."
             : "Loading model sizes from cache...";
         host.AddMessage($"[grey]      {statusMsg}[/]");
 
@@ -558,7 +560,7 @@ public sealed class CoquiTtsModelManager
             using var process = Process.Start(psi);
             if (process == null)
             {
-                host.AddMessage("[red]      Failed to start Python for HF size fetch.[/]");
+                host.AddMessage("[red]      Failed to start Python for model size fetch.[/]");
                 return new Dictionary<string, long>();
             }
 
@@ -568,7 +570,7 @@ public sealed class CoquiTtsModelManager
 
             if (process.ExitCode != 0)
             {
-                host.AddMessage($"[yellow]      HF size fetch exited with code {process.ExitCode}[/]");
+                host.AddMessage($"[yellow]      Model size fetch exited with code {process.ExitCode}[/]");
                 // Try to load from cache anyway
                 if (File.Exists(cachePath))
                 {
@@ -582,7 +584,7 @@ public sealed class CoquiTtsModelManager
             var jsonText = ExtractJsonArray(stdout);
             var sizes = JsonSerializer.Deserialize<Dictionary<string, long>>(jsonText);
             var found = sizes?.Count ?? 0;
-            host.AddMessage($"[green]      Sizes known for {found}/{modelNames.Count} models.[/]");
+            host.AddMessage($"[green]      Download sizes known for {found}/{modelNames.Count} models.[/]");
             return sizes ?? new Dictionary<string, long>();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -591,7 +593,7 @@ public sealed class CoquiTtsModelManager
         }
         catch (Exception ex)
         {
-            host.AddMessage($"[yellow]      HF size fetch failed: {ex.Message}. Using cache if available.[/]");
+            host.AddMessage($"[yellow]      Model size fetch failed: {ex.Message}. Using cache if available.[/]");
             if (File.Exists(cachePath))
             {
                 try

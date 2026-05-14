@@ -222,22 +222,26 @@ print(json.dumps(sorted(seen)))
 """ + "\n";
 
     /// <summary>
-    /// Returns a Python script that fetches model sizes from HuggingFace Hub.
-    /// Reads model names from a JSON file (path passed as first argument),
-    /// queries HF API with parallel workers, caches results to a second file,
-    /// and prints the merged size dict as JSON to stdout.
+    /// Returns a Python script that fetches model download sizes from the Coqui TTS
+    /// model registry. Reads model names from a JSON file (path passed as first argument),
+    /// looks up download URLs via the TTS model manager, makes parallel HEAD requests
+    /// for Content-Length, caches to a second file, and prints size dict as JSON.
     /// </summary>
     internal static string HfSizesScript => """
 import json, sys, os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from huggingface_hub import HfApi
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 
-def _get_size(api, name):
+def _get_url_size(url):
+    '''HEAD request to get Content-Length from a download URL.'''
     try:
-        info = api.model_info(name)
-        return name, sum(s.size or 0 for s in info.siblings)
+        req = Request(url, method='HEAD')
+        with urlopen(req, timeout=15) as resp:
+            length = resp.headers.get('Content-Length')
+            return int(length) if length else None
     except Exception:
-        return name, None
+        return None
 
 def main():
     names_file = sys.argv[1]
@@ -251,15 +255,27 @@ def main():
         with open(cache_file) as f:
             cache = json.load(f)
 
-    missing = [m for m in model_names if m not in cache]
+    # Resolve download URLs from the TTS model registry
+    from TTS.api import TTS
+    manager = TTS().list_models()
+    # manager._models is a dict: model_name -> {github_rls_url, ...}
+    registry = getattr(manager, '_models', {})
 
-    if missing:
-        api = HfApi()
-        # 15 workers balances speed vs HF API rate limits
+    url_map = {}
+    for name in model_names:
+        if name in cache:
+            continue
+        meta = registry.get(name, {})
+        url = meta.get('github_rls_url') or meta.get('url')
+        if url:
+            url_map[name] = url
+
+    if url_map:
         with ThreadPoolExecutor(max_workers=15) as executor:
-            futures = {executor.submit(_get_size, api, m): m for m in missing}
+            futures = {executor.submit(_get_url_size, url_map[n]): n for n in url_map}
             for future in as_completed(futures):
-                name, size = future.result()
+                name = futures[future]
+                size = future.result()
                 if size is not None:
                     cache[name] = size
 
