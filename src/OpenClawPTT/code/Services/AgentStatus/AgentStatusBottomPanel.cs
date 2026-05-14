@@ -166,7 +166,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             }
 
             // Hint
-            var hintStyle = ThemeProvider.Current.Tools.PanelHintStyle;
+            var hintStyle = ThemeProvider.Current.Tools.Panel.Hint;
             _lines.Add($"  [{hintStyle}]\u2191\u2193 navigate  Enter select  Esc back[/]");
 
             int total = _visibleAgents.Count + 1 + BottomMargin;
@@ -308,7 +308,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         // Left column: "• Name" padded to NameColWidth
         var tools = ThemeProvider.Current.Tools;
         var nameDisplay = selected
-            ? $"[{tools.PanelSelectedNameStyle}]{name}[/]"
+            ? $"[{tools.Panel.SelectedName}]{name}[/]"
             : name;
         var leftCol = $"{bullet} {nameDisplay}";
         int bulletWidth = CharacterWidth.GetDisplayWidth(StripMarkup(bullet));
@@ -334,12 +334,12 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         var line = leftPadded
             + new string(' ', GapAfterName)
             + (selected
-                ? $"[{tools.PanelActionSelectedStyle}]{actionDisplay}[/]"
-                : $"[{tools.PanelActionStyle}]{actionDisplay}[/]")
+                ? $"[{tools.Panel.ActionSelected}]{actionDisplay}[/]"
+                : $"[{tools.Panel.Action}]{actionDisplay}[/]")
             + new string(' ', gapAfterAction + GapBeforeTime)
-            + $"[{tools.PanelTimeStyle}]{timePadded}[/]";
+            + $"[{tools.Panel.Time}]{timePadded}[/]";
 
-        return selected ? $"[on {tools.PanelSelectedBg}]{line}[/]" : line;
+        return selected ? $"[on {tools.Panel.SelectedBg}]{line}[/]" : line;
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

@@ -14,16 +14,16 @@ public sealed class SessionsSpawnToolRenderer : ToolRendererBase
     {
         if (args.TryGetProperty("label", out var labelProp))
         {
-            PrintValue(labelProp.GetString() ?? "", Style.Label);
+            PrintValue(labelProp.GetString() ?? "", Style.General.Label);
         }
 
-        Output.PrintLine("", Style.Muted);
+        Output.PrintLine("", Style.General.Muted);
 
         if (args.TryGetProperty("task", out var taskProp))
         {
             string taskPrefix = "  ";
-            Output.Print(taskPrefix, Style.Muted);
-            Output.PrintTruncated(taskProp.GetString() ?? "", taskPrefix, rightMarginIndent, Style.Label, maxRows: 15);
+            Output.Print(taskPrefix, Style.General.Muted);
+            Output.PrintTruncated(taskProp.GetString() ?? "", taskPrefix, rightMarginIndent, Style.General.Label, maxRows: 15);
         }
     }
 }

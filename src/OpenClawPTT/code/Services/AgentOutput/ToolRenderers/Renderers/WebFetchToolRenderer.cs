@@ -15,11 +15,11 @@ public sealed class WebFetchToolRenderer : ToolRendererBase
         if (args.TryGetProperty("url", out var urlProp))
         {
             string url = urlProp.GetString() ?? "";
-            PrintValue(url, Style.FetchUrl);
+            PrintValue(url, Style.Reader.FetchUrl);
         }
         if (args.TryGetProperty("maxChars", out var maxCharsProp))
         {
-            Output.Print($" (max {maxCharsProp.GetInt32()} chars)", Style.FetchMaxInfo);
+            Output.Print($" (max {maxCharsProp.GetInt32()} chars)", Style.Reader.FetchMaxInfo);
         }
     }
 }

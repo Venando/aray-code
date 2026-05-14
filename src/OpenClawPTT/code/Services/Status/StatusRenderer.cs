@@ -82,7 +82,7 @@ public sealed class StatusRenderer
             string topLeftText = BuildTopLeftText(ComposePositionText(_topLeft));
             string topRightText = ComposePositionText(_topRight);
             _shellHost.SetTopSeparator(leftText: topLeftText, rightText: topRightText,
-                repeatedCharacter: Style.SeparatorChar[0], repeatedCharMarkup: Style.SeparatorCharMarkup);
+                repeatedCharacter: Style.StatusBar.SeparatorChar[0], repeatedCharMarkup: Style.StatusBar.SeparatorCharMarkup);
 
             // Build and set bottom separator if any parts are assigned to it
             if (_bottomLeft.Count > 0 || _bottomRight.Count > 0)
@@ -90,7 +90,7 @@ public sealed class StatusRenderer
                 string bottomLeftText = ComposePositionText(_bottomLeft);
                 string bottomRightText = ComposePositionText(_bottomRight);
                 _shellHost.SetBottomSeparator(leftText: bottomLeftText, rightText: bottomRightText,
-                    repeatedCharacter: Style.SeparatorChar[0], repeatedCharMarkup: Style.SeparatorCharMarkup);
+                    repeatedCharacter: Style.StatusBar.SeparatorChar[0], repeatedCharMarkup: Style.StatusBar.SeparatorCharMarkup);
             }
         }
         catch (Exception ex)
@@ -124,8 +124,8 @@ public sealed class StatusRenderer
         _sbLeft.Clear();
         // Wrap the decorative prefix in the separator character markup so the
         // left-side dashes match the color of the repeated fill characters.
-        _sbLeft.Append($"[{Style.SeparatorCharMarkup}]");
-        _sbLeft.Append(Style.TopLeftSeparatorPrefix);
+        _sbLeft.Append($"[{Style.StatusBar.SeparatorCharMarkup}]");
+        _sbLeft.Append(Style.StatusBar.TopLeftSeparatorPrefix);
         _sbLeft.Append("[/]");
         _sbLeft.Append(partsText);
         _sbLeft.Append(' ');

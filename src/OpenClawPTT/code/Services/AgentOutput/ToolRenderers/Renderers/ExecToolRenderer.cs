@@ -27,7 +27,7 @@ public sealed class ExecToolRenderer : ToolRendererBase
         const int maxPreviewLines = 6;
         if (lineCount > maxPreviewLines)
         {
-            Output.PrintTruncated(command, "  ", rightMarginIndent, Style.Label, maxRows: maxPreviewLines);
+            Output.PrintTruncated(command, "  ", rightMarginIndent, Style.General.Label, maxRows: maxPreviewLines);
             return;
         }
 
@@ -35,7 +35,7 @@ public sealed class ExecToolRenderer : ToolRendererBase
 
         if (parsed.Count == 0)
         {
-            PrintValue(command, Style.Label);
+            PrintValue(command, Style.General.Label);
             return;
         }
 
@@ -44,7 +44,7 @@ public sealed class ExecToolRenderer : ToolRendererBase
         {
             if (needNewline)
             {
-                Output.PrintLine("", Style.Separator);
+                Output.PrintLine("", Style.General.Separator);
             }
 
             RenderCommand(meta);
@@ -57,9 +57,9 @@ public sealed class ExecToolRenderer : ToolRendererBase
         // ── Working directory prefix ────────────────────────────────────────
         if (!string.IsNullOrEmpty(meta.WorkingDirectory))
         {
-            Output.Print("\U0001f4c2 ", Style.ExecPathIcon);
-            Output.Print(FilePathDisplayHelper.FormatDisplayPath(meta.WorkingDirectory), Style.ExecPathText);
-            Output.Print(" ", Style.ExecPathText);
+            Output.Print("\U0001f4c2 ", Style.Exec.PathIcon);
+            Output.Print(FilePathDisplayHelper.FormatDisplayPath(meta.WorkingDirectory), Style.Exec.PathText);
+            Output.Print(" ", Style.Exec.PathText);
         }
 
         // ── Inline env vars ────────────────────────────────────────────────
@@ -67,8 +67,8 @@ public sealed class ExecToolRenderer : ToolRendererBase
         {
             foreach (var kvp in meta.InlineEnv)
             {
-                Output.Print($"{kvp.Key}=", Style.ExecEnvKey);
-                Output.Print($"{kvp.Value} ", Style.ExecEnvValue);
+                Output.Print($"{kvp.Key}=", Style.Exec.EnvKey);
+                Output.Print($"{kvp.Value} ", Style.Exec.EnvValue);
             }
         }
 
@@ -88,13 +88,13 @@ public sealed class ExecToolRenderer : ToolRendererBase
             {
                 var remaining = meta.Positionals.Count - posCount;
                 if (remaining > 0)
-                    Output.Print($" ... ({remaining} more tokens)", Style.Muted);
+                    Output.Print($" ... ({remaining} more tokens)", Style.General.Muted);
                 break;
             }
             string fmt = FormatToken(pos);
             posChars += fmt.Length;
             PrintSpace();
-            Output.Print(fmt, Style.ExecPositional);
+            Output.Print(fmt, Style.Exec.Positional);
             posCount++;
         }
 
@@ -105,13 +105,13 @@ public sealed class ExecToolRenderer : ToolRendererBase
             int bodyLen = meta.ScriptBody.Length;
             if (bodyLen <= 40)
             {
-                Output.Print(meta.ScriptBody, Style.ExecScriptBody);
+                Output.Print(meta.ScriptBody, Style.Exec.ScriptBody);
             }
             else
             {
                 var preview = meta.ScriptBody.Replace('\n', ' ').Replace('\r', ' ');
                 if (preview.Length > 37) preview = preview[..37] + "...";
-                Output.Print(preview, Style.ExecScriptBody);
+                Output.Print(preview, Style.Exec.ScriptBody);
             }
         }
 
@@ -121,12 +121,12 @@ public sealed class ExecToolRenderer : ToolRendererBase
             if (flag.StartsWith("--"))
             {
                 PrintSpace();
-                Output.Print(FormatToken(flag), Style.ExecLongFlag);
+                Output.Print(FormatToken(flag), Style.Exec.LongFlag);
             }
             else
             {
                 PrintSpace();
-                Output.Print(FormatToken(flag), Style.ExecShortFlag);
+                Output.Print(FormatToken(flag), Style.Exec.ShortFlag);
             }
         }
 
@@ -134,56 +134,56 @@ public sealed class ExecToolRenderer : ToolRendererBase
         foreach (var redir in meta.Redirects)
         {
             PrintSpace();
-            Output.Print(FormatToken(redir), Style.Separator);
+            Output.Print(FormatToken(redir), Style.General.Separator);
         }
 
         // ── Pipe / chain indicators ────────────────────────────────────────
         if (meta.IsPiped)
         {
-            Output.Print(" | ", Style.Separator);
+            Output.Print(" | ", Style.General.Separator);
         }
         if (meta.IsChained)
         {
-            Output.Print(" && ", Style.Separator);
+            Output.Print(" && ", Style.General.Separator);
         }
 
         // ── Here-doc summary ───────────────────────────────────────────────
         if (meta.HereDoc != null)
         {
-            Output.Print(" << '", Style.Separator);
-            Output.Print(meta.HereDoc.Delimiter, Style.Separator);
-            Output.Print("'", Style.Separator);
+            Output.Print(" << '", Style.General.Separator);
+            Output.Print(meta.HereDoc.Delimiter, Style.General.Separator);
+            Output.Print("'", Style.General.Separator);
 
             if (!string.IsNullOrEmpty(meta.HereDoc.TargetFile))
             {
-                Output.Print(" > ", Style.Separator);
-                Output.Print(meta.HereDoc.TargetFile, Style.Separator);
+                Output.Print(" > ", Style.General.Separator);
+                Output.Print(meta.HereDoc.TargetFile, Style.General.Separator);
             }
 
             int bodyLines = meta.HereDoc.Body.Split('\n').Length;
-            Output.Print($" ({bodyLines} line{(bodyLines == 1 ? "" : "s")})", Style.ExecHereDocSummary);
+            Output.Print($" ({bodyLines} line{(bodyLines == 1 ? "" : "s")})", Style.Exec.HereDocSummary);
         }
     }
 
-    private void PrintSpace() => Output.Print(" ", Style.Separator);
+    private void PrintSpace() => Output.Print(" ", Style.General.Separator);
 
     private static string GetExecutableStyle(CommandType type)
     {
         var s = Style;
         return type switch
         {
-            CommandType.FileSystem => s.ExecFileSystem,
-            CommandType.FileContent => s.ExecFileContent,
-            CommandType.Build => s.ExecBuild,
-            CommandType.PackageManager => s.ExecPackageManager,
-            CommandType.Network => s.ExecNetwork,
-            CommandType.Scripting => s.ExecScripting,
-            CommandType.Process => s.ExecProcess,
-            CommandType.HereDoc => s.ExecHereDoc,
-            CommandType.Vcs => s.ExecVcs,
-            CommandType.Pipe => s.Separator,
-            CommandType.Chain => s.Separator,
-            _ => s.Value,
+            CommandType.FileSystem => s.Exec.FileSystem,
+            CommandType.FileContent => s.Exec.FileContent,
+            CommandType.Build => s.Exec.Build,
+            CommandType.PackageManager => s.Exec.PackageManager,
+            CommandType.Network => s.Exec.Network,
+            CommandType.Scripting => s.Exec.Scripting,
+            CommandType.Process => s.Exec.Process,
+            CommandType.HereDoc => s.Exec.HereDoc,
+            CommandType.Vcs => s.Exec.Vcs,
+            CommandType.Pipe => s.General.Separator,
+            CommandType.Chain => s.General.Separator,
+            _ => s.General.Value,
         };
     }
 

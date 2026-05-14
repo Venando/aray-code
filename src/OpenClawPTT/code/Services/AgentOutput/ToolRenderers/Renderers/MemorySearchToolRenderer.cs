@@ -14,7 +14,7 @@ public sealed class MemorySearchToolRenderer : ToolRendererBase
     {
         if (args.TryGetProperty("query", out var queryProp))
         {
-            PrintValue(queryProp.GetString() ?? "", Style.Label);
+            PrintValue(queryProp.GetString() ?? "", Style.General.Label);
         }
         PrintIntPropertyIfExists(args, "maxResults", "max results: ", prependComma: true);
         if (args.TryGetProperty("minScore", out var minScoreProp))

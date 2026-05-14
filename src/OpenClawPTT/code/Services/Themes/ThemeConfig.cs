@@ -44,148 +44,133 @@ public sealed class TableTheme
 
 /// <summary>
 /// Styles for tool rendering (tool call display in the console).
-/// Each property is a distinct Spectre.Console style string
-/// (e.g. "grey", "bold cyan", "default on gray15").
+/// Properties are grouped into nested classes by domain.
+/// Each string is a Spectre.Console style (e.g. "grey", "bold cyan").
 /// </summary>
 public sealed class ToolTheme
 {
     public string HeaderStyle { get; set; } = "gray93 on #333333";
+    public GeneralStyles General { get; set; } = new();
+    public KvpStyles Kvp { get; set; } = new();
+    public ExecStyles Exec { get; set; } = new();
+    public DiffStyles Diff { get; set; } = new();
+    public ReaderStyles Reader { get; set; } = new();
+    public StatusBarStyles StatusBar { get; set; } = new();
+    public ThinkingStyles Thinking { get; set; } = new();
+    public MessageStyles Messages { get; set; } = new();
+    public PanelStyles Panel { get; set; } = new();
+    public StreamShellStyles StreamShell { get; set; } = new();
+}
 
-    // General
+public sealed class GeneralStyles
+{
     public string Label { get; set; } = "grey";
     public string Muted { get; set; } = "grey";
     public string Value { get; set; } = "white";
     public string Separator { get; set; } = "grey";
     public string MutedSeparator { get; set; } = "black";
     public string TruncatedMore { get; set; } = "grey";
+}
 
-    // KVP rendering
-    public string KvpSeparator { get; set; } = "grey";
-    public string KvpKey { get; set; } = "grey";
-    public string KvpValue { get; set; } = "white";
-    public string KvpLabel { get; set; } = "grey";
+public sealed class KvpStyles
+{
+    public string Separator { get; set; } = "grey";
+    public string Key { get; set; } = "grey";
+    public string Value { get; set; } = "white";
+    public string Label { get; set; } = "grey";
+}
 
-    // Exec command type colors
-    public string ExecFileSystem { get; set; } = "green";
-    public string ExecFileContent { get; set; } = "blue";
-    public string ExecBuild { get; set; } = "magenta";
-    public string ExecPackageManager { get; set; } = "red";
-    public string ExecNetwork { get; set; } = "cyan";
-    public string ExecScripting { get; set; } = "yellow";
-    public string ExecProcess { get; set; } = "olive";
-    public string ExecHereDoc { get; set; } = "darkcyan";
-    public string ExecVcs { get; set; } = "olive";
+public sealed class ExecStyles
+{
+    public string FileSystem { get; set; } = "green";
+    public string FileContent { get; set; } = "blue";
+    public string Build { get; set; } = "magenta";
+    public string PackageManager { get; set; } = "red";
+    public string Network { get; set; } = "cyan";
+    public string Scripting { get; set; } = "yellow";
+    public string Process { get; set; } = "olive";
+    public string HereDoc { get; set; } = "darkcyan";
+    public string Vcs { get; set; } = "olive";
+    public string Positional { get; set; } = "cyan";
+    public string LongFlag { get; set; } = "green";
+    public string ShortFlag { get; set; } = "olive";
+    public string EnvKey { get; set; } = "cyan";
+    public string EnvValue { get; set; } = "yellow";
+    public string ScriptBody { get; set; } = "grey";
+    public string HereDocSummary { get; set; } = "grey";
+    public string PathIcon { get; set; } = "grey";
+    public string PathText { get; set; } = "grey";
+}
 
-    // Exec structural
-    public string ExecPositional { get; set; } = "cyan";
-    public string ExecLongFlag { get; set; } = "green";
-    public string ExecShortFlag { get; set; } = "olive";
-    public string ExecEnvKey { get; set; } = "cyan";
-    public string ExecEnvValue { get; set; } = "yellow";
-    public string ExecScriptBody { get; set; } = "grey";
-    public string ExecHereDocSummary { get; set; } = "grey";
-    public string ExecPathIcon { get; set; } = "grey";
-    public string ExecPathText { get; set; } = "grey";
+public sealed class DiffStyles
+{
+    public string Added { get; set; } = "default on springgreen4";
+    public string Removed { get; set; } = "default on darkred";
+    public string Prefix { get; set; } = "grey";
+}
 
-    // Edit / Diff
-    public string DiffAdded { get; set; } = "default on springgreen4";
-    public string DiffRemoved { get; set; } = "default on darkred";
-    public string DiffPrefix { get; set; } = "grey";
-
-    // Read
-    public string ReadLineInfo { get; set; } = "grey";
-
-    // WebFetch
+public sealed class ReaderStyles
+{
+    public string LineInfo { get; set; } = "grey";
     public string FetchUrl { get; set; } = "grey";
     public string FetchMaxInfo { get; set; } = "grey";
+}
 
-    // ── Separator / status bar ──────────────────────────────────────
-    /// <summary>The repeated fill character for separator lines.</summary>
+public sealed class StatusBarStyles
+{
     public string SeparatorChar { get; set; } = "─";
-    /// <summary>Spectre markup for the repeated separator character.</summary>
     public string SeparatorCharMarkup { get; set; } = "white";
-    /// <summary>Decorative prefix on the top-left separator line.</summary>
     public string TopLeftSeparatorPrefix { get; set; } = "──────────────── ";
-    /// <summary>Style for │ dividers in the status bar (e.g. conv name borders).</summary>
-    public string StatusVerticalPipe { get; set; } = "grey";
-    /// <summary>Style for │ between agent segments in the bottom panel.</summary>
-    public string StatusSegmentPipe { get; set; } = "white bold";
-    /// <summary>Style for \"(no agents)\" placeholder text in status panels.</summary>
-    public string StatusNoAgentsText { get; set; } = "grey";
-    /// <summary>Style for conversation / session name in the top status bar.</summary>
+    public string VerticalPipe { get; set; } = "grey";
+    public string SegmentPipe { get; set; } = "white bold";
+    public string NoAgentsText { get; set; } = "grey";
     public string ConversationNameStyle { get; set; } = "italic white";
-
-    /// <summary>Spectre markup prefix for user's own messages. Default: "[green] Me:[/] ".</summary>
     public string UserMessagePrefix { get; set; } = "[green] Me:[/] ";
+}
 
-    // ── Thinking display ──────────────────────────────────────────
-    /// <summary>Style for the thinking header bar (e.g. "gray93 on #333333").</summary>
-    public string ThinkingHeaderStyle { get; set; } = "gray93 on #333333";
-    /// <summary>Style for thinking body text in Full mode. Default: "grey".</summary>
-    public string ThinkingTextStyle { get; set; } = "grey";
-    /// <summary>Style for the "... (N more lines)" indicator. Default: "dim".</summary>
-    public string ThinkingMoreStyle { get; set; } = "dim";
+public sealed class ThinkingStyles
+{
+    public string HeaderStyle { get; set; } = "gray93 on #333333";
+    public string TextStyle { get; set; } = "grey";
+    public string MoreStyle { get; set; } = "dim";
+}
 
-    // ── ColorConsole status messages ──────────────────────────────
-    /// <summary>Style for the app banner border box. Default: "deepskyblue3".</summary>
-    public string BannerBorderStyle { get; set; } = "deepskyblue3";
-    /// <summary>Style for command hints in the help menu. Default: "grey".</summary>
-    public string HelpCommandStyle { get; set; } = "grey";
-    /// <summary>Style for info messages (PrintInfo). Default: "grey".</summary>
-    public string InfoStyle { get; set; } = "grey";
-    /// <summary>Style for success messages (PrintSuccess). Default: "green".</summary>
-    public string SuccessStyle { get; set; } = "green";
-    /// <summary>Style for warning messages (PrintWarning). Default: "yellow".</summary>
-    public string WarningStyle { get; set; } = "yellow";
-    /// <summary>Style for error messages (PrintError). Default: "red".</summary>
-    public string ErrorStyle { get; set; } = "red";
-    /// <summary>Style for recording indicator. Default: "red".</summary>
-    public string RecordingIndicatorStyle { get; set; } = "red";
-    /// <summary>Style for gateway error messages. Default: "red".</summary>
-    public string GatewayErrorStyle { get; set; } = "red";
-    /// <summary>Style for log tags. Default: "grey".</summary>
-    public string LogTagStyle { get; set; } = "grey";
-    /// <summary>Style for success log entries. Default: "green".</summary>
-    public string LogOkStyle { get; set; } = "green";
-    /// <summary>Style for error log entries. Default: "red".</summary>
-    public string LogErrorStyle { get; set; } = "red";
-    /// <summary>Style for model fallback warning text. Default: "orange1".</summary>
-    public string FallbackWarningStyle { get; set; } = "orange1";
-    /// <summary>Style for the failing provider/model in fallback messages. Default: "red".</summary>
-    public string FallbackFromStyle { get; set; } = "red";
-    /// <summary>Style for the fallback provider/model. Default: "green".</summary>
-    public string FallbackToStyle { get; set; } = "green";
-    /// <summary>Style for model failure messages. Default: "red".</summary>
-    public string ModelFailedStyle { get; set; } = "red";
-    /// <summary>Style for agent name badge in the introduction card. Default: "white on gray15".</summary>
-    public string AgentBadgeStyle { get; set; } = "white on gray15";
-    /// <summary>Style for the introduction card borders and separators. Default: "deepskyblue3".</summary>
-    public string IntroductionBorderStyle { get; set; } = "deepskyblue3";
+public sealed class MessageStyles
+{
+    public string BannerBorder { get; set; } = "deepskyblue3";
+    public string HelpCommand { get; set; } = "grey";
+    public string Info { get; set; } = "grey";
+    public string Success { get; set; } = "green";
+    public string Warning { get; set; } = "yellow";
+    public string Error { get; set; } = "red";
+    public string RecordingIndicator { get; set; } = "red";
+    public string GatewayError { get; set; } = "red";
+    public string LogTag { get; set; } = "grey";
+    public string LogOk { get; set; } = "green";
+    public string LogError { get; set; } = "red";
+    public string FallbackWarning { get; set; } = "orange1";
+    public string FallbackFrom { get; set; } = "red";
+    public string FallbackTo { get; set; } = "green";
+    public string ModelFailed { get; set; } = "red";
+    public string AgentBadge { get; set; } = "white on gray15";
+    public string IntroductionBorder { get; set; } = "deepskyblue3";
+    public string PanelCap { get; set; } = "white";
+}
 
-    /// <summary>Style for the bottom panel decorative cap line (╭─┬─╮). Default: "white".</summary>
-    public string PanelCapStyle { get; set; } = "white";
+public sealed class PanelStyles
+{
+    public string Hint { get; set; } = "dim grey";
+    public string SelectedBg { get; set; } = "Grey84";
+    public string SelectedName { get; set; } = "bold black";
+    public string Action { get; set; } = "grey";
+    public string ActionSelected { get; set; } = "Grey23";
+    public string Time { get; set; } = "grey42";
+}
 
-    // ── AgentStatusBottomPanel (compact agent list) ───────────────────
-    /// <summary>Style for the keyboard navigation hint line. Default: "dim grey".</summary>
-    public string PanelHintStyle { get; set; } = "dim grey";
-    /// <summary>Background style for the selected agent row. Default: "Grey84".</summary>
-    public string PanelSelectedBg { get; set; } = "Grey84";
-    /// <summary>Style for the selected agent name (text on selected bg). Default: "bold black".</summary>
-    public string PanelSelectedNameStyle { get; set; } = "bold black";
-    /// <summary>Style for normal (unselected) action description. Default: "grey".</summary>
-    public string PanelActionStyle { get; set; } = "grey";
-    /// <summary>Style for the selected row action description. Default: "Grey23".</summary>
-    public string PanelActionSelectedStyle { get; set; } = "Grey23";
-    /// <summary>Style for relative time display. Default: "grey42".</summary>
-    public string PanelTimeStyle { get; set; } = "grey42";
-
-    // ── StreamShell settings ─────────────────────────────────────────
-    /// <summary>Style for the cursor highlight. Default: "bold black on cyan".</summary>
-    public string StreamCursorMarkup { get; set; } = "bold black on cyan";
-    /// <summary>Style for selected text. Default: "bold cyan on Grey27".</summary>
-    public string StreamSelectionMarkup { get; set; } = "bold cyan on Grey27";
-    /// <summary>Style for the command slash character (/). Default: "Red1".</summary>
-    public string StreamCommandSlashMarkup { get; set; } = "Red1";
-    /// <summary>Spectre style for the input prompt arrow and text. Default: "bold SkyBlue1".</summary>
-    public string StreamInputPrefixStyle { get; set; } = "bold SkyBlue1";
+public sealed class StreamShellStyles
+{
+    public string CursorMarkup { get; set; } = "bold black on cyan";
+    public string SelectionMarkup { get; set; } = "bold cyan on Grey27";
+    public string CommandSlashMarkup { get; set; } = "Red1";
+    public string InputPrefixStyle { get; set; } = "bold SkyBlue1";
 }

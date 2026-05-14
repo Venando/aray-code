@@ -17,7 +17,7 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
     private const int MaxAgentNameLength = 10;
     private const string NoAgentsText = "No agents connected";
     private static string NoAgentsTextMarkup
-        => $"[{ThemeProvider.Current.Tools.StatusNoAgentsText}]{NoAgentsText}[/]";
+        => $"[{ThemeProvider.Current.Tools.StatusBar.NoAgentsText}]{NoAgentsText}[/]";
 
     private const string ReadyEmoji = "[green]•[/]";
     private const string NotificationEmoji = "❗";
@@ -142,7 +142,7 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
                 return;
             }
 
-            var openPipeStyle = ThemeProvider.Current.Tools.PanelCapStyle;
+            var openPipeStyle = ThemeProvider.Current.Tools.Messages.PanelCap;
             Builder.Append($"[{openPipeStyle}]│[/]");
             bool first = true;
 
@@ -150,7 +150,7 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
             {
                 if (!first)
                 {
-                    var pipeStyle = ThemeProvider.Current.Tools.StatusSegmentPipe;
+                    var pipeStyle = ThemeProvider.Current.Tools.StatusBar.SegmentPipe;
                     Builder.Append($" [{pipeStyle}]│[/] ");
                 }
                 first = false;

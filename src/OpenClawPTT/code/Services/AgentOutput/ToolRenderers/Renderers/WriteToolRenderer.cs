@@ -14,7 +14,7 @@ public sealed class WriteToolRenderer : ToolRendererBase
     {
         if (args.TryGetProperty("path", out var pathProp))
         {
-            Output.PrintLine(FilePathDisplayHelper.FormatDisplayPath(pathProp.GetString() ?? ""), Style.Label);
+            Output.PrintLine(FilePathDisplayHelper.FormatDisplayPath(pathProp.GetString() ?? ""), Style.General.Label);
         }
     }
 }

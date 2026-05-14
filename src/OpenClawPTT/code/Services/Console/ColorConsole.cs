@@ -32,7 +32,7 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public string UserMessagePrefix
     {
-        get => ThemeProvider.Current.Tools.UserMessagePrefix;
+        get => ThemeProvider.Current.Tools.StatusBar.UserMessagePrefix;
         set { }
     }
 
@@ -47,7 +47,7 @@ public sealed class ColorConsole : IColorConsole
 
         _shellHost.SetRightMarginIndent(ReservedRightMargin);
 
-        int prefixWidth = Markup.Remove(ThemeProvider.Current.Tools.UserMessagePrefix).Length;
+        int prefixWidth = Markup.Remove(ThemeProvider.Current.Tools.StatusBar.UserMessagePrefix).Length;
         _shellHost.ApplyStreamShellTheme(prefixWidth);
     }
 
@@ -71,16 +71,16 @@ public sealed class ColorConsole : IColorConsole
     public void PrintBanner()
     {
         ShellMsg("");
-        ShellMsg($"[{T.BannerBorderStyle}]  ╔═══════════════════════════════════════╗[/]");
-        ShellMsg($"[{T.BannerBorderStyle}]  ║    {AppEmoji}  OpenClaw Push-to-Talk  v1.0    ║[/]");
-        ShellMsg($"[{T.BannerBorderStyle}]  ╚═══════════════════════════════════════╝[/]");
+        ShellMsg($"[{T.Messages.BannerBorder}]  ╔═══════════════════════════════════════╗[/]");
+        ShellMsg($"[{T.Messages.BannerBorder}]  ║    {AppEmoji}  OpenClaw Push-to-Talk  v1.0    ║[/]");
+        ShellMsg($"[{T.Messages.BannerBorder}]  ╚═══════════════════════════════════════╝[/]");
         ShellMsg("");
     }
 
     /// <inheritdoc />
     public void PrintHelpMenu(AppConfig appConfig)
     {
-        ShellMsg($"    type [{T.HelpCommandStyle}]/crew [/]to list agents [{T.HelpCommandStyle}]/chat <agent>[/] to switch");
+        ShellMsg($"    type [{T.Messages.HelpCommand}]/crew [/]to list agents [{T.Messages.HelpCommand}]/chat <agent>[/] to switch");
         ShellMsg("");
     }
 
@@ -90,8 +90,8 @@ public sealed class ColorConsole : IColorConsole
         if (!AgentRegistry.IsActiveAgentAvailable)
             return;
 
-        var borderStyle = T.IntroductionBorderStyle;
-        var badgeStyle = T.AgentBadgeStyle;
+        var borderStyle = T.Messages.IntroductionBorder;
+        var badgeStyle = T.Messages.AgentBadge;
 
         var hotkeyCombination = AgentSettingsPersistenceLegacy.GetPersistedHotkey(AgentRegistry.ActiveAgentId!) ?? appConfig.HotkeyCombination;
         AgentRegistry.GetActiveNameAndEmoji(out var agentName, out var emoji);
@@ -142,31 +142,31 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public void PrintInfo(string message)
     {
-        ShellMsg($"[{T.InfoStyle}]  {Markup.Escape(message)}[/]");
+        ShellMsg($"[{T.Messages.Info}]  {Markup.Escape(message)}[/]");
     }
 
     /// <inheritdoc />
     public void PrintSuccess(string message)
     {
-        ShellMsg($"[{T.SuccessStyle}]  \u2713 {Markup.Escape(message)}[/]");
+        ShellMsg($"[{T.Messages.Success}]  \u2713 {Markup.Escape(message)}[/]");
     }
 
     /// <inheritdoc />
     public void PrintSuccessWordWrap(string prefix, string message, int rightMarginIndent)
     {
-        ShellMsg($"[{T.SuccessStyle}]  \u2713 {Markup.Escape(prefix)}{Markup.Escape(message)}[/]");
+        ShellMsg($"[{T.Messages.Success}]  \u2713 {Markup.Escape(prefix)}{Markup.Escape(message)}[/]");
     }
 
     /// <inheritdoc />
     public void PrintWarning(string message)
     {
-        ShellMsg($"[{T.WarningStyle}]  \u26a0 {Markup.Escape(message)}[/]");
+        ShellMsg($"[{T.Messages.Warning}]  \u26a0 {Markup.Escape(message)}[/]");
     }
 
     /// <inheritdoc />
     public void PrintError(string message)
     {
-        ShellMsg($"[{T.ErrorStyle}]  \u2717 {Markup.Escape(message)}[/]");
+        ShellMsg($"[{T.Messages.Error}]  \u2717 {Markup.Escape(message)}[/]");
     }
 
     /// <inheritdoc />
@@ -175,7 +175,7 @@ public sealed class ColorConsole : IColorConsole
         if (!isRecording) return;
 
         var action = holdToTalk ? $"release {Markup.Escape(hotkeyCombination)}" : $"press {Markup.Escape(hotkeyCombination)} again";
-        ShellMsg($"[{T.RecordingIndicatorStyle}]  \u25cf REC \u2014 {action} to stop[/]");
+        ShellMsg($"[{T.Messages.RecordingIndicator}]  \u25cf REC \u2014 {action} to stop[/]");
     }
 
     // ── Agent Replies ──────────────────────────────────────────
@@ -209,7 +209,7 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public void PrintGatewayError(string message, string? detailCode = null, string? recommendedStep = null)
     {
-        ShellMsg($"[{T.GatewayErrorStyle}]  Gateway error: {Markup.Escape(message)}[/]");
+        ShellMsg($"[{T.Messages.GatewayError}]  Gateway error: {Markup.Escape(message)}[/]");
         if (detailCode != null)
             ShellMsg($"  Detail code : {Markup.Escape(detailCode)}");
         if (recommendedStep != null)
@@ -221,12 +221,12 @@ public sealed class ColorConsole : IColorConsole
     {
         if (isQuotaError)
         {
-            ShellMsg($"[{T.FallbackWarningStyle}]  \u26a0 Model fallback: [{T.FallbackFromStyle}]{Markup.Escape(fromProvider)}/{Markup.Escape(fromModel)}[/] quota exhausted \u2192 [{T.FallbackToStyle}]{Markup.Escape(toProvider)}/{Markup.Escape(toModel)}[/][/]");
-            ShellMsg($"[{T.FallbackWarningStyle}]  \u26a0 Tip: Recharge [bold]{Markup.Escape(fromProvider)}[/] API quota or switch primary model in config[/]");
+            ShellMsg($"[{T.Messages.FallbackWarning}]  \u26a0 Model fallback: [{T.Messages.FallbackFrom}]{Markup.Escape(fromProvider)}/{Markup.Escape(fromModel)}[/] quota exhausted \u2192 [{T.Messages.FallbackTo}]{Markup.Escape(toProvider)}/{Markup.Escape(toModel)}[/][/]");
+            ShellMsg($"[{T.Messages.FallbackWarning}]  \u26a0 Tip: Recharge [bold]{Markup.Escape(fromProvider)}[/] API quota or switch primary model in config[/]");
         }
         else
         {
-            ShellMsg($"[{T.WarningStyle}]  \u26a0 Model fallback: [{T.FallbackFromStyle}]{Markup.Escape(fromProvider)}/{Markup.Escape(fromModel)}[/] unavailable \u2192 [{T.FallbackToStyle}]{Markup.Escape(toProvider)}/{Markup.Escape(toModel)}[/][/]");
+            ShellMsg($"[{T.Messages.Warning}]  \u26a0 Model fallback: [{T.Messages.FallbackFrom}]{Markup.Escape(fromProvider)}/{Markup.Escape(fromModel)}[/] unavailable \u2192 [{T.Messages.FallbackTo}]{Markup.Escape(toProvider)}/{Markup.Escape(toModel)}[/][/]");
         }
 
         ShellMsg("");
@@ -235,7 +235,7 @@ public sealed class ColorConsole : IColorConsole
     /// <inheritdoc />
     public void PrintModelFailed(string errorMessage)
     {
-        ShellMsg($"[{T.ModelFailedStyle}]  \u2717 Model failed: {Markup.Escape(errorMessage)}[/]");
+        ShellMsg($"[{T.Messages.ModelFailed}]  \u2717 Model failed: {Markup.Escape(errorMessage)}[/]");
         ShellMsg("");
     }
 
@@ -245,21 +245,21 @@ public sealed class ColorConsole : IColorConsole
     public void Log(string tag, string msg, LogLevel level = LogLevel.Debug)
     {
         if (level > LogLevel) return;
-        ShellMsg($"[{T.LogTagStyle}]  {Markup.Escape($"[{tag}]")} {Markup.Escape(msg)}[/]");
+        ShellMsg($"[{T.Messages.LogTag}]  {Markup.Escape($"[{tag}]")} {Markup.Escape(msg)}[/]");
     }
 
     /// <inheritdoc />
     public void LogOk(string tag, string msg, LogLevel level = LogLevel.Info)
     {
         if (level > LogLevel) return;
-        ShellMsg($"[{T.LogOkStyle}]  {Markup.Escape($"[{tag}]")} {Markup.Escape(msg)}[/]");
+        ShellMsg($"[{T.Messages.LogOk}]  {Markup.Escape($"[{tag}]")} {Markup.Escape(msg)}[/]");
     }
 
     /// <inheritdoc />
     public void LogError(string tag, string msg)
     {
         if (LogLevel == LogLevel.None) return;
-        ShellMsg($"[{T.LogErrorStyle}]  {Markup.Escape($"[{tag}]")} {Markup.Escape(msg)}[/]");
+        ShellMsg($"[{T.Messages.LogError}]  {Markup.Escape($"[{tag}]")} {Markup.Escape(msg)}[/]");
     }
 
     // ── StreamShell Access ─────────────────────────────────────

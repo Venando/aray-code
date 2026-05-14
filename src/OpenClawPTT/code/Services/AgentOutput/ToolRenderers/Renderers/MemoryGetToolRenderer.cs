@@ -14,7 +14,7 @@ public sealed class MemoryGetToolRenderer : ToolRendererBase
     {
         if (args.TryGetProperty("path", out var pathProp))
         {
-            PrintValue(pathProp.GetString() ?? "", Style.Label);
+            PrintValue(pathProp.GetString() ?? "", Style.General.Label);
         }
         PrintIntPropertyIfExists(args, "from", "from: ", prependComma: true);
         PrintIntPropertyIfExists(args, "lines", "lines: ", prependComma: true);

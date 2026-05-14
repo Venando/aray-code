@@ -54,8 +54,8 @@ public sealed class DiffRenderer
         var tools = ThemeProvider.Current.Tools;
         string markup = entry.Operation switch
         {
-            DiffOperation.Add => $"[{tools.DiffAdded}]+ {Markup.Escape(entry.Line)}[/]\n",
-            DiffOperation.Remove => $"[{tools.DiffRemoved}]- {Markup.Escape(entry.Line)}[/]\n",
+            DiffOperation.Add => $"[{tools.Diff.Added}]+ {Markup.Escape(entry.Line)}[/]\n",
+            DiffOperation.Remove => $"[{tools.Diff.Removed}]- {Markup.Escape(entry.Line)}[/]\n",
             _ => $"  {Markup.Escape(entry.Line)}\n"
         };
         _output.PrintMarkup(markup);
@@ -67,8 +67,8 @@ public sealed class DiffRenderer
     public void RenderPlainText(string text, string prefix, int rightMarginIndent, int maxRows = 8)
     {
         var tools = ThemeProvider.Current.Tools;
-        _output.Print(prefix, tools.DiffPrefix);
-        _output.PrintTruncated(text, prefix, rightMarginIndent, tools.Value, maxRows);
+        _output.Print(prefix, tools.Diff.Prefix);
+        _output.PrintTruncated(text, prefix, rightMarginIndent, tools.General.Value, maxRows);
     }
 
     private static List<DiffEntry> CompactDiff(List<DiffEntry> diff)

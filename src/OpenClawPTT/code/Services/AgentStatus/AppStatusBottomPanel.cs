@@ -21,7 +21,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
     private const int DefaultLineCount = 2;
     private const string NoAgentsInfoText = "No agents connected";
     private static string NoAgentsInfoTextMarkup
-        => $"[{ThemeProvider.Current.Tools.StatusNoAgentsText}]{NoAgentsInfoText}[/]";
+        => $"[{ThemeProvider.Current.Tools.StatusBar.NoAgentsText}]{NoAgentsInfoText}[/]";
 
     private readonly MainAgentsPart _agentsPart;
     private readonly StringBuilder _capBuilder = new(256);
@@ -112,7 +112,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
                 {
                     // Build the status line via MainAgentsPart
                     var statusBuilder = new StringBuilder(256);
-                    var openPipeStyle = ThemeProvider.Current.Tools.PanelCapStyle;
+                    var openPipeStyle = ThemeProvider.Current.Tools.Messages.PanelCap;
                     statusBuilder.Append($"[{openPipeStyle}]│[/]");
                     var segmentWidths = new List<int>(visible.Count);
                     int contentWidth = 1;
@@ -122,7 +122,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
                     {
                         if (!first)
                         {
-                            var pipeStyle = ThemeProvider.Current.Tools.StatusSegmentPipe;
+                            var pipeStyle = ThemeProvider.Current.Tools.StatusBar.SegmentPipe;
                             statusBuilder.Append($" [{pipeStyle}]│[/] ");
                             contentWidth += 3;
                         }
@@ -163,7 +163,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
 
     private string RenderCapLine(List<int> segmentWidths)
     {
-        var capStyle = ThemeProvider.Current.Tools.PanelCapStyle;
+        var capStyle = ThemeProvider.Current.Tools.Messages.PanelCap;
         _capBuilder.Clear();
         _capBuilder.Append($"[{capStyle}]");
         _capBuilder.Append('╭');

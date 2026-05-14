@@ -387,5 +387,5 @@ public sealed class StreamShellInputHandler : IDisposable
     /// Reads from the active theme so /theme changes realign the prompt.
     /// </summary>
     private int ComputePrefixWidth()
-        => Markup.Remove(ThemeProvider.Current.Tools.UserMessagePrefix).Length;
+        => Markup.Remove(ThemeProvider.Current.Tools.StatusBar.UserMessagePrefix).Length;
 }

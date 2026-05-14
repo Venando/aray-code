@@ -25,14 +25,14 @@ public sealed class UpdatePlanToolRenderer : ToolRendererBase
             if (!string.IsNullOrWhiteSpace(explanation))
             {
                 Output.PrintMarkup($"  [gray] {MarkupEscape(explanation)}[/]");
-                Output.PrintLine("", Style.Muted);
+                Output.PrintLine("", Style.General.Muted);
             }
         }
 
         // Plan steps
         if (!args.TryGetProperty("plan", out var planProp) || planProp.ValueKind != JsonValueKind.Array)
         {
-            Output.PrintLine("  (no plan steps)", Style.Muted);
+            Output.PrintLine("  (no plan steps)", Style.General.Muted);
             return;
         }
 
@@ -57,7 +57,7 @@ public sealed class UpdatePlanToolRenderer : ToolRendererBase
         var (icon, label, color) = GetStatusDisplay(status);
         var statusTag = FormatStatusTag(icon, label, color);
 
-        Output.PrintLine("", Style.Muted);
+        Output.PrintLine("", Style.General.Muted);
 
         // Step number + status tag
         Output.PrintMarkup($"  [gray]#{index,2}[/] ");

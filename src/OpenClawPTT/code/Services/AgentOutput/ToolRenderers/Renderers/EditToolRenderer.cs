@@ -18,7 +18,7 @@ public sealed class EditToolRenderer : ToolRendererBase
         if (args.TryGetProperty("path", out var pathProp))
         {
             string displayPath = FilePathDisplayHelper.FormatDisplayPath(pathProp.GetString() ?? "");
-            Output.Print(displayPath, Style.Label);
+            Output.Print(displayPath, Style.General.Label);
         }
 
         if (args.TryGetProperty("edits", out var editsProp) && editsProp.ValueKind == JsonValueKind.Array)

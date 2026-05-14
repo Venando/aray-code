@@ -38,34 +38,65 @@ public static class BuiltInThemes
     private static readonly ToolTheme DrakTools = new()
     {
         HeaderStyle = "bold #f8f8f2 on #44475a",
-        Label = "#f8f8f2", Muted = "#6272a4", Value = "#f8f8f2",
-        Separator = "#6272a4", MutedSeparator = "#44475a", TruncatedMore = "#6272a4",
-        KvpSeparator = "#6272a4", KvpKey = "#6272a4", KvpValue = "#f8f8f2", KvpLabel = "#6272a4",
-        ExecFileSystem = "#50fa7b", ExecFileContent = "#8be9fd", ExecBuild = "#ff79c6",
-        ExecPackageManager = "#ff5555", ExecNetwork = "#8be9fd", ExecScripting = "#f1fa8c",
-        ExecProcess = "#ffb86c", ExecHereDoc = "#6272a4", ExecVcs = "#ffb86c",
-        ExecPositional = "#8be9fd", ExecLongFlag = "#50fa7b", ExecShortFlag = "#ffb86c",
-        ExecEnvKey = "#8be9fd", ExecEnvValue = "#f1fa8c", ExecScriptBody = "#6272a4",
-        ExecHereDocSummary = "#6272a4", ExecPathIcon = "#6272a4", ExecPathText = "#6272a4",
-        DiffAdded = "#f8f8f2 on #3b8055", DiffRemoved = "#f8f8f2 on #8b3a3a", DiffPrefix = "#6272a4",
-        ReadLineInfo = "#6272a4", FetchUrl = "#f8f8f2", FetchMaxInfo = "#6272a4",
-        SeparatorChar = "\u2500", SeparatorCharMarkup = "#6272a4",
-        TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
-        StatusVerticalPipe = "#6272a4", StatusSegmentPipe = "#6272a4 bold",
-        StatusNoAgentsText = "#6272a4", ConversationNameStyle = "italic #bd93f9",
-        UserMessagePrefix = "[#50fa7b] Me:[/] ",
-        ThinkingHeaderStyle = "bold #f8f8f2 on #44475a", ThinkingTextStyle = "#f8f8f2", ThinkingMoreStyle = "#6272a4",
-        BannerBorderStyle = "#bd93f9", HelpCommandStyle = "#6272a4",
-        InfoStyle = "#6272a4", SuccessStyle = "#50fa7b", WarningStyle = "#ffb86c", ErrorStyle = "#ff5555",
-        RecordingIndicatorStyle = "#ff5555", GatewayErrorStyle = "#ff5555",
-        LogTagStyle = "#6272a4", LogOkStyle = "#50fa7b", LogErrorStyle = "#ff5555",
-        FallbackWarningStyle = "#ffb86c", FallbackFromStyle = "#ff5555", FallbackToStyle = "#50fa7b",
-        ModelFailedStyle = "#ff5555", AgentBadgeStyle = "#f8f8f2 on #44475a", IntroductionBorderStyle = "#bd93f9",
-        PanelCapStyle = "#6272a4", PanelHintStyle = "#6272a4", PanelSelectedBg = "#44475a",
-        PanelSelectedNameStyle = "bold #f8f8f2", PanelActionStyle = "#6272a4",
-        PanelActionSelectedStyle = "#f8f8f2", PanelTimeStyle = "#6272a4",
-        StreamCursorMarkup = "bold #282a36 on #f8f8f2", StreamSelectionMarkup = "bold #f8f8f2 on #44475a",
-        StreamCommandSlashMarkup = "#ff79c6", StreamInputPrefixStyle = "bold #bd93f9",
+        General = new GeneralStyles
+        {
+            Label = "#f8f8f2", Muted = "#6272a4", Value = "#f8f8f2",
+            Separator = "#6272a4", MutedSeparator = "#44475a", TruncatedMore = "#6272a4",
+        },
+        Kvp = new KvpStyles
+        {
+            Separator = "#6272a4", Key = "#6272a4", Value = "#f8f8f2", Label = "#6272a4",
+        },
+        Exec = new ExecStyles
+        {
+            FileSystem = "#50fa7b", FileContent = "#8be9fd", Build = "#ff79c6",
+            PackageManager = "#ff5555", Network = "#8be9fd", Scripting = "#f1fa8c",
+            Process = "#ffb86c", HereDoc = "#6272a4", Vcs = "#ffb86c",
+            Positional = "#8be9fd", LongFlag = "#50fa7b", ShortFlag = "#ffb86c",
+            EnvKey = "#8be9fd", EnvValue = "#f1fa8c", ScriptBody = "#6272a4",
+            HereDocSummary = "#6272a4", PathIcon = "#6272a4", PathText = "#6272a4",
+        },
+        Diff = new DiffStyles
+        {
+            Added = "#f8f8f2 on #3b8055", Removed = "#f8f8f2 on #8b3a3a", Prefix = "#6272a4",
+        },
+        Reader = new ReaderStyles
+        {
+            LineInfo = "#6272a4", FetchUrl = "#f8f8f2", FetchMaxInfo = "#6272a4",
+        },
+        StatusBar = new StatusBarStyles
+        {
+            SeparatorChar = "\u2500", SeparatorCharMarkup = "#6272a4",
+            TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
+            VerticalPipe = "#6272a4", SegmentPipe = "#6272a4 bold",
+            NoAgentsText = "#6272a4", ConversationNameStyle = "italic #bd93f9",
+            UserMessagePrefix = "[#50fa7b] Me:[/] ",
+        },
+        Thinking = new ThinkingStyles
+        {
+            HeaderStyle = "bold #f8f8f2 on #44475a", TextStyle = "#f8f8f2", MoreStyle = "#6272a4",
+        },
+        Messages = new MessageStyles
+        {
+            BannerBorder = "#bd93f9", HelpCommand = "#6272a4",
+            Info = "#6272a4", Success = "#50fa7b", Warning = "#ffb86c", Error = "#ff5555",
+            RecordingIndicator = "#ff5555", GatewayError = "#ff5555",
+            LogTag = "#6272a4", LogOk = "#50fa7b", LogError = "#ff5555",
+            FallbackWarning = "#ffb86c", FallbackFrom = "#ff5555", FallbackTo = "#50fa7b",
+            ModelFailed = "#ff5555", AgentBadge = "#f8f8f2 on #44475a", IntroductionBorder = "#bd93f9",
+            PanelCap = "#6272a4",
+        },
+        Panel = new PanelStyles
+        {
+            Hint = "#6272a4", SelectedBg = "#44475a",
+            SelectedName = "bold #f8f8f2", Action = "#6272a4",
+            ActionSelected = "#f8f8f2", Time = "#6272a4",
+        },
+        StreamShell = new StreamShellStyles
+        {
+            CursorMarkup = "bold #282a36 on #f8f8f2", SelectionMarkup = "bold #f8f8f2 on #44475a",
+            CommandSlashMarkup = "#ff79c6", InputPrefixStyle = "bold #bd93f9",
+        },
     };
 
     // ── Dark Modern ──────────────────────────────────────────────────
@@ -81,31 +112,59 @@ public static class BuiltInThemes
     private static readonly ToolTheme DarkModernTools = new()
     {
         HeaderStyle = "bold #cccccc on #2d2d2d",
-        Label = "#cccccc", Muted = "#808080", Value = "#cccccc",
-        Separator = "#808080", MutedSeparator = "#2d2d2d",
-        KvpSeparator = "#808080", KvpKey = "#808080", KvpValue = "#cccccc", KvpLabel = "#808080",
-        ExecFileSystem = "#4ec9b0", ExecFileContent = "#569cd6", ExecBuild = "#c586c0",
-        ExecPackageManager = "#d16969", ExecNetwork = "#569cd6", ExecScripting = "#dcdcaa",
-        ExecProcess = "#d7ba7d", ExecHereDoc = "#808080", ExecVcs = "#d7ba7d",
-        ExecPositional = "#569cd6", ExecLongFlag = "#4ec9b0", ExecShortFlag = "#d7ba7d",
-        ExecEnvKey = "#569cd6", ExecEnvValue = "#dcdcaa",
-        DiffAdded = "#cccccc on #1b4d1b", DiffRemoved = "#cccccc on #5a1d1d",
-        SeparatorCharMarkup = "#808080", TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
-        StatusVerticalPipe = "#808080", StatusSegmentPipe = "#808080 bold",
-        StatusNoAgentsText = "#808080", ConversationNameStyle = "italic #569cd6",
-        UserMessagePrefix = "[#4ec9b0] Me:[/] ",
-        ThinkingHeaderStyle = "bold #cccccc on #2d2d2d", ThinkingTextStyle = "#cccccc", ThinkingMoreStyle = "#808080",
-        BannerBorderStyle = "#569cd6", HelpCommandStyle = "#808080",
-        InfoStyle = "#808080", SuccessStyle = "#4ec9b0", WarningStyle = "#dcdcaa", ErrorStyle = "#d16969",
-        RecordingIndicatorStyle = "#d16969", GatewayErrorStyle = "#d16969",
-        LogTagStyle = "#808080", LogOkStyle = "#4ec9b0", LogErrorStyle = "#d16969",
-        FallbackWarningStyle = "#dcdcaa", FallbackFromStyle = "#d16969", FallbackToStyle = "#4ec9b0",
-        ModelFailedStyle = "#d16969", AgentBadgeStyle = "#cccccc on #2d2d2d", IntroductionBorderStyle = "#569cd6",
-        PanelCapStyle = "#808080", PanelHintStyle = "#808080", PanelSelectedBg = "#3c3c3c",
-        PanelSelectedNameStyle = "bold #cccccc", PanelActionStyle = "#808080",
-        PanelActionSelectedStyle = "#cccccc", PanelTimeStyle = "#808080",
-        StreamCursorMarkup = "bold #1e1e1e on #cccccc", StreamSelectionMarkup = "bold #cccccc on #3c3c3c",
-        StreamCommandSlashMarkup = "#c586c0", StreamInputPrefixStyle = "bold #569cd6",
+        General = new GeneralStyles
+        {
+            Label = "#cccccc", Muted = "#808080", Value = "#cccccc",
+            Separator = "#808080", MutedSeparator = "#2d2d2d",
+        },
+        Kvp = new KvpStyles
+        {
+            Separator = "#808080", Key = "#808080", Value = "#cccccc", Label = "#808080",
+        },
+        Exec = new ExecStyles
+        {
+            FileSystem = "#4ec9b0", FileContent = "#569cd6", Build = "#c586c0",
+            PackageManager = "#d16969", Network = "#569cd6", Scripting = "#dcdcaa",
+            Process = "#d7ba7d", HereDoc = "#808080", Vcs = "#d7ba7d",
+            Positional = "#569cd6", LongFlag = "#4ec9b0", ShortFlag = "#d7ba7d",
+            EnvKey = "#569cd6", EnvValue = "#dcdcaa",
+        },
+        Diff = new DiffStyles
+        {
+            Added = "#cccccc on #1b4d1b", Removed = "#cccccc on #5a1d1d",
+        },
+        StatusBar = new StatusBarStyles
+        {
+            SeparatorCharMarkup = "#808080", TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
+            VerticalPipe = "#808080", SegmentPipe = "#808080 bold",
+            NoAgentsText = "#808080", ConversationNameStyle = "italic #569cd6",
+            UserMessagePrefix = "[#4ec9b0] Me:[/] ",
+        },
+        Thinking = new ThinkingStyles
+        {
+            HeaderStyle = "bold #cccccc on #2d2d2d", TextStyle = "#cccccc", MoreStyle = "#808080",
+        },
+        Messages = new MessageStyles
+        {
+            BannerBorder = "#569cd6", HelpCommand = "#808080",
+            Info = "#808080", Success = "#4ec9b0", Warning = "#dcdcaa", Error = "#d16969",
+            RecordingIndicator = "#d16969", GatewayError = "#d16969",
+            LogTag = "#808080", LogOk = "#4ec9b0", LogError = "#d16969",
+            FallbackWarning = "#dcdcaa", FallbackFrom = "#d16969", FallbackTo = "#4ec9b0",
+            ModelFailed = "#d16969", AgentBadge = "#cccccc on #2d2d2d", IntroductionBorder = "#569cd6",
+            PanelCap = "#808080",
+        },
+        Panel = new PanelStyles
+        {
+            Hint = "#808080", SelectedBg = "#3c3c3c",
+            SelectedName = "bold #cccccc", Action = "#808080",
+            ActionSelected = "#cccccc", Time = "#808080",
+        },
+        StreamShell = new StreamShellStyles
+        {
+            CursorMarkup = "bold #1e1e1e on #cccccc", SelectionMarkup = "bold #cccccc on #3c3c3c",
+            CommandSlashMarkup = "#c586c0", InputPrefixStyle = "bold #569cd6",
+        },
     };
 
     // ── Dark+ ─────────────────────────────────────────────────────────
@@ -129,32 +188,60 @@ public static class BuiltInThemes
     private static readonly ToolTheme DarkPlusTools = new()
     {
         HeaderStyle = "bold #d4d4d4 on #333333",
-        Label = "#d4d4d4", Muted = "#808080", Value = "#d4d4d4",
-        Separator = "#808080", MutedSeparator = "#333333",
-        KvpSeparator = "#808080", KvpKey = "#808080", KvpValue = "#d4d4d4", KvpLabel = "#808080",
-        ExecFileSystem = "#4ec9b0", ExecFileContent = "#569cd6", ExecBuild = "#c586c0",
-        ExecPackageManager = "#d16969", ExecNetwork = "#569cd6", ExecScripting = "#dcdcaa",
-        ExecProcess = "#d7ba7d", ExecHereDoc = "#808080", ExecVcs = "#d7ba7d",
-        ExecPositional = "#569cd6", ExecLongFlag = "#4ec9b0", ExecShortFlag = "#d7ba7d",
-        ExecEnvKey = "#569cd6", ExecEnvValue = "#dcdcaa",
-        DiffAdded = "#d4d4d4 on #1b4d1b", DiffRemoved = "#d4d4d4 on #5a1d1d",
-        SeparatorCharMarkup = "#808080",
-        TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
-        StatusVerticalPipe = "#808080", StatusSegmentPipe = "#808080 bold",
-        StatusNoAgentsText = "#808080", ConversationNameStyle = "italic #569cd6",
-        UserMessagePrefix = "[#4ec9b0] Me:[/] ",
-        ThinkingHeaderStyle = "bold #d4d4d4 on #333333", ThinkingTextStyle = "#d4d4d4", ThinkingMoreStyle = "#808080",
-        BannerBorderStyle = "#569cd6", HelpCommandStyle = "#808080",
-        InfoStyle = "#808080", SuccessStyle = "#4ec9b0", WarningStyle = "#dcdcaa", ErrorStyle = "#d16969",
-        RecordingIndicatorStyle = "#d16969", GatewayErrorStyle = "#d16969",
-        LogTagStyle = "#808080", LogOkStyle = "#4ec9b0", LogErrorStyle = "#d16969",
-        FallbackWarningStyle = "#dcdcaa", FallbackFromStyle = "#d16969", FallbackToStyle = "#4ec9b0",
-        ModelFailedStyle = "#d16969", AgentBadgeStyle = "#d4d4d4 on #3c3c3c", IntroductionBorderStyle = "#569cd6",
-        PanelCapStyle = "#808080", PanelHintStyle = "#808080", PanelSelectedBg = "#04395e",
-        PanelSelectedNameStyle = "bold #d4d4d4", PanelActionStyle = "#808080",
-        PanelActionSelectedStyle = "#d4d4d4", PanelTimeStyle = "#808080",
-        StreamCursorMarkup = "bold #1e1e1e on #d4d4d4", StreamSelectionMarkup = "bold #d4d4d4 on #264f78",
-        StreamCommandSlashMarkup = "#c586c0", StreamInputPrefixStyle = "bold #569cd6",
+        General = new GeneralStyles
+        {
+            Label = "#d4d4d4", Muted = "#808080", Value = "#d4d4d4",
+            Separator = "#808080", MutedSeparator = "#333333",
+        },
+        Kvp = new KvpStyles
+        {
+            Separator = "#808080", Key = "#808080", Value = "#d4d4d4", Label = "#808080",
+        },
+        Exec = new ExecStyles
+        {
+            FileSystem = "#4ec9b0", FileContent = "#569cd6", Build = "#c586c0",
+            PackageManager = "#d16969", Network = "#569cd6", Scripting = "#dcdcaa",
+            Process = "#d7ba7d", HereDoc = "#808080", Vcs = "#d7ba7d",
+            Positional = "#569cd6", LongFlag = "#4ec9b0", ShortFlag = "#d7ba7d",
+            EnvKey = "#569cd6", EnvValue = "#dcdcaa",
+        },
+        Diff = new DiffStyles
+        {
+            Added = "#d4d4d4 on #1b4d1b", Removed = "#d4d4d4 on #5a1d1d",
+        },
+        StatusBar = new StatusBarStyles
+        {
+            SeparatorCharMarkup = "#808080",
+            TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
+            VerticalPipe = "#808080", SegmentPipe = "#808080 bold",
+            NoAgentsText = "#808080", ConversationNameStyle = "italic #569cd6",
+            UserMessagePrefix = "[#4ec9b0] Me:[/] ",
+        },
+        Thinking = new ThinkingStyles
+        {
+            HeaderStyle = "bold #d4d4d4 on #333333", TextStyle = "#d4d4d4", MoreStyle = "#808080",
+        },
+        Messages = new MessageStyles
+        {
+            BannerBorder = "#569cd6", HelpCommand = "#808080",
+            Info = "#808080", Success = "#4ec9b0", Warning = "#dcdcaa", Error = "#d16969",
+            RecordingIndicator = "#d16969", GatewayError = "#d16969",
+            LogTag = "#808080", LogOk = "#4ec9b0", LogError = "#d16969",
+            FallbackWarning = "#dcdcaa", FallbackFrom = "#d16969", FallbackTo = "#4ec9b0",
+            ModelFailed = "#d16969", AgentBadge = "#d4d4d4 on #3c3c3c", IntroductionBorder = "#569cd6",
+            PanelCap = "#808080",
+        },
+        Panel = new PanelStyles
+        {
+            Hint = "#808080", SelectedBg = "#04395e",
+            SelectedName = "bold #d4d4d4", Action = "#808080",
+            ActionSelected = "#d4d4d4", Time = "#808080",
+        },
+        StreamShell = new StreamShellStyles
+        {
+            CursorMarkup = "bold #1e1e1e on #d4d4d4", SelectionMarkup = "bold #d4d4d4 on #264f78",
+            CommandSlashMarkup = "#c586c0", InputPrefixStyle = "bold #569cd6",
+        },
     };
 
     // ── Monokai ───────────────────────────────────────────────────────
@@ -182,32 +269,60 @@ public static class BuiltInThemes
     private static readonly ToolTheme MonokaiTools = new()
     {
         HeaderStyle = "bold #f8f8f2 on #49483e",
-        Label = "#f8f8f2", Muted = "#75715e", Value = "#f8f8f2",
-        Separator = "#75715e", MutedSeparator = "#49483e",
-        KvpSeparator = "#75715e", KvpKey = "#75715e", KvpValue = "#f8f8f2", KvpLabel = "#75715e",
-        ExecFileSystem = "#a6e22e", ExecFileContent = "#66d9ef", ExecBuild = "#f92672",
-        ExecPackageManager = "#f92672", ExecNetwork = "#66d9ef", ExecScripting = "#e6db74",
-        ExecProcess = "#fd971f", ExecHereDoc = "#75715e", ExecVcs = "#fd971f",
-        ExecPositional = "#66d9ef", ExecLongFlag = "#a6e22e", ExecShortFlag = "#fd971f",
-        ExecEnvKey = "#66d9ef", ExecEnvValue = "#e6db74",
-        DiffAdded = "#f8f8f2 on #3b8055", DiffRemoved = "#f8f8f2 on #8b3a3a",
-        SeparatorCharMarkup = "#75715e",
-        TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
-        StatusVerticalPipe = "#75715e", StatusSegmentPipe = "#75715e bold",
-        StatusNoAgentsText = "#75715e", ConversationNameStyle = "italic #66d9ef",
-        UserMessagePrefix = "[#a6e22e] Me:[/] ",
-        ThinkingHeaderStyle = "bold #f8f8f2 on #49483e", ThinkingTextStyle = "#f8f8f2", ThinkingMoreStyle = "#75715e",
-        BannerBorderStyle = "#fd971f", HelpCommandStyle = "#75715e",
-        InfoStyle = "#75715e", SuccessStyle = "#a6e22e", WarningStyle = "#e6db74", ErrorStyle = "#f92672",
-        RecordingIndicatorStyle = "#f92672", GatewayErrorStyle = "#f92672",
-        LogTagStyle = "#75715e", LogOkStyle = "#a6e22e", LogErrorStyle = "#f92672",
-        FallbackWarningStyle = "#e6db74", FallbackFromStyle = "#f92672", FallbackToStyle = "#a6e22e",
-        ModelFailedStyle = "#f92672", AgentBadgeStyle = "#f8f8f2 on #49483e", IntroductionBorderStyle = "#fd971f",
-        PanelCapStyle = "#75715e", PanelHintStyle = "#75715e", PanelSelectedBg = "#49483e",
-        PanelSelectedNameStyle = "bold #f8f8f2", PanelActionStyle = "#75715e",
-        PanelActionSelectedStyle = "#f8f8f2", PanelTimeStyle = "#75715e",
-        StreamCursorMarkup = "bold #272822 on #f8f8f2", StreamSelectionMarkup = "bold #f8f8f2 on #49483e",
-        StreamCommandSlashMarkup = "#f92672", StreamInputPrefixStyle = "bold #66d9ef",
+        General = new GeneralStyles
+        {
+            Label = "#f8f8f2", Muted = "#75715e", Value = "#f8f8f2",
+            Separator = "#75715e", MutedSeparator = "#49483e",
+        },
+        Kvp = new KvpStyles
+        {
+            Separator = "#75715e", Key = "#75715e", Value = "#f8f8f2", Label = "#75715e",
+        },
+        Exec = new ExecStyles
+        {
+            FileSystem = "#a6e22e", FileContent = "#66d9ef", Build = "#f92672",
+            PackageManager = "#f92672", Network = "#66d9ef", Scripting = "#e6db74",
+            Process = "#fd971f", HereDoc = "#75715e", Vcs = "#fd971f",
+            Positional = "#66d9ef", LongFlag = "#a6e22e", ShortFlag = "#fd971f",
+            EnvKey = "#66d9ef", EnvValue = "#e6db74",
+        },
+        Diff = new DiffStyles
+        {
+            Added = "#f8f8f2 on #3b8055", Removed = "#f8f8f2 on #8b3a3a",
+        },
+        StatusBar = new StatusBarStyles
+        {
+            SeparatorCharMarkup = "#75715e",
+            TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
+            VerticalPipe = "#75715e", SegmentPipe = "#75715e bold",
+            NoAgentsText = "#75715e", ConversationNameStyle = "italic #66d9ef",
+            UserMessagePrefix = "[#a6e22e] Me:[/] ",
+        },
+        Thinking = new ThinkingStyles
+        {
+            HeaderStyle = "bold #f8f8f2 on #49483e", TextStyle = "#f8f8f2", MoreStyle = "#75715e",
+        },
+        Messages = new MessageStyles
+        {
+            BannerBorder = "#fd971f", HelpCommand = "#75715e",
+            Info = "#75715e", Success = "#a6e22e", Warning = "#e6db74", Error = "#f92672",
+            RecordingIndicator = "#f92672", GatewayError = "#f92672",
+            LogTag = "#75715e", LogOk = "#a6e22e", LogError = "#f92672",
+            FallbackWarning = "#e6db74", FallbackFrom = "#f92672", FallbackTo = "#a6e22e",
+            ModelFailed = "#f92672", AgentBadge = "#f8f8f2 on #49483e", IntroductionBorder = "#fd971f",
+            PanelCap = "#75715e",
+        },
+        Panel = new PanelStyles
+        {
+            Hint = "#75715e", SelectedBg = "#49483e",
+            SelectedName = "bold #f8f8f2", Action = "#75715e",
+            ActionSelected = "#f8f8f2", Time = "#75715e",
+        },
+        StreamShell = new StreamShellStyles
+        {
+            CursorMarkup = "bold #272822 on #f8f8f2", SelectionMarkup = "bold #f8f8f2 on #49483e",
+            CommandSlashMarkup = "#f92672", InputPrefixStyle = "bold #66d9ef",
+        },
     };
 
     // ── Monokai Dimmed ────────────────────────────────────────────────
@@ -235,32 +350,60 @@ public static class BuiltInThemes
     private static readonly ToolTheme MonokaiDimmedTools = new()
     {
         HeaderStyle = "bold #c0c0c0 on #3a3a3a",
-        Label = "#c0c0c0", Muted = "#676767", Value = "#c0c0c0",
-        Separator = "#676767", MutedSeparator = "#3a3a3a",
-        KvpSeparator = "#676767", KvpKey = "#676767", KvpValue = "#c0c0c0", KvpLabel = "#676767",
-        ExecFileSystem = "#60805a", ExecFileContent = "#50808a", ExecBuild = "#c7444a",
-        ExecPackageManager = "#c7444a", ExecNetwork = "#50808a", ExecScripting = "#b8a85a",
-        ExecProcess = "#d0874a", ExecHereDoc = "#676767", ExecVcs = "#d0874a",
-        ExecPositional = "#50808a", ExecLongFlag = "#60805a", ExecShortFlag = "#d0874a",
-        ExecEnvKey = "#50808a", ExecEnvValue = "#b8a85a",
-        DiffAdded = "#c0c0c0 on #2d4a2d", DiffRemoved = "#c0c0c0 on #5a3030",
-        SeparatorCharMarkup = "#676767",
-        TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
-        StatusVerticalPipe = "#676767", StatusSegmentPipe = "#676767 bold",
-        StatusNoAgentsText = "#676767", ConversationNameStyle = "italic #50808a",
-        UserMessagePrefix = "[#60805a] Me:[/] ",
-        ThinkingHeaderStyle = "bold #c0c0c0 on #3a3a3a", ThinkingTextStyle = "#c0c0c0", ThinkingMoreStyle = "#676767",
-        BannerBorderStyle = "#d0874a", HelpCommandStyle = "#676767",
-        InfoStyle = "#676767", SuccessStyle = "#60805a", WarningStyle = "#b8a85a", ErrorStyle = "#c7444a",
-        RecordingIndicatorStyle = "#c7444a", GatewayErrorStyle = "#c7444a",
-        LogTagStyle = "#676767", LogOkStyle = "#60805a", LogErrorStyle = "#c7444a",
-        FallbackWarningStyle = "#b8a85a", FallbackFromStyle = "#c7444a", FallbackToStyle = "#60805a",
-        ModelFailedStyle = "#c7444a", AgentBadgeStyle = "#c0c0c0 on #3a3a3a", IntroductionBorderStyle = "#d0874a",
-        PanelCapStyle = "#676767", PanelHintStyle = "#676767", PanelSelectedBg = "#373737",
-        PanelSelectedNameStyle = "bold #c0c0c0", PanelActionStyle = "#676767",
-        PanelActionSelectedStyle = "#c0c0c0", PanelTimeStyle = "#676767",
-        StreamCursorMarkup = "bold #1e1e1e on #c0c0c0", StreamSelectionMarkup = "bold #c0c0c0 on #3a3a3a",
-        StreamCommandSlashMarkup = "#c7444a", StreamInputPrefixStyle = "bold #50808a",
+        General = new GeneralStyles
+        {
+            Label = "#c0c0c0", Muted = "#676767", Value = "#c0c0c0",
+            Separator = "#676767", MutedSeparator = "#3a3a3a",
+        },
+        Kvp = new KvpStyles
+        {
+            Separator = "#676767", Key = "#676767", Value = "#c0c0c0", Label = "#676767",
+        },
+        Exec = new ExecStyles
+        {
+            FileSystem = "#60805a", FileContent = "#50808a", Build = "#c7444a",
+            PackageManager = "#c7444a", Network = "#50808a", Scripting = "#b8a85a",
+            Process = "#d0874a", HereDoc = "#676767", Vcs = "#d0874a",
+            Positional = "#50808a", LongFlag = "#60805a", ShortFlag = "#d0874a",
+            EnvKey = "#50808a", EnvValue = "#b8a85a",
+        },
+        Diff = new DiffStyles
+        {
+            Added = "#c0c0c0 on #2d4a2d", Removed = "#c0c0c0 on #5a3030",
+        },
+        StatusBar = new StatusBarStyles
+        {
+            SeparatorCharMarkup = "#676767",
+            TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
+            VerticalPipe = "#676767", SegmentPipe = "#676767 bold",
+            NoAgentsText = "#676767", ConversationNameStyle = "italic #50808a",
+            UserMessagePrefix = "[#60805a] Me:[/] ",
+        },
+        Thinking = new ThinkingStyles
+        {
+            HeaderStyle = "bold #c0c0c0 on #3a3a3a", TextStyle = "#c0c0c0", MoreStyle = "#676767",
+        },
+        Messages = new MessageStyles
+        {
+            BannerBorder = "#d0874a", HelpCommand = "#676767",
+            Info = "#676767", Success = "#60805a", Warning = "#b8a85a", Error = "#c7444a",
+            RecordingIndicator = "#c7444a", GatewayError = "#c7444a",
+            LogTag = "#676767", LogOk = "#60805a", LogError = "#c7444a",
+            FallbackWarning = "#b8a85a", FallbackFrom = "#c7444a", FallbackTo = "#60805a",
+            ModelFailed = "#c7444a", AgentBadge = "#c0c0c0 on #3a3a3a", IntroductionBorder = "#d0874a",
+            PanelCap = "#676767",
+        },
+        Panel = new PanelStyles
+        {
+            Hint = "#676767", SelectedBg = "#373737",
+            SelectedName = "bold #c0c0c0", Action = "#676767",
+            ActionSelected = "#c0c0c0", Time = "#676767",
+        },
+        StreamShell = new StreamShellStyles
+        {
+            CursorMarkup = "bold #1e1e1e on #c0c0c0", SelectionMarkup = "bold #c0c0c0 on #3a3a3a",
+            CommandSlashMarkup = "#c7444a", InputPrefixStyle = "bold #50808a",
+        },
     };
 
     // ── Solarized Dark ────────────────────────────────────────────────
@@ -288,32 +431,60 @@ public static class BuiltInThemes
     private static readonly ToolTheme SolarizedTools = new()
     {
         HeaderStyle = "bold #839496 on #073642",
-        Label = "#839496", Muted = "#586e75", Value = "#839496",
-        Separator = "#586e75", MutedSeparator = "#073642",
-        KvpSeparator = "#586e75", KvpKey = "#586e75", KvpValue = "#839496", KvpLabel = "#586e75",
-        ExecFileSystem = "#859900", ExecFileContent = "#268bd2", ExecBuild = "#d33682",
-        ExecPackageManager = "#dc322f", ExecNetwork = "#268bd2", ExecScripting = "#b58900",
-        ExecProcess = "#cb4b16", ExecHereDoc = "#586e75", ExecVcs = "#cb4b16",
-        ExecPositional = "#268bd2", ExecLongFlag = "#859900", ExecShortFlag = "#cb4b16",
-        ExecEnvKey = "#268bd2", ExecEnvValue = "#b58900",
-        DiffAdded = "#839496 on #1b3b1b", DiffRemoved = "#839496 on #5a1d1d",
-        SeparatorCharMarkup = "#586e75",
-        TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
-        StatusVerticalPipe = "#586e75", StatusSegmentPipe = "#586e75 bold",
-        StatusNoAgentsText = "#586e75", ConversationNameStyle = "italic #2aa198",
-        UserMessagePrefix = "[#859900] Me:[/] ",
-        ThinkingHeaderStyle = "bold #839496 on #073642", ThinkingTextStyle = "#839496", ThinkingMoreStyle = "#586e75",
-        BannerBorderStyle = "#268bd2", HelpCommandStyle = "#586e75",
-        InfoStyle = "#586e75", SuccessStyle = "#859900", WarningStyle = "#b58900", ErrorStyle = "#dc322f",
-        RecordingIndicatorStyle = "#dc322f", GatewayErrorStyle = "#dc322f",
-        LogTagStyle = "#586e75", LogOkStyle = "#859900", LogErrorStyle = "#dc322f",
-        FallbackWarningStyle = "#b58900", FallbackFromStyle = "#dc322f", FallbackToStyle = "#859900",
-        ModelFailedStyle = "#dc322f", AgentBadgeStyle = "#839496 on #073642", IntroductionBorderStyle = "#268bd2",
-        PanelCapStyle = "#586e75", PanelHintStyle = "#586e75", PanelSelectedBg = "#073642",
-        PanelSelectedNameStyle = "bold #93a1a1", PanelActionStyle = "#586e75",
-        PanelActionSelectedStyle = "#93a1a1", PanelTimeStyle = "#586e75",
-        StreamCursorMarkup = "bold #002b36 on #93a1a1", StreamSelectionMarkup = "bold #93a1a1 on #073642",
-        StreamCommandSlashMarkup = "#d33682", StreamInputPrefixStyle = "bold #268bd2",
+        General = new GeneralStyles
+        {
+            Label = "#839496", Muted = "#586e75", Value = "#839496",
+            Separator = "#586e75", MutedSeparator = "#073642",
+        },
+        Kvp = new KvpStyles
+        {
+            Separator = "#586e75", Key = "#586e75", Value = "#839496", Label = "#586e75",
+        },
+        Exec = new ExecStyles
+        {
+            FileSystem = "#859900", FileContent = "#268bd2", Build = "#d33682",
+            PackageManager = "#dc322f", Network = "#268bd2", Scripting = "#b58900",
+            Process = "#cb4b16", HereDoc = "#586e75", Vcs = "#cb4b16",
+            Positional = "#268bd2", LongFlag = "#859900", ShortFlag = "#cb4b16",
+            EnvKey = "#268bd2", EnvValue = "#b58900",
+        },
+        Diff = new DiffStyles
+        {
+            Added = "#839496 on #1b3b1b", Removed = "#839496 on #5a1d1d",
+        },
+        StatusBar = new StatusBarStyles
+        {
+            SeparatorCharMarkup = "#586e75",
+            TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
+            VerticalPipe = "#586e75", SegmentPipe = "#586e75 bold",
+            NoAgentsText = "#586e75", ConversationNameStyle = "italic #2aa198",
+            UserMessagePrefix = "[#859900] Me:[/] ",
+        },
+        Thinking = new ThinkingStyles
+        {
+            HeaderStyle = "bold #839496 on #073642", TextStyle = "#839496", MoreStyle = "#586e75",
+        },
+        Messages = new MessageStyles
+        {
+            BannerBorder = "#268bd2", HelpCommand = "#586e75",
+            Info = "#586e75", Success = "#859900", Warning = "#b58900", Error = "#dc322f",
+            RecordingIndicator = "#dc322f", GatewayError = "#dc322f",
+            LogTag = "#586e75", LogOk = "#859900", LogError = "#dc322f",
+            FallbackWarning = "#b58900", FallbackFrom = "#dc322f", FallbackTo = "#859900",
+            ModelFailed = "#dc322f", AgentBadge = "#839496 on #073642", IntroductionBorder = "#268bd2",
+            PanelCap = "#586e75",
+        },
+        Panel = new PanelStyles
+        {
+            Hint = "#586e75", SelectedBg = "#073642",
+            SelectedName = "bold #93a1a1", Action = "#586e75",
+            ActionSelected = "#93a1a1", Time = "#586e75",
+        },
+        StreamShell = new StreamShellStyles
+        {
+            CursorMarkup = "bold #002b36 on #93a1a1", SelectionMarkup = "bold #93a1a1 on #073642",
+            CommandSlashMarkup = "#d33682", InputPrefixStyle = "bold #268bd2",
+        },
     };
 
     // ── Abyss ─────────────────────────────────────────────────────────
@@ -341,31 +512,59 @@ public static class BuiltInThemes
     private static readonly ToolTheme AbyssTools = new()
     {
         HeaderStyle = "bold #c0c0c0 on #0a1a2a",
-        Label = "#c0c0c0", Muted = "#5a6a7a", Value = "#c0c0c0",
-        Separator = "#5a6a7a", MutedSeparator = "#0a1a2a",
-        KvpSeparator = "#5a6a7a", KvpKey = "#5a6a7a", KvpValue = "#c0c0c0", KvpLabel = "#5a6a7a",
-        ExecFileSystem = "#c080a0", ExecFileContent = "#80a0ff", ExecBuild = "#eaeaea",
-        ExecPackageManager = "#c080a0", ExecNetwork = "#80a0ff", ExecScripting = "#eaeaea",
-        ExecProcess = "#c080a0", ExecHereDoc = "#5a6a7a", ExecVcs = "#c080a0",
-        ExecPositional = "#80a0ff", ExecLongFlag = "#c080a0", ExecShortFlag = "#c080a0",
-        ExecEnvKey = "#80a0ff", ExecEnvValue = "#eaeaea",
-        DiffAdded = "#c0c0c0 on #1b3b5a", DiffRemoved = "#c0c0c0 on #5a2a3a",
-        SeparatorCharMarkup = "#5a6a7a",
-        TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
-        StatusVerticalPipe = "#5a6a7a", StatusSegmentPipe = "#5a6a7a bold",
-        StatusNoAgentsText = "#5a6a7a", ConversationNameStyle = "italic #80a0ff",
-        UserMessagePrefix = "[#c080a0] Me:[/] ",
-        ThinkingHeaderStyle = "bold #c0c0c0 on #0a1a2a", ThinkingTextStyle = "#c0c0c0", ThinkingMoreStyle = "#5a6a7a",
-        BannerBorderStyle = "#80a0ff", HelpCommandStyle = "#5a6a7a",
-        InfoStyle = "#5a6a7a", SuccessStyle = "#c080a0", WarningStyle = "#eaeaea", ErrorStyle = "#c080a0",
-        RecordingIndicatorStyle = "#c080a0", GatewayErrorStyle = "#c080a0",
-        LogTagStyle = "#5a6a7a", LogOkStyle = "#c080a0", LogErrorStyle = "#c080a0",
-        FallbackWarningStyle = "#eaeaea", FallbackFromStyle = "#c080a0", FallbackToStyle = "#c080a0",
-        ModelFailedStyle = "#c080a0", AgentBadgeStyle = "#c0c0c0 on #0a1a2a", IntroductionBorderStyle = "#80a0ff",
-        PanelCapStyle = "#5a6a7a", PanelHintStyle = "#5a6a7a", PanelSelectedBg = "#0a1a2a",
-        PanelSelectedNameStyle = "bold #c0c0c0", PanelActionStyle = "#5a6a7a",
-        PanelActionSelectedStyle = "#c0c0c0", PanelTimeStyle = "#5a6a7a",
-        StreamCursorMarkup = "bold #000c18 on #c0c0c0", StreamSelectionMarkup = "bold #c0c0c0 on #0a1a2a",
-        StreamCommandSlashMarkup = "#80a0ff", StreamInputPrefixStyle = "bold #80a0ff",
+        General = new GeneralStyles
+        {
+            Label = "#c0c0c0", Muted = "#5a6a7a", Value = "#c0c0c0",
+            Separator = "#5a6a7a", MutedSeparator = "#0a1a2a",
+        },
+        Kvp = new KvpStyles
+        {
+            Separator = "#5a6a7a", Key = "#5a6a7a", Value = "#c0c0c0", Label = "#5a6a7a",
+        },
+        Exec = new ExecStyles
+        {
+            FileSystem = "#c080a0", FileContent = "#80a0ff", Build = "#eaeaea",
+            PackageManager = "#c080a0", Network = "#80a0ff", Scripting = "#eaeaea",
+            Process = "#c080a0", HereDoc = "#5a6a7a", Vcs = "#c080a0",
+            Positional = "#80a0ff", LongFlag = "#c080a0", ShortFlag = "#c080a0",
+            EnvKey = "#80a0ff", EnvValue = "#eaeaea",
+        },
+        Diff = new DiffStyles
+        {
+            Added = "#c0c0c0 on #1b3b5a", Removed = "#c0c0c0 on #5a2a3a",
+        },
+        StatusBar = new StatusBarStyles
+        {
+            SeparatorCharMarkup = "#5a6a7a",
+            TopLeftSeparatorPrefix = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 ",
+            VerticalPipe = "#5a6a7a", SegmentPipe = "#5a6a7a bold",
+            NoAgentsText = "#5a6a7a", ConversationNameStyle = "italic #80a0ff",
+            UserMessagePrefix = "[#c080a0] Me:[/] ",
+        },
+        Thinking = new ThinkingStyles
+        {
+            HeaderStyle = "bold #c0c0c0 on #0a1a2a", TextStyle = "#c0c0c0", MoreStyle = "#5a6a7a",
+        },
+        Messages = new MessageStyles
+        {
+            BannerBorder = "#80a0ff", HelpCommand = "#5a6a7a",
+            Info = "#5a6a7a", Success = "#c080a0", Warning = "#eaeaea", Error = "#c080a0",
+            RecordingIndicator = "#c080a0", GatewayError = "#c080a0",
+            LogTag = "#5a6a7a", LogOk = "#c080a0", LogError = "#c080a0",
+            FallbackWarning = "#eaeaea", FallbackFrom = "#c080a0", FallbackTo = "#c080a0",
+            ModelFailed = "#c080a0", AgentBadge = "#c0c0c0 on #0a1a2a", IntroductionBorder = "#80a0ff",
+            PanelCap = "#5a6a7a",
+        },
+        Panel = new PanelStyles
+        {
+            Hint = "#5a6a7a", SelectedBg = "#0a1a2a",
+            SelectedName = "bold #c0c0c0", Action = "#5a6a7a",
+            ActionSelected = "#c0c0c0", Time = "#5a6a7a",
+        },
+        StreamShell = new StreamShellStyles
+        {
+            CursorMarkup = "bold #000c18 on #c0c0c0", SelectionMarkup = "bold #c0c0c0 on #0a1a2a",
+            CommandSlashMarkup = "#80a0ff", InputPrefixStyle = "bold #80a0ff",
+        },
     };
 }

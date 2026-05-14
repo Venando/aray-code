@@ -28,10 +28,10 @@ public abstract class ToolRendererBase : IToolRenderer
     {
         if (prependComma)
         {
-            Output.Print(", ", Style.Separator);
+            Output.Print(", ", Style.General.Separator);
         }
-        Output.Print(label, Style.KvpLabel);
-        Output.Print(value ?? "", Style.KvpValue);
+        Output.Print(label, Style.Kvp.Label);
+        Output.Print(value ?? "", Style.Kvp.Value);
     }
 
     /// <summary>
@@ -39,7 +39,7 @@ public abstract class ToolRendererBase : IToolRenderer
     /// </summary>
     protected void PrintValue(string? value, string? style = null)
     {
-        Output.Print(value ?? "", style ?? Style.Value);
+        Output.Print(value ?? "", style ?? Style.General.Value);
     }
 
     /// <summary>
@@ -94,19 +94,19 @@ public abstract class ToolRendererBase : IToolRenderer
         {
             if (first)
             {
-                output.Print(GetValueString(prop.Value), s.Value);
+                output.Print(GetValueString(prop.Value), s.General.Value);
                 first = false;
             }
             else
             {
-                output.Print($", {prop.Name}: ", s.KvpKey);
-                output.Print(GetValueString(prop.Value), s.KvpValue);
+                output.Print($", {prop.Name}: ", s.Kvp.Key);
+                output.Print(GetValueString(prop.Value), s.Kvp.Value);
             }
         }
 
         if (first)
         {
-            output.PrintLine("\u00b7", s.MutedSeparator);
+            output.PrintLine("\u00b7", s.General.MutedSeparator);
         }
     }
 

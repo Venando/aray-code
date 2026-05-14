@@ -15,18 +15,18 @@ public sealed class ReadToolRenderer : ToolRendererBase
         if (args.TryGetProperty("file", out var fileProp) || args.TryGetProperty("path", out fileProp))
         {
             string displayPath = FilePathDisplayHelper.FormatDisplayPath(fileProp.GetString() ?? "");
-            PrintValue(displayPath, Style.Label);
+            PrintValue(displayPath, Style.General.Label);
         }
         if (args.TryGetProperty("offset", out var offsetProp) &&
             args.TryGetProperty("limit", out var limitProp))
         {
             int offset = offsetProp.GetInt32();
             int limit = limitProp.GetInt32();
-            Output.Print($" (lines {offset}-{offset + limit - 1})", Style.ReadLineInfo);
+            Output.Print($" (lines {offset}-{offset + limit - 1})", Style.Reader.LineInfo);
         }
         else if (args.TryGetProperty("limit", out var limitProp2))
         {
-            Output.Print($" (lines 1-{limitProp2.GetInt32()})", Style.ReadLineInfo);
+            Output.Print($" (lines 1-{limitProp2.GetInt32()})", Style.Reader.LineInfo);
         }
     }
 }

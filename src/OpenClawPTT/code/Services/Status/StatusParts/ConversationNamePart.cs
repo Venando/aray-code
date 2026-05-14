@@ -21,8 +21,8 @@ public sealed class ConversationNamePart : StringStatusPartBase
             return;
 
         var tools = ThemeProvider.Current.Tools;
-        var pipeMarkup = tools.StatusVerticalPipe;
-        var nameMarkup = tools.ConversationNameStyle;
+        var pipeMarkup = tools.StatusBar.VerticalPipe;
+        var nameMarkup = tools.StatusBar.ConversationNameStyle;
 
         Builder.Append($"[{pipeMarkup}]│[/] [{nameMarkup}]{name}[/] [{pipeMarkup}]│[/]");
     }

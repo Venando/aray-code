@@ -56,7 +56,7 @@ public sealed class ThinkingDisplayHandler
     private void DisplayEmojiOnly()
     {
         var tools = ThemeProvider.Current.Tools;
-        string header = $"[{tools.ThinkingHeaderStyle}]  \U0001f4ad Thinking[/] ";
+        string header = $"[{tools.Thinking.HeaderStyle}]  \U0001f4ad Thinking[/] ";
         _shellHost?.AddMessage(header);
         _shellHost?.AddMessage("");
     }
@@ -67,7 +67,7 @@ public sealed class ThinkingDisplayHandler
     private void DisplayFirstNLines(string thinking)
     {
         var tools = ThemeProvider.Current.Tools;
-        string emojiHeader = $"[{tools.ThinkingHeaderStyle}]  \U0001f4ad Thinking[/] ";
+        string emojiHeader = $"[{tools.Thinking.HeaderStyle}]  \U0001f4ad Thinking[/] ";
         _toolOutput.Start(emojiHeader);
 
         if (!string.IsNullOrEmpty(thinking))
@@ -83,13 +83,13 @@ public sealed class ThinkingDisplayHandler
 
             foreach (var line in displayLines)
             {
-                _toolOutput.PrintLine(line, tools.Label);
+                _toolOutput.PrintLine(line, tools.General.Label);
             }
 
             if (hasMore)
             {
                 int remainingLines = wrappedLines.Count - _config.ThinkingPreviewLines;
-                _toolOutput.PrintMarkup($"[{tools.ThinkingMoreStyle}]... ({remainingLines} more lines)[/]\n");
+                _toolOutput.PrintMarkup($"[{tools.Thinking.MoreStyle}]... ({remainingLines} more lines)[/]\n");
             }
         }
 
@@ -115,9 +115,9 @@ public sealed class ThinkingDisplayHandler
             output: capturingConsole);
 
         var escaped = Markup.Escape(thinking);
-        formatter.ProcessMarkupDelta($"[{tools.ThinkingTextStyle}]{escaped}[/]");
+        formatter.ProcessMarkupDelta($"[{tools.Thinking.TextStyle}]{escaped}[/]");
         formatter.Finish();
 
-        capturingConsole.FlushToStreamShell($"[{tools.ThinkingHeaderStyle}]{Markup.Escape(prefix.TrimEnd())}[/]");
+        capturingConsole.FlushToStreamShell($"[{tools.Thinking.HeaderStyle}]{Markup.Escape(prefix.TrimEnd())}[/]");
     }
 }
