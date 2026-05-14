@@ -34,8 +34,13 @@ internal static class Program
 
         var colorConsole = factory.CreateColorConsole();
 
+        // Load config to determine which bottom panel to use
+        var appConfig = configService.Load() ?? new AppConfig();
+
         // Set up the agent status bottom panel
-        var appStatusPanel = new AgentStatusBottomPanel(activityStore, configService);
+        StreamShell.IBottomPanel appStatusPanel = appConfig.UseAgentStatusPanel
+            ? new AgentStatusBottomPanel(activityStore, configService)
+            : new AppStatusBottomPanel(mainAgentsPart, appConfig.BottomPanelLineCount);
         shellHost.SetDefaultPanel(appStatusPanel);
 
         var bootstrapper = new AppBootstrapper(configService, wizard, factory, shellHost, colorConsole,

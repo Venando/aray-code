@@ -21,7 +21,7 @@ public partial class AppRunner : IDisposable
     private readonly IColorConsole _console;
     private readonly ErrorLogStore _errorLog;
     private readonly IStatusService _statusService;
-    private readonly AgentStatusBottomPanel? _bottomPanel;
+    private readonly StreamShell.IBottomPanel? _bottomPanel;
     private CancellationTokenSource? _cts;
 
     /// <summary>
@@ -30,7 +30,7 @@ public partial class AppRunner : IDisposable
     /// </summary>
     public const int MaxRestartCount = 3;
 
-    public AppRunner(AppConfig cfg, IServiceFactory factory, IStreamShellHost shellHost, IConfigurationService configService, IColorConsole console, MainAgentsPart? mainAgentsPart = null, IConfigWizardOrchestrator? wizard = null, AgentStatusBottomPanel? bottomPanel = null)
+    public AppRunner(AppConfig cfg, IServiceFactory factory, IStreamShellHost shellHost, IConfigurationService configService, IColorConsole console, MainAgentsPart? mainAgentsPart = null, IConfigWizardOrchestrator? wizard = null, StreamShell.IBottomPanel? bottomPanel = null)
     {
         _cfg = cfg;
         _factory = factory;

@@ -13,10 +13,10 @@ public sealed class AppBootstrapper : IDisposable
     private readonly IConfigurationService _configService;
     private readonly IConfigWizardOrchestrator _wizard;
     private readonly IStreamShellHost _shellHost;
-    private readonly Func<AppConfig, IServiceFactory, AgentStatusBottomPanel?, AppRunner> _runnerFactory;
+    private readonly Func<AppConfig, IServiceFactory, StreamShell.IBottomPanel?, AppRunner> _runnerFactory;
     private readonly bool _testModeEnabled;
     private readonly MainAgentsPart? _mainAgentsPart;
-    private readonly AgentStatusBottomPanel? _bottomPanel;
+    private readonly StreamShell.IBottomPanel? _bottomPanel;
     private CancellationTokenSource? _cts;
 
     private readonly IColorConsole _console;
@@ -27,10 +27,10 @@ public sealed class AppBootstrapper : IDisposable
         IServiceFactory factory,
         IStreamShellHost shellHost,
         IColorConsole console,
-        Func<AppConfig, IServiceFactory, AgentStatusBottomPanel?, AppRunner>? runnerFactory = null,
+        Func<AppConfig, IServiceFactory, StreamShell.IBottomPanel?, AppRunner>? runnerFactory = null,
         MainAgentsPart? mainAgentsPart = null,
         bool testModeEnabled = false,
-        AgentStatusBottomPanel? bottomPanel = null)
+        StreamShell.IBottomPanel? bottomPanel = null)
     {
         _configService = configService;
         _wizard = wizard;

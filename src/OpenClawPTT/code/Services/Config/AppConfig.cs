@@ -66,6 +66,7 @@ public sealed class AppConfig
     public double ReconnectDelaySeconds { get; set; } = 1.5;
 
     // Bottom panel settings
+    public bool UseAgentStatusPanel { get; set; } = true; // true = new table-style, false = classic AppStatusBottomPanel
     public int BottomPanelLineCount { get; set; } = 2; // Maximum height of the agent status bottom panel
 
     // Text formatting
@@ -197,6 +198,7 @@ public sealed class AppConfig
         ["GroqRetryCount"] = "STT retry attempts on failure",
         ["GroqRetryDelayMs"] = "Delay between STT retries in ms",
         ["GroqRetryBackoffFactor"] = "Backoff multiplier for STT retry delay",
+        ["UseAgentStatusPanel"] = "Use new table-style agent status panel (true) or classic (false)",
         ["BottomPanelLineCount"] = "Maximum height of the agent status bottom panel",
         ["ReconnectDelaySeconds"] = "Gateway reconnection delay in seconds",
         ["RightMarginIndent"] = "Right margin indent for word-wrap in characters",
