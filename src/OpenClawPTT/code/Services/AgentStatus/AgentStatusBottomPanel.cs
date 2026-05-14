@@ -1,3 +1,4 @@
+using OpenClawPTT.Formatting;
 using OpenClawPTT.Services.Commands;
 using OpenClawPTT.Services.StatusParts;
 using Spectre.Console;
@@ -18,10 +19,12 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 {
-    // ── Margins ───────────────────────────────────────────────────────────
-    private const int LeftMargin = 0;
+    // ── Layout ───────────────────────────────────────────────────────────
     private const int BottomMargin = 1;
-    private const string LeftPad = "";
+    private const int NameColWidth = 12;  // "• " + name (max 10)
+    private const int TimeColWidth = 4;   // "12m", "1h", etc.
+    private const int GapAfterName = 2;
+    private const int GapBeforeTime = 2;
 
     // ── Hardcoded visual-test data ────────────────────────────────────────
     private static readonly string[] Actions =
@@ -314,6 +317,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         bool selected,
         bool isActive)
     {
+        var consoleWidth = ConsoleMetrics.GetWindowWidth();
         var name = FormatName(info?.Name);
         var bullet = snapshot is not null
             ? snapshot.GetStatusEmoji()
@@ -322,7 +326,38 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         var action = Actions[index % Actions.Length];
         var time = Times[index % Times.Length];
 
-        var line = $"[grey]{bullet}[/] {name}  [grey]{action}[/]  [grey42]{time}[/]";
+        // Left column: "• Name" padded to NameColWidth
+        // Bullet may be Spectre markup like "[green]•[/]"; measure only the symbol.
+        var leftCol = $"{bullet} {name}";
+        int bulletWidth = CharacterWidth.GetDisplayWidth(StripMarkup(bullet));
+        int leftRaw = bulletWidth + 1 + name.Length;
+        int leftPad = NameColWidth - leftRaw;
+        var leftPadded = leftPad > 0 ? leftCol + new string(' ', leftPad) : leftCol;
+
+        // How much room is left for the action column?
+        int usedWidth = NameColWidth + GapAfterName + GapBeforeTime + TimeColWidth;
+        int actionMax = consoleWidth - usedWidth;
+
+        // Action column: truncate raw, then escape for Spectre
+        var actionRaw = action;
+        if (actionRaw.Length > actionMax && actionMax > 3)
+            actionRaw = actionRaw[..(actionMax - 1)] + "…";
+        else if (actionRaw.Length > actionMax)
+            actionRaw = actionRaw[..actionMax];
+        var actionDisplay = Markup.Escape(actionRaw);
+
+        int actionWidth = actionRaw.Length;
+        int gapAfterAction = consoleWidth - NameColWidth - GapAfterName - actionWidth - GapBeforeTime - TimeColWidth;
+        if (gapAfterAction < 0) gapAfterAction = 0;
+
+        // Right column: pad time to be right-aligned within TimeColWidth
+        var timePadded = time.PadLeft(TimeColWidth);
+
+        var line = leftPadded
+            + new string(' ', GapAfterName)
+            + $"[grey]{actionDisplay}[/]"
+            + new string(' ', gapAfterAction + GapBeforeTime)
+            + $"[grey42]{timePadded}[/]";
 
         return selected
             ? $"[invert]{line}[/]"
@@ -355,6 +390,27 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         var sessionKey = AgentRegistry.ActiveSessionKey;
         if (sessionKey is null) return null;
         return AgentRegistry.Agents.FirstOrDefault(a => a.SessionKey == sessionKey);
+    }
+
+    /// <summary>Strips Spectre markup tags for width measurement.</summary>
+    private static string StripMarkup(string markup)
+    {
+        if (string.IsNullOrEmpty(markup)) return string.Empty;
+        var sb = new System.Text.StringBuilder(markup.Length);
+        bool inTag = false;
+        for (int i = 0; i < markup.Length; i++)
+        {
+            char c = markup[i];
+            if (c == '[' && i + 1 < markup.Length)
+            {
+                if (markup[i + 1] == '[') { sb.Append('['); i++; continue; }
+                inTag = true;
+                continue;
+            }
+            if (c == ']' && inTag) { inTag = false; continue; }
+            if (!inTag) sb.Append(c);
+        }
+        return sb.ToString();
     }
 
     private void OnTrackerChanged() => MarkDirty();
