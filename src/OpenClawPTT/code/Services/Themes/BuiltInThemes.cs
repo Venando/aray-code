@@ -121,6 +121,7 @@ public static class BuiltInThemes
             ModelFailedStyle = "#ff5555",
             AgentBadgeStyle = "#f8f8f2 on #44475a",
             IntroductionBorderStyle = "#bd93f9",
+            PanelCapStyle = "#6272a4",
 
             // StreamShell
             StreamCursorMarkup = "bold #282a36 on #f8f8f2",

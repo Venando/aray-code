@@ -162,6 +162,9 @@ public sealed class ToolTheme
     /// <summary>Style for the introduction card borders and separators. Default: "deepskyblue3".</summary>
     public string IntroductionBorderStyle { get; set; } = "deepskyblue3";
 
+    /// <summary>Style for the bottom panel decorative cap line (╭─┬─╮). Default: "white".</summary>
+    public string PanelCapStyle { get; set; } = "white";
+
     // ── StreamShell settings ─────────────────────────────────────────
     /// <summary>Style for the cursor highlight. Default: "bold black on cyan".</summary>
     public string StreamCursorMarkup { get; set; } = "bold black on cyan";

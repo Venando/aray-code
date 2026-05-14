@@ -162,7 +162,9 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
 
     private string RenderCapLine(List<int> segmentWidths)
     {
+        var capStyle = ThemeProvider.Current.Tools.PanelCapStyle;
         _capBuilder.Clear();
+        _capBuilder.Append($"[{capStyle}]");
         _capBuilder.Append('╭');
 
         for (int i = 0; i < segmentWidths.Count; i++)
@@ -172,6 +174,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel, IDisposable
                 _capBuilder.Append("─┬─");
         }
 
+        _capBuilder.Append("[/]");
         return _capBuilder.ToString();
     }
 
