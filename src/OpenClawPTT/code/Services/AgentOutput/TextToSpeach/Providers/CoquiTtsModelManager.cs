@@ -391,27 +391,8 @@ public sealed class CoquiTtsModelManager
     /// </summary>
     public static bool IsModelCached(string modelName)
     {
-        // Coqui TTS uses its own storage: %LOCALAPPDATA%/tts/ (Win) or ~/.local/share/tts/
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var ttsDir = Path.Combine(localAppData, "tts");
-        if (!Directory.Exists(ttsDir))
-        {
-            // Fallback: Linux/macOS
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            ttsDir = Path.Combine(home, ".local", "share", "tts");
-            if (!Directory.Exists(ttsDir))
-                return false;
-        }
-
-        // Convert model name to Coqui dir format: en/jenny/jenny → en--jenny--jenny
-        var coquiDirName = modelName.Replace("/", "--");
-
-        var modelDir = Path.Combine(ttsDir, coquiDirName);
-        if (Directory.Exists(modelDir) &&
-            Directory.EnumerateFileSystemEntries(modelDir).Any())
-            return true;
-
-        return false;
+        var modelDir = GetModelDir(modelName);
+        return modelDir != null && Directory.EnumerateFileSystemEntries(modelDir).Any();
     }
 
     private static string SummarizeBuildError(string errorText)
@@ -545,7 +526,13 @@ public sealed class CoquiTtsModelManager
             var isCached = okInStdout || IsModelCached(modelName);
             if (isCached)
             {
-                _host.AddMessage($"[green]    ✓ Model {modelName} cached successfully.[/]");
+                // Some Coqui models (e.g. jenny) are distributed as ZIP archives.
+                // Extract them so TTS can find the model files at the expected level.
+                var extracted = ExtractModelZips(modelName);
+                if (extracted > 0)
+                    _host.AddMessage($"[green]    ✓ Model {modelName} cached (extracted {extracted} archive(s)).[/]");
+                else
+                    _host.AddMessage($"[green]    ✓ Model {modelName} cached successfully.[/]");
             }
             else
             {
@@ -571,8 +558,10 @@ public sealed class CoquiTtsModelManager
         }
     }
 
-    /// <summary>Deletes a cached Coqui TTS model from the Coqui TTS storage dir.</summary>
-    public static bool DeleteModel(string modelName)
+    /// <summary>
+    /// Returns the Coqui TTS model directory path, or null if not found.
+    /// </summary>
+    private static string? GetModelDir(string modelName)
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var ttsDir = Path.Combine(localAppData, "tts");
@@ -581,12 +570,47 @@ public sealed class CoquiTtsModelManager
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             ttsDir = Path.Combine(home, ".local", "share", "tts");
             if (!Directory.Exists(ttsDir))
-                return false;
+                return null;
         }
 
-        var coquiDirName = modelName.Replace("/", "--");
-        var modelDir = Path.Combine(ttsDir, coquiDirName);
-        if (!Directory.Exists(modelDir))
+        var dir = Path.Combine(ttsDir, modelName.Replace("/", "--"));
+        return Directory.Exists(dir) ? dir : null;
+    }
+
+    /// <summary>
+    /// Extracts any .zip archives found in the model directory.
+    /// Some Coqui models (e.g. jenny) are distributed as ZIPs that need
+    /// unpacking before TTS can load them. Deletes the ZIP after extraction.
+    /// Returns the number of archives extracted.
+    /// </summary>
+    private static int ExtractModelZips(string modelName)
+    {
+        var modelDir = GetModelDir(modelName);
+        if (modelDir == null)
+            return 0;
+
+        var extracted = 0;
+        foreach (var zipPath in Directory.EnumerateFiles(modelDir, "*.zip"))
+        {
+            try
+            {
+                System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, modelDir, overwriteFiles: true);
+                File.Delete(zipPath);
+                extracted++;
+            }
+            catch
+            {
+                // Extraction failed — leave the ZIP, model may still work
+            }
+        }
+        return extracted;
+    }
+
+    /// <summary>Deletes a cached Coqui TTS model from the Coqui TTS storage dir.</summary>
+    public static bool DeleteModel(string modelName)
+    {
+        var modelDir = GetModelDir(modelName);
+        if (modelDir == null)
             return false;
 
         try { Directory.Delete(modelDir, recursive: true); return true; }
