@@ -7,26 +7,28 @@ namespace OpenClawPTT.TTS.Providers;
 /// Microsoft Azure Cognitive Services TTS provider.
 /// Uses the Azure Speech REST API directly.
 /// </summary>
-public sealed class EdgeTtsProvider : ITextToSpeech
+public sealed class EdgeTtsProvider : ITextToSpeech, IDisposable
 {
     private readonly HttpClient _http;
     private readonly string _subscriptionKey;
     private readonly string _region;
 
+    private bool _disposed;
+
     public string ProviderName => "Azure TTS";
 
     // https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech
-    public IReadOnlyList<string> AvailableVoices { get; } = new[]
-    {
+    public IReadOnlyList<string> AvailableVoices { get; } =
+    [
         "en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural", "en-US-SaraNeural",
         "en-US-EmmaNeural", "en-US-RogerNeural", "en-US-AshleyNeural", "en-US-CoreyNeural",
         "en-GB-SoniaNeural", "en-GB-RyanNeural",
         "de-DE-KatjaNeural", "de-DE-ConradNeural",
         "fr-FR-DeniseNeural", "fr-FR-HenriNeural",
-        "es-ES-ElviraNeural", "es-MX-DaliaNeural"
-    };
+        "es-ES-ElviraNeural", "es-MX-DaliaNeural",
+    ];
 
-    public IReadOnlyList<string> AvailableModels { get; } = Array.Empty<string>();
+    public IReadOnlyList<string> AvailableModels { get; } = [];
 
     public EdgeTtsProvider(string? subscriptionKey = null, string region = "eastus")
     {
@@ -44,18 +46,10 @@ public sealed class EdgeTtsProvider : ITextToSpeech
 
     public async Task<byte[]> SynthesizeAsync(string text, string? voice = null, string? model = null, CancellationToken ct = default)
     {
-        var selectedVoice = voice ?? "en-US-AriaNeural";
+        var selectedVoice = ResolveVoice(voice);
+        var ssml = SsmlHelper.BuildSsml(text, selectedVoice);
 
-        if (!AvailableVoices.Contains(selectedVoice, StringComparer.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException($"Invalid voice '{selectedVoice}'. Available: {string.Join(", ", AvailableVoices)}");
-        }
-
-        var ssml = $@"<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-            <voice name='{selectedVoice}'>{EscapeSsml(text)}</voice>
-        </speak>";
-
-        var request = new HttpRequestMessage(HttpMethod.Post, $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1");
+        var request = new HttpRequestMessage(HttpMethod.Post, BuildUrl());
         request.Headers.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
         request.Content = new StringContent(ssml, Encoding.UTF8, "application/ssml+xml");
         request.Headers.Add("X-Microsoft-OutputFormat", "audio-16khz-16bit-mono-wav");
@@ -66,14 +60,28 @@ public sealed class EdgeTtsProvider : ITextToSpeech
         return await response.Content.ReadAsByteArrayAsync(ct);
     }
 
-    private static string EscapeSsml(string text)
+    /// <summary>Validates and resolves the voice name, falling back to default.</summary>
+    private string ResolveVoice(string? voice)
     {
-        if (text == null) return string.Empty;
-        return text
-            .Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\"", "&quot;")
-            .Replace("'", "&apos;");
+        var selected = voice ?? "en-US-AriaNeural";
+
+        if (!AvailableVoices.Contains(selected, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Invalid voice '{selected}'. Available: {string.Join(", ", AvailableVoices)}");
+        }
+
+        return selected;
+    }
+
+    /// <summary>Builds the Azure TTS REST API URL for the configured region.</summary>
+    private string BuildUrl() =>
+        $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _http.Dispose();
     }
 }
