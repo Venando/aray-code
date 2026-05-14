@@ -114,4 +114,16 @@ public sealed class ToolTheme
     public string StatusNoAgentsText { get; set; } = "grey";
     /// <summary>Style for conversation / session name in the top status bar.</summary>
     public string ConversationNameStyle { get; set; } = "italic white";
+
+    // ── StreamShell settings ─────────────────────────────────────────
+    /// <summary>Style for the cursor highlight. Default: "bold black on cyan".</summary>
+    public string StreamCursorMarkup { get; set; } = "bold black on cyan";
+    /// <summary>Style for selected text. Default: "bold cyan on Grey27".</summary>
+    public string StreamSelectionMarkup { get; set; } = "bold cyan on Grey27";
+    /// <summary>Style for the command slash character (/). Default: "Red1".</summary>
+    public string StreamCommandSlashMarkup { get; set; } = "Red1";
+    /// <summary>Full Spectre markup for the input prompt prefix. Default: "[bold SkyBlue1]> [/]".</summary>
+    public string StreamInputPrefix { get; set; } = "[bold SkyBlue1]> [/]";
+    /// <summary>Plain text prefix for continuation lines. Default: "   ".</summary>
+    public string StreamContinuationPrefix { get; set; } = "   ";
 }

@@ -96,6 +96,10 @@ public sealed class StreamShellInputHandler : IDisposable
         // Initialize theme: ensure example file exists, then load the configured theme
         _themeService.EnsureExampleFile();
         _themeService.LoadTheme();
+        _host.ApplyStreamShellTheme();
+
+        // Re-apply StreamShell settings on runtime theme swap
+        _themeService.ThemeChanged += (_, _) => _host.ApplyStreamShellTheme();
 
         _lastKnownLlmUrl = appConfig.DirectLlmUrl;
         _lastKnownLlmModel = appConfig.DirectLlmModelName;

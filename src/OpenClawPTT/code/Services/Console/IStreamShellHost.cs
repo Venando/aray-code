@@ -47,6 +47,18 @@ public interface IStreamShellHost
     /// <summary>Sets the continuation prefix for wrapped input lines on the underlying StreamShell settings.</summary>
     void SetContinuationPrefix(string prefix);
 
+    /// <summary>Sets the cursor highlight markup on the underlying StreamShell settings.</summary>
+    void SetCursorMarkup(string markup);
+
+    /// <summary>Sets the selection highlight markup on the underlying StreamShell settings.</summary>
+    void SetSelectionMarkup(string markup);
+
+    /// <summary>Sets the command slash character markup on the underlying StreamShell settings.</summary>
+    void SetCommandSlashMarkup(string markup);
+
+    /// <summary>Applies all theme-driven settings (cursor, selection, command slash, prefix) from ThemeConfig.</summary>
+    void ApplyStreamShellTheme();
+
     /// <summary>Sets the default bottom panel (shown when no command is active).</summary>
     void SetDefaultPanel(StreamShell.IBottomPanel panel);
 
