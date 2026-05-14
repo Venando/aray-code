@@ -115,6 +115,9 @@ public sealed class ToolTheme
     /// <summary>Style for conversation / session name in the top status bar.</summary>
     public string ConversationNameStyle { get; set; } = "italic white";
 
+    /// <summary>Spectre markup prefix for user's own messages. Default: "[green] Me:[/] ".</summary>
+    public string UserMessagePrefix { get; set; } = "[green] Me:[/] ";
+
     // ── StreamShell settings ─────────────────────────────────────────
     /// <summary>Style for the cursor highlight. Default: "bold black on cyan".</summary>
     public string StreamCursorMarkup { get; set; } = "bold black on cyan";

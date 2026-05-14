@@ -64,7 +64,6 @@ public partial class AppRunner
     {
         var displayProps = new[]
         {
-            nameof(AppConfig.UserMessagePrefix),
             nameof(AppConfig.RightMarginIndent),
             nameof(AppConfig.EnableWordWrap),
             nameof(AppConfig.DebugLevel),

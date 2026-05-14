@@ -18,7 +18,11 @@ public sealed class ColorConsole : IColorConsole
     public LogLevel LogLevel { get; set; } = LogLevel.Error;
 
     /// <inheritdoc />
-    public string UserMessagePrefix { get; set; } = " [green] You:[/] ";
+    public string UserMessagePrefix
+    {
+        get => ThemeProvider.Current.Tools.UserMessagePrefix;
+        set { } // Kept for interface compat; value comes from active theme
+    }
 
     /// <inheritdoc />
     public int ReservedRightMargin { get; set; } = 10;
@@ -42,12 +46,10 @@ public sealed class ColorConsole : IColorConsole
             config.RightMarginIndent,
             (int)(ConsoleMetrics.GetWindowWidth() * 0.1));
 
-        UserMessagePrefix = config.UserMessagePrefix;
-
         // Apply StreamShell settings (theme-driven cursor/selection/commandSlash/prefix)
         _shellHost.SetRightMarginIndent(ReservedRightMargin);
 
-        int prefixWidth = Markup.Remove(config.UserMessagePrefix).Length;
+        int prefixWidth = Markup.Remove(ThemeProvider.Current.Tools.UserMessagePrefix).Length;
         _shellHost.ApplyStreamShellTheme(prefixWidth);
     }
 

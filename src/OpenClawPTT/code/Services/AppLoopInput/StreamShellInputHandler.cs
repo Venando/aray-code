@@ -380,7 +380,8 @@ public sealed class StreamShellInputHandler : IDisposable
 
     /// <summary>
     /// Computes the visual width of the user message prefix for input prompt alignment.
+    /// Reads from the active theme so /theme changes realign the prompt.
     /// </summary>
     private int ComputePrefixWidth()
-        => Markup.Remove(_appConfig.UserMessagePrefix).Length;
+        => Markup.Remove(ThemeProvider.Current.Tools.UserMessagePrefix).Length;
 }
