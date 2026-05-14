@@ -255,14 +255,15 @@ def main():
         with open(cache_file) as f:
             cache = json.load(f)
 
-    # Resolve download URLs from the TTS model registry
-    from TTS.api import TTS
+    # Resolve download URLs from the TTS model registry.
+    # Use ModelManager directly to avoid TTS() which triggers slow torch import.
+    from TTS.utils.manage import ModelManager
     import sys as _sys
-    manager = TTS().list_models()
+    manager = ModelManager()
 
     # manager.models_dict is a NESTED dict:
     #   models_dict["tts_models"]["en"]["ljspeech"]["vits"] = {"github_rls_url": "...", ...}
-    registry = getattr(manager, 'models_dict', None)
+    registry = manager.models_dict
     print(f'[diag] models_dict: type={type(registry).__name__}', file=_sys.stderr)
     if registry and isinstance(registry, dict):
         print(f'[diag] models_dict top keys: {list(registry.keys())[:10]}', file=_sys.stderr)
