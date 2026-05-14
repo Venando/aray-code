@@ -293,6 +293,10 @@ public sealed record HistoryMessageEvent
     public IReadOnlyList<HistoryToolCall> ToolCalls { get; init; } = Array.Empty<HistoryToolCall>();
     public IReadOnlyList<string> ThinkingBlocks { get; init; } = Array.Empty<string>();
 
+    // ── Sender (untrusted metadata) ─────────────────────────────────────
+    public string? SenderLabel { get; init; }
+    public string? SenderId { get; init; }
+
     // ── __openclaw metadata ─────────────────────────────────────────────
     public string? OpenClawId { get; init; }
     public int? OpenClawSeq { get; init; }

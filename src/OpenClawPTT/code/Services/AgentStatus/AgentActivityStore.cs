@@ -130,27 +130,58 @@ public sealed class AgentActivityStore : IAgentActivityStore
             var rec = Get(sessionKey);
             if (rec is null) return null;
 
-            // Check tool calls first (most recent wins)
+            // Query all sources by timestamp: live events + history
+            var lastHist = rec.HistoryMessages.Count > 0 ? rec.HistoryMessages[^1] : null;
             var lastTool = rec.ToolCalls.Count > 0 ? rec.ToolCalls[^1] : null;
             var lastMsg = rec.AssistantMessages.Count > 0 ? rec.AssistantMessages[^1] : null;
             var lastUser = rec.UserMessages.Count > 0 ? rec.UserMessages[^1] : null;
 
+            long? histTime = lastHist?.Timestamp;
             long? toolTime = lastTool?.Ts;
             long? msgTime = lastMsg?.Timestamp;
             long? userTime = lastUser?.Timestamp;
 
-            // Find most recent activity with a timestamp
+            // History message is most recent
+            if (histTime is { } ht && (toolTime is null || ht >= toolTime)
+                && (msgTime is null || ht >= msgTime) && (userTime is null || ht >= userTime))
+            {
+                return FormatHistoryAction(lastHist!);
+            }
+
+            // Tool call
             if (toolTime is { } tt && (msgTime is null || tt >= msgTime) && (userTime is null || tt >= userTime))
                 return AgentActivityFormatter.Default.FormatTool(lastTool!.ToolName, lastTool.ArgsJson);
 
+            // Assistant message
             if (msgTime is { } mt && (userTime is null || mt >= userTime))
                 return AgentActivityFormatter.Default.FormatAssistantMessage(lastMsg);
 
+            // User message
             if (userTime is not null && lastUser?.ContentText is { } ct)
                 return AgentActivityFormatter.Default.FormatUserMessage(ct);
 
             return null;
         }
+    }
+
+    private static string FormatHistoryAction(HistoryMessageEvent e)
+    {
+        // Tool calls in the history message
+        if (e.ToolCalls.Count > 0)
+        {
+            var lastTc = e.ToolCalls[^1];
+            return AgentActivityFormatter.Default.FormatTool(lastTc.Name, lastTc.ArgumentsJson);
+        }
+
+        // Assistant text
+        if (e.Role == "assistant")
+            return AgentActivityFormatter.Default.FormatAssistantMessage(null);
+
+        // User text
+        if (e.Role == "user" && !string.IsNullOrWhiteSpace(e.ContentText))
+            return AgentActivityFormatter.Default.FormatUserMessage(e.ContentText);
+
+        return null;
     }
 
     public long? GetLastActivityTime(string sessionKey)
@@ -161,25 +192,20 @@ public sealed class AgentActivityStore : IAgentActivityStore
             if (rec is null) return null;
 
             long? best = null;
-
-            void Consider(long? val)
-            {
-                if (val is { } v && (best is null || v > best)) best = v;
-            }
+            void Consider(long? val) { if (val is { } v && (best is null || v > best)) best = v; }
 
             Consider(rec.State?.EndedAt);
             Consider(rec.State?.UpdatedAt);
             Consider(rec.State?.Ts);
 
+            if (rec.HistoryMessages.Count > 0)
+                Consider(rec.HistoryMessages[^1].Timestamp);
             if (rec.AssistantMessages.Count > 0)
                 Consider(rec.AssistantMessages[^1].Timestamp);
-
             if (rec.ToolCalls.Count > 0)
                 Consider(rec.ToolCalls[^1].Ts);
-
             if (rec.UserMessages.Count > 0)
                 Consider(rec.UserMessages[^1].Timestamp);
-
             if (rec.Lifecycles.Count > 0)
             {
                 var lc = rec.Lifecycles[^1];
@@ -328,68 +354,6 @@ public sealed class AgentActivityStore : IAgentActivityStore
         {
             var rec = GetOrCreate(e.SessionKey);
             rec.HistoryMessages.Add(e);
-
-            // Also store summary data in the directly-queryable collections
-            // so GetLastActionDescription / GetLastActivityTime work.
-
-            // Session-level metadata
-            if (rec.State is null || e.Timestamp > (rec.State.UpdatedAt ?? 0))
-            {
-                rec.State = new SessionStateEvent
-                {
-                    SessionKey = e.SessionKey,
-                    Model = e.Model,
-                    ModelProvider = e.Provider,
-                    UpdatedAt = e.Timestamp,
-                    InputTokens = e.InputTokens,
-                    OutputTokens = e.OutputTokens,
-                    TotalTokens = e.TotalTokens,
-                };
-            }
-
-            // Tool calls
-            for (int t = 0; t < e.ToolCalls.Count; t++)
-            {
-                var tc = e.ToolCalls[t];
-                rec.ToolCalls.Add(new ToolEvent
-                {
-                    SessionKey = e.SessionKey,
-                    RunId = "history",
-                    ToolCallId = $"hist_{rec.HistoryMessages.Count - 1}_{t}",
-                    ToolName = tc.Name,
-                    Phase = "start",
-                    Ts = e.Timestamp,
-                    ArgsJson = tc.ArgumentsJson,
-                });
-            }
-
-            // Assistant metadata
-            if (e.Role == "assistant")
-            {
-                rec.AssistantMessages.Add(new AssistantMessageEvent
-                {
-                    SessionKey = e.SessionKey,
-                    MessageId = $"hist_{rec.HistoryMessages.Count - 1}",
-                    MessageSeq = rec.HistoryMessages.Count - 1,
-                    Timestamp = e.Timestamp,
-                    StopReason = e.StopReason,
-                    Model = e.Model,
-                    ModelProvider = e.Provider,
-                });
-            }
-
-            // User message
-            if (e.Role == "user")
-            {
-                rec.UserMessages.Add(new UserMessageEvent
-                {
-                    SessionKey = e.SessionKey,
-                    MessageId = $"hist_{rec.HistoryMessages.Count - 1}",
-                    MessageSeq = rec.HistoryMessages.Count - 1,
-                    Timestamp = e.Timestamp,
-                    ContentText = e.ContentText,
-                });
-            }
         }
         Changed?.Invoke(e.SessionKey);
     }

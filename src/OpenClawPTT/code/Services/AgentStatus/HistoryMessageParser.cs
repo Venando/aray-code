@@ -141,6 +141,16 @@ public static class HistoryMessageParser
             }
         }
 
+        // ── Sender metadata (untrusted) ───────────────────────────────────
+        string? senderLabel = null;
+        string? senderId = null;
+        if (msg.TryGetProperty("sender", out var sender) && sender.ValueKind == JsonValueKind.Object)
+        {
+            tracker.MarkNested("sender");
+            senderLabel = tracker.Fetch(sender, "label");
+            senderId = tracker.Fetch(sender, "id");
+        }
+
         // ── __openclaw metadata ───────────────────────────────────────────
         string? openClawId = null;
         int? openClawSeq = null;
@@ -161,6 +171,8 @@ public static class HistoryMessageParser
             Timestamp = timestamp,
             ResponseId = responseId,
             Api = api,
+            SenderLabel = senderLabel,
+            SenderId = senderId,
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             TotalTokens = totalTokens,
