@@ -22,8 +22,8 @@ public partial class AppRunner
         CreateShellAndHotkeyServicesAsync(
             IGatewayService gateway,
             IPttStateMachine pttStateMachine,
-            ConversationNamingTextMessageSender namingTextSender,
-            IConversationNamingService namingService,
+            ITextMessageSender textSender,
+            IConversationNamingService? namingService,
             IDirectLlmService directLlmService,
             ITtsSummarizer ttsSummarizer,
             IAudioService audioService,
@@ -34,7 +34,7 @@ public partial class AppRunner
         var pttController = new PttController();
 
         var agentHotkeyService = new AgentHotkeyService(
-            pttController, namingTextSender, _shellHost, _cfg,
+            pttController, textSender, _shellHost, _cfg,
             _factory.GetAgentSettingsPersistence(),
             gatewayService: gateway,
             pttStateMachine: pttStateMachine,
@@ -42,7 +42,7 @@ public partial class AppRunner
 
         var shellCommands = new StreamShellInputHandler(
             _shellHost,
-            namingTextSender,
+            textSender,
             gateway,
             _configService,
             _cfg,
@@ -57,7 +57,8 @@ public partial class AppRunner
             statusService: _statusService,
             wizard: _wizard
         );
-        shellCommands.CommandExecuted += namingService.OnCommandExecuted;
+        if (namingService != null)
+            shellCommands.CommandExecuted += namingService.OnCommandExecuted;
 
         var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentStatusTracker);
         shellCommands.CommandExecuted += snapshotCleaner.Handle;
@@ -76,7 +77,7 @@ public partial class AppRunner
         _console.PrintHelpMenu(_cfg);
 
         var pttLoop = _factory.CreatePttLoop(
-            pttStateMachine, audioService, pttController, namingTextSender, inputHandler,
+            pttStateMachine, audioService, pttController, textSender, inputHandler,
             requireConfirmBeforeSend: _cfg.RequireConfirmBeforeSend);
 
         return (agentHotkeyService, shellCommands, snapshotCleaner, pttLoop);
