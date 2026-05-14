@@ -122,7 +122,11 @@ public sealed class StatusRenderer
             return string.Empty;
 
         _sbLeft.Clear();
+        // Wrap the decorative prefix in the separator character markup so the
+        // left-side dashes match the color of the repeated fill characters.
+        _sbLeft.Append($"[{Style.SeparatorCharMarkup}]");
         _sbLeft.Append(Style.TopLeftSeparatorPrefix);
+        _sbLeft.Append("[/]");
         _sbLeft.Append(partsText);
         _sbLeft.Append(' ');
         return _sbLeft.ToString();
