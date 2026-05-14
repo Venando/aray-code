@@ -1,3 +1,4 @@
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -36,7 +37,7 @@ public sealed class HistoryCommand : ICommand
         var sessionKey = AgentRegistry.ActiveSessionKey;
         if (sessionKey == null)
         {
-            _host.AddMessage("[yellow]  No active session.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  No active session.[/]");
             return;
         }
 
@@ -47,14 +48,14 @@ public sealed class HistoryCommand : ICommand
         var history = await _gatewayService.FetchSessionHistoryAsync(sessionKey, limit);
         if (history == null || history.Count == 0)
         {
-            _host.AddMessage("[yellow]  No history entries found.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  No history entries found.[/]");
             return;
         }
 
         _pttStateMachine.DuringReplay = true;
         try
         {
-            _host.AddMessage($"  [grey]── history ({history.Count} entries) ──[/]");
+            _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]── history ({history.Count} entries) ──[/]");
             foreach (var entry in history)
             {
                 if (entry.Role.Equals("user", StringComparison.OrdinalIgnoreCase))

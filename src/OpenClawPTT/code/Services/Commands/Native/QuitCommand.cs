@@ -1,3 +1,5 @@
+using OpenClawPTT.Services.Themes;
+
 namespace OpenClawPTT.Services.Commands;
 
 /// <summary>Native command: /quit — exits the application.</summary>
@@ -20,7 +22,7 @@ public sealed class QuitCommand : ICommand
 
     public Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
     {
-        _host.AddMessage("[green]  Bye![/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  Bye![/]");
         _onQuit();
         return Task.CompletedTask;
     }

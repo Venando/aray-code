@@ -1,4 +1,5 @@
 using System.Linq;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -31,8 +32,8 @@ public sealed class AppConfigCommand : ICommand
     {
         if (args.Length == 0)
         {
-            _host.AddMessage("[yellow]  Usage: /appconfig <key> [value][/]");
-            _host.AddMessage("[grey]  Examples:[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Usage: /appconfig <key> [value][/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]  Examples:[/]");
             _host.AddMessage("    /appconfig DirectLlmUrl           (show current value)");
             _host.AddMessage("    /appconfig DirectLlmUrl http://... (set new value)");
             return Task.CompletedTask;
@@ -48,7 +49,7 @@ public sealed class AppConfigCommand : ICommand
 
         if (property == null)
         {
-            _host.AddMessage($"[red]  Unknown config key: {key}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Unknown config key: {key}[/]");
             return Task.CompletedTask;
         }
 
@@ -58,10 +59,10 @@ public sealed class AppConfigCommand : ICommand
         {
             var currentValue = property.GetValue(_appConfig);
             var displayValue = currentValue?.ToString() ?? "(null)";
-            _host.AddMessage($"[cyan]  {key}:[/] {displayValue}");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  {key}:[/] {displayValue}");
 
             if (AppConfig.PropertyDescriptions.TryGetValue(key, out var desc))
-                _host.AddMessage($"[grey]    → {Markup.Escape(desc)}[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]    → {Markup.Escape(desc)}[/]");
         }
         else
         {
@@ -90,7 +91,7 @@ public sealed class AppConfigCommand : ICommand
                 }
                 else
                 {
-                    _host.AddMessage($"[red]  Cannot set {key}: unsupported type {property.PropertyType.Name}[/]");
+                    _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Cannot set {key}: unsupported type {property.PropertyType.Name}[/]");
                     return Task.CompletedTask;
                 }
 
@@ -104,22 +105,22 @@ public sealed class AppConfigCommand : ICommand
                 var issues = _configService.Validate(_appConfig);
                 if (issues.Count > 0)
                 {
-                    _host.AddMessage("[yellow]  Validation warnings:[/]");
+                    _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Validation warnings:[/]");
                     foreach (var issue in issues)
-                        _host.AddMessage($"    [grey]• {Markup.Escape(issue)}[/]");
-                    _host.AddMessage("[grey]  The value will be saved despite warnings.[/]");
+                        _host.AddMessage($"    [{ThemeProvider.Current.Tools.General.Muted}]• {Markup.Escape(issue)}[/]");
+                    _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  The value will be saved despite warnings.[/]");
                 }
 
                 _configService.Save(_appConfig);
-                _host.AddMessage($"[green]  {key} set to: {convertedValue}[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  {key} set to: {convertedValue}[/]");
             }
             catch (FormatException)
             {
-                _host.AddMessage($"[red]  Invalid value format for {key} (expected {property.PropertyType.Name})[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Invalid value format for {key} (expected {property.PropertyType.Name})[/]");
             }
             catch (Exception ex)
             {
-                _host.AddMessage($"[red]  Failed to set {key}: {Markup.Escape(ex.Message)}[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Failed to set {key}: {Markup.Escape(ex.Message)}[/]");
             }
         }
 

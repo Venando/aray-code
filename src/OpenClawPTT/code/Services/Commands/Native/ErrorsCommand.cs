@@ -1,4 +1,5 @@
 using OpenClawPTT.Services.Diagnostics;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -26,7 +27,7 @@ public sealed class ErrorsCommand : ICommand
         if (args.Length > 0 && args[0].Equals("clear", StringComparison.OrdinalIgnoreCase))
         {
             _errorLog.Clear();
-            _host.AddMessage("[green]  Error log cleared.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  Error log cleared.[/]");
             return Task.CompletedTask;
         }
 
@@ -38,11 +39,11 @@ public sealed class ErrorsCommand : ICommand
 
         if (entries.Count == 0)
         {
-            _host.AddMessage("[green]  No errors logged.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  No errors logged.[/]");
             return Task.CompletedTask;
         }
 
-        _host.AddMessage($"[cyan2]  Recent errors ({entries.Count}):[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Recent errors ({entries.Count}):[/]");
         foreach (var entry in entries)
         {
             var ts = entry.Timestamp.ToString("HH:mm:ss");
@@ -50,38 +51,38 @@ public sealed class ErrorsCommand : ICommand
             var codeStr = entry.Code;
             if (!string.IsNullOrEmpty(entry.OuterCode) && entry.OuterCode != entry.Code)
                 codeStr = $"{entry.OuterCode} → {entry.Code}";
-            _host.AddMessage($"  [grey]{ts}[/] [bold]{Markup.Escape(codeStr)}[/] {Markup.Escape(entry.Message)}");
+            _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]{ts}[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{Markup.Escape(codeStr)}[/] {Markup.Escape(entry.Message)}");
 
             if (!string.IsNullOrEmpty(entry.Reason))
-                _host.AddMessage($"    Reason: [grey]{Markup.Escape(entry.Reason)}[/]");
+                _host.AddMessage($"    Reason: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(entry.Reason)}[/]");
             if (!string.IsNullOrEmpty(entry.RequestId))
-                _host.AddMessage($"    RequestId: [grey]{Markup.Escape(entry.RequestId)}[/]");
+                _host.AddMessage($"    RequestId: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(entry.RequestId)}[/]");
             if (!string.IsNullOrEmpty(entry.DeviceId))
-                _host.AddMessage($"    DeviceId: [grey]{Markup.Escape(entry.DeviceId)}[/]");
+                _host.AddMessage($"    DeviceId: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(entry.DeviceId)}[/]");
             if (!string.IsNullOrEmpty(entry.RequestedRole))
-                _host.AddMessage($"    Requested role: [grey]{Markup.Escape(entry.RequestedRole)}[/]");
+                _host.AddMessage($"    Requested role: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(entry.RequestedRole)}[/]");
             if (entry.RequestedScopes is { Length: > 0 })
-                _host.AddMessage($"    Requested scopes: [grey]{Markup.Escape(string.Join(", ", entry.RequestedScopes))}[/]");
+                _host.AddMessage($"    Requested scopes: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(string.Join(", ", entry.RequestedScopes))}[/]");
             if (entry.ApprovedScopes is { Length: > 0 })
-                _host.AddMessage($"    Approved scopes: [grey]{Markup.Escape(string.Join(", ", entry.ApprovedScopes))}[/]");
+                _host.AddMessage($"    Approved scopes: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(string.Join(", ", entry.ApprovedScopes))}[/]");
             if (entry.ApprovedRoles is { Length: > 0 })
-                _host.AddMessage($"    Approved roles: [grey]{Markup.Escape(string.Join(", ", entry.ApprovedRoles))}[/]");
+                _host.AddMessage($"    Approved roles: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(string.Join(", ", entry.ApprovedRoles))}[/]");
             if (!string.IsNullOrEmpty(entry.Method))
-                _host.AddMessage($"    Method: [grey]{Markup.Escape(entry.Method)}[/]");
+                _host.AddMessage($"    Method: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(entry.Method)}[/]");
             if (entry.RetryAfterMs.HasValue)
-                _host.AddMessage($"    Retry after: [grey]{entry.RetryAfterMs.Value}ms[/]");
+                _host.AddMessage($"    Retry after: [{ThemeProvider.Current.Tools.General.Muted}]{entry.RetryAfterMs.Value}ms[/]");
             if (!string.IsNullOrEmpty(entry.RecommendedNextStep))
-                _host.AddMessage($"    Recommended: [grey]{Markup.Escape(entry.RecommendedNextStep)}[/]");
+                _host.AddMessage($"    Recommended: [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(entry.RecommendedNextStep)}[/]");
             if (entry.CanRetryWithDeviceToken == true)
-                _host.AddMessage($"    Can retry with device token: [grey]yes[/]");
+                _host.AddMessage($"    Can retry with device token: [{ThemeProvider.Current.Tools.General.Muted}]yes[/]");
 
             if (entry.SuggestedActions.Length > 0)
             {
                 foreach (var action in entry.SuggestedActions)
-                    _host.AddMessage($"    → [grey]{Markup.Escape(action)}[/]");
+                    _host.AddMessage($"    → [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(action)}[/]");
             }
         }
-        _host.AddMessage("[grey]  Use /errors N to show more, /errors clear to clear[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Use /errors N to show more, /errors clear to clear[/]");
         return Task.CompletedTask;
     }
 }

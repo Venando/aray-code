@@ -1,4 +1,5 @@
 using System.Linq;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -47,14 +48,14 @@ public sealed class CrewCommand : ICommand
 
         if (agents.Count == 0)
         {
-            _host.AddMessage("[yellow]  No agents available. Make sure you're connected.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  No agents available. Make sure you're connected.[/]");
             return Task.CompletedTask;
         }
 
         var globalHotkey = _appConfig.HotkeyCombination;
         var allSettings = _agentSettingsPersistence.AllAgentSettings;
 
-        _host.AddMessage("[cyan2]  Available agents:[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Available agents:[/]");
         foreach (var entry in allSettings)
         {
             var isActive = entry.Agent.SessionKey == activeKey;
@@ -66,16 +67,16 @@ public sealed class CrewCommand : ICommand
             var nameDisplay = $"{colorTag}{Markup.Escape(entry.Agent.Name)}{colorClose}";
             var hotkeyDisplay = entry.Hotkey != null
                 ? Markup.Escape(entry.Hotkey)
-                : $"[grey](global: {Markup.Escape(globalHotkey)})[/]";
+                : $"[{ThemeProvider.Current.Tools.General.Muted}](global: {Markup.Escape(globalHotkey)})[/]";
             var colorValueDisplay = $"{colorTag}{Markup.Escape(effectiveColor)}{colorClose}";
             if (entry.Color == null)
-                colorValueDisplay += " [grey](default)[/]";
+                colorValueDisplay += $" [{ThemeProvider.Current.Tools.General.Muted}](default)[/]";
 
-            var showStatus = entry.ShowInStatusPanel ? "" : " [grey](hidden)[/]";
+            var showStatus = entry.ShowInStatusPanel ? "" : $" [{ThemeProvider.Current.Tools.General.Muted}](hidden)[/]";
 
-            _host.AddMessage($"  {marker} {emojiDisplay} [bold]{nameDisplay}[/] [grey]({Markup.Escape(entry.Agent.AgentId)})[/] — hotkey: {hotkeyDisplay}, emoji: {Markup.Escape(emojiDisplay)}, color: {colorValueDisplay}{showStatus}");
+            _host.AddMessage($"  {marker} {emojiDisplay} [{ThemeProvider.Current.Tools.Messages.Emphasis}]{nameDisplay}[/] [{ThemeProvider.Current.Tools.General.Muted}]({Markup.Escape(entry.Agent.AgentId)})[/] — hotkey: {hotkeyDisplay}, emoji: {Markup.Escape(emojiDisplay)}, color: {colorValueDisplay}{showStatus}");
         }
-        _host.AddMessage("[grey]  Use /crew config for interactive setup[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Use /crew config for interactive setup[/]");
         return Task.CompletedTask;
     }
 
@@ -93,20 +94,20 @@ public sealed class CrewCommand : ICommand
 
             if (matched == null)
             {
-                _host.AddMessage($"[red]  Agent not found: {Markup.Escape(search)}[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Agent not found: {Markup.Escape(search)}[/]");
                 return Task.CompletedTask;
             }
         }
         else
         {
             var agents = AgentRegistry.Agents;
-            _host.AddMessage("[cyan2]  Select an agent to configure:[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Select an agent to configure:[/]");
             foreach (var agent in agents)
             {
                 var emoji = _agentSettingsPersistence.GetPersistedEmoji(agent.AgentId) ?? "🤖";
                 var color = _agentSettingsPersistence.GetPersistedColor(agent.AgentId);
                 var nameStr = color != null ? $"[{color}]{Markup.Escape(agent.Name)}[/]" : Markup.Escape(agent.Name);
-                _host.AddMessage($"  {emoji} {nameStr} [grey]({Markup.Escape(agent.AgentId)})[/]");
+                _host.AddMessage($"  {emoji} {nameStr} [{ThemeProvider.Current.Tools.General.Muted}]({Markup.Escape(agent.AgentId)})[/]");
             }
             _host.AddMessage("");
         }

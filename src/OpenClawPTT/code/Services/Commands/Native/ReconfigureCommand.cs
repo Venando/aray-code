@@ -1,3 +1,4 @@
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -27,19 +28,19 @@ public sealed class ReconfigureCommand : ICommand
         var currentCfg = _configService.Load();
         if (currentCfg == null)
         {
-            _host.AddMessage("[yellow]  No configuration found. Run first-time setup instead.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  No configuration found. Run first-time setup instead.[/]");
             return;
         }
 
-        _host.AddMessage("[cyan2]  Starting reconfiguration wizard...[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Starting reconfiguration wizard...[/]");
         try
         {
             var newCfg = await _wizard.ReconfigureAsync(_host, currentCfg, ct);
-            _host.AddMessage("[green]  Configuration updated.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  Configuration updated.[/]");
         }
         catch (OperationCanceledException)
         {
-            _host.AddMessage("[grey]  Reconfiguration cancelled.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Reconfiguration cancelled.[/]");
         }
     }
 }

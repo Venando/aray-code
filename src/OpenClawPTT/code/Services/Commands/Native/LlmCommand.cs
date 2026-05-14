@@ -1,3 +1,4 @@
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -76,27 +77,27 @@ public sealed class LlmCommand : ICommand
     {
         if (_directLlmService == null || !_directLlmService.IsConfigured)
         {
-            _host.AddMessage("[yellow]  Direct LLM is not configured. Set DirectLlmUrl and DirectLlmModelName in config.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Direct LLM is not configured. Set DirectLlmUrl and DirectLlmModelName in config.[/]");
             return;
         }
 
         var message = string.Join(" ", messageArgs);
         if (string.IsNullOrWhiteSpace(message))
         {
-            _host.AddMessage("[yellow]  Usage: /llm message <your text>[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Usage: /llm message <your text>[/]");
             return;
         }
 
-        _host.AddMessage($"[grey]  Sending to LLM ({_appConfig.DirectLlmModelName})...[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Sending to LLM ({_appConfig.DirectLlmModelName})...[/]");
 
         try
         {
             var response = await _directLlmService.SendAsync(message, ct);
-            _console.PrintFormatted("[cyan]  LLM Response:[/] ", response);
+            _console.PrintFormatted($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  LLM Response:[/] ", response);
         }
         catch (Exception ex)
         {
-            _host.AddMessage($"[red]  LLM request failed: {Markup.Escape(ex.Message)}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  LLM request failed: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -106,7 +107,7 @@ public sealed class LlmCommand : ICommand
     {
         if (_ttsSummarizer == null)
         {
-            _host.AddMessage("[yellow]  TTS summarizer not available. Make sure DirectLlmUrl is configured.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  TTS summarizer not available. Make sure DirectLlmUrl is configured.[/]");
             return;
         }
 
@@ -117,34 +118,34 @@ public sealed class LlmCommand : ICommand
             samplePath = FindSampleFile("test-summary-sample.txt");
             if (samplePath == null)
             {
-                _host.AddMessage($"[red]  Sample file not found. Ensure test-summary-sample.txt is in the output directory.[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Sample file not found. Ensure test-summary-sample.txt is in the output directory.[/]");
                 return;
             }
         }
 
         var rawText = await File.ReadAllTextAsync(samplePath, ct);
-        _host.AddMessage($"[grey]  Loaded sample ({rawText.Length} chars raw)[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Loaded sample ({rawText.Length} chars raw)[/]");
 
-        _host.AddMessage("[grey]  Running through TTS preprocessing...[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Running through TTS preprocessing...[/]");
         var preprocessed = TtsContentFilter.SanitizeForTts(rawText);
-        _host.AddMessage($"[grey]  After sanitize: {preprocessed.Length} chars[/]:[white]{preprocessed}[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  After sanitize: {preprocessed.Length} chars[/]:[{ThemeProvider.Current.Tools.General.Value}]{preprocessed}[/]");
 
         if (_directLlmService == null || !_directLlmService.IsConfigured)
         {
-            _host.AddMessage("[yellow]  Direct LLM not configured — skipping summarization step.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Direct LLM not configured — skipping summarization step.[/]");
             return;
         }
 
-        _host.AddMessage($"[grey]  Sending to LLM ({_appConfig.DirectLlmModelName}) for summarization...[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Sending to LLM ({_appConfig.DirectLlmModelName}) for summarization...[/]");
         try
         {
             var summarized = await _ttsSummarizer.SummarizeForTtsAsync(rawText, _appConfig, ct);
-            _host.AddMessage($"[green]  Summary ({summarized.Length} chars):[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  Summary ({summarized.Length} chars):[/]");
             _host.AddMessage($"  {Markup.Escape(summarized)}");
         }
         catch (Exception ex)
         {
-            _host.AddMessage($"[red]  Summarization failed: {Markup.Escape(ex.Message)}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Summarization failed: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -154,7 +155,7 @@ public sealed class LlmCommand : ICommand
     {
         if (_directLlmService == null || !_directLlmService.IsConfigured)
         {
-            _host.AddMessage("[yellow]  Direct LLM is not configured. Set DirectLlmUrl and DirectLlmModelName in config.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Direct LLM is not configured. Set DirectLlmUrl and DirectLlmModelName in config.[/]");
             return;
         }
 
@@ -164,27 +165,27 @@ public sealed class LlmCommand : ICommand
             samplePath = FindSampleFile("test-conversation-sample.txt");
             if (samplePath == null)
             {
-                _host.AddMessage($"[red]  Sample file not found. Ensure test-conversation-sample.txt is in the output directory.[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Sample file not found. Ensure test-conversation-sample.txt is in the output directory.[/]");
                 return;
             }
         }
 
         var rawText = await File.ReadAllTextAsync(samplePath, ct);
-        _host.AddMessage($"[grey]  Loaded conversation sample ({rawText.Length} chars)[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Loaded conversation sample ({rawText.Length} chars)[/]");
 
         // Build a naming prompt that mimics what the naming service would build
         var prompt = BuildTitleTestPrompt(rawText);
 
-        _host.AddMessage($"[grey]  Sending to LLM ({_appConfig.DirectLlmModelName}) for title generation...[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Sending to LLM ({_appConfig.DirectLlmModelName}) for title generation...[/]");
         try
         {
             var response = await _directLlmService.SendAsync(prompt, ct);
             var cleaned = SanitizeTitleResponse(response);
-            _host.AddMessage($"[green]  Generated Title:[/] [bold]{Markup.Escape(cleaned)}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  Generated Title:[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{Markup.Escape(cleaned)}[/]");
         }
         catch (Exception ex)
         {
-            _host.AddMessage($"[red]  Title generation failed: {Markup.Escape(ex.Message)}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Title generation failed: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -243,10 +244,10 @@ public sealed class LlmCommand : ICommand
 
     private void ShowUsage()
     {
-        _host.AddMessage("[yellow]  Usage:[/]");
-        _host.AddMessage("  [white]/llm message <text>[/]      Send a message to the configured LLM");
-        _host.AddMessage("  [white]/llm summary-test[/]        Test the TTS summarization pipeline");
-        _host.AddMessage("  [white]/llm title-test[/]          Test the conversation naming pipeline");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Usage:[/]");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Value}]/llm message <text>[/]      Send a message to the configured LLM");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Value}]/llm summary-test[/]        Test the TTS summarization pipeline");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Value}]/llm title-test[/]          Test the conversation naming pipeline");
     }
 
     /// <summary>

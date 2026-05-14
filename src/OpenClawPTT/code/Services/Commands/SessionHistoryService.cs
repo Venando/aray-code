@@ -1,4 +1,5 @@
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Themes;
 
 namespace OpenClawPTT.Services.Commands;
 
@@ -41,7 +42,7 @@ public sealed class SessionHistoryService
             try
             {
                 _host.AddMessage("");
-                _host.AddMessage("  [gray93 on #333333]────── previous messages ──────[/]");
+                _host.AddMessage($"  [{ThemeProvider.Current.Tools.HeaderStyle}]────── previous messages ──────[/]");
                 _host.AddMessage("");
                 foreach (var entry in history)
                 {
@@ -64,7 +65,7 @@ public sealed class SessionHistoryService
                         agoText = $"{(int)ago.TotalHours}h {(int)(ago.TotalMinutes % 60)}m ago";
                     else
                         agoText = $"{(int)ago.TotalDays}d ago";
-                    _host.AddMessage($"  [grey]Last message: {agoText}[/]");
+                    _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]Last message: {agoText}[/]");
                 }
                 _host.AddMessage("");
             }

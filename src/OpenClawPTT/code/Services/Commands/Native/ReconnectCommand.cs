@@ -1,4 +1,5 @@
 using OpenClawPTT.Services.Diagnostics;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -44,12 +45,12 @@ public sealed class ReconnectCommand : ICommand
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
     {
         _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Yellow);
-        _host.AddMessage("[cyan2]  Attempting to reconnect to gateway...[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Attempting to reconnect to gateway...[/]");
         try
         {
             await _gatewayService.ConnectAsync(ct);
             _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
-            _host.AddMessage("[green]  Reconnected successfully.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  Reconnected successfully.[/]");
 
             // Notify subscribers that gateway is back
             if (OnReconnectSuccess != null)
@@ -64,12 +65,12 @@ public sealed class ReconnectCommand : ICommand
             _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Red);
             var classification = GatewayErrorClassifier.Classify(ex);
             _errorLog.Write(classification.ToLogEntry());
-            _host.AddMessage($"[red]  Reconnect failed: {classification.HumanMessage}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Reconnect failed: {classification.HumanMessage}[/]");
             if (classification.SuggestedActions.Length > 0)
             {
-                _host.AddMessage("[grey]  Suggested actions:[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]  Suggested actions:[/]");
                 foreach (var action in classification.SuggestedActions)
-                    _host.AddMessage($"    → [grey]{Markup.Escape(action)}[/]");
+                    _host.AddMessage($"    → [{ThemeProvider.Current.Tools.General.Muted}]{Markup.Escape(action)}[/]");
             }
         }
     }

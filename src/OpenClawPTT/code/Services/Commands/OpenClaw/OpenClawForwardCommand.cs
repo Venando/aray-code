@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -50,7 +51,7 @@ public sealed class OpenClawForwardCommand : ICommand
             var sessionKey = AgentRegistry.ActiveSessionKey;
             if (sessionKey == null)
             {
-                _host.AddMessage("[yellow]  No active session to reset.[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  No active session to reset.[/]");
                 return;
             }
 
@@ -69,7 +70,7 @@ public sealed class OpenClawForwardCommand : ICommand
             }
             catch (Exception ex)
             {
-                _host.AddMessage($"[red]  Failed to reset session: {Markup.Escape(ex.Message)}[/]");
+                _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Failed to reset session: {Markup.Escape(ex.Message)}[/]");
             }
             return;
         }
@@ -90,7 +91,7 @@ public sealed class OpenClawForwardCommand : ICommand
         }
         catch (Exception ex)
         {
-            _host.AddMessage($"[red]  Failed to send command: {Markup.Escape(ex.Message)}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Failed to send command: {Markup.Escape(ex.Message)}[/]");
         }
     }
 }

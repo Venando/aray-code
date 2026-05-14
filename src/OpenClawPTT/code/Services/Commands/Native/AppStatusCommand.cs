@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenClawPTT.Services.Themes;
 using StreamShell;
 
 namespace OpenClawPTT.Services.Commands;
@@ -108,7 +109,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel
             MakeLine("STT:", sttColor, FormatStt()),
             MakeLine("LLM:", llmColor, FormatLlm()),
             "",
-            "  [grey]Press Escape to dismiss[/]"
+            $"  [{ThemeProvider.Current.Tools.General.Muted}]Press Escape to dismiss[/]"
         };
     }
 
@@ -143,10 +144,10 @@ public sealed class AppStatusBottomPanel : IBottomPanel
     {
         var dotColor = color switch
         {
-            StatusColor.Green  => "green",
-            StatusColor.Yellow => "yellow",
-            StatusColor.Red    => "red",
-            _ => "grey",
+            StatusColor.Green  => ThemeProvider.Current.Tools.Messages.Success,
+            StatusColor.Yellow => ThemeProvider.Current.Tools.Messages.Warning,
+            StatusColor.Red    => ThemeProvider.Current.Tools.Messages.Error,
+            _ => ThemeProvider.Current.Tools.General.Muted,
         };
         var statusWord = color switch
         {
@@ -155,7 +156,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel
             StatusColor.Red    => "Error",
             _ => "Unknown",
         };
-        return $"  [{dotColor}]\u25CF[/] [bold]{label}[/] [{dotColor}]{statusWord}[/] [grey]\u2192 {detail}[/]";
+        return $"  [{dotColor}]\u25CF[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{label}[/] [{dotColor}]{statusWord}[/] [{ThemeProvider.Current.Tools.General.Muted}]\u2192 {detail}[/]";
     }
 
     private string FormatGateway()

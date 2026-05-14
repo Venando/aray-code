@@ -42,33 +42,33 @@ public sealed class ThemeCommand : ICommand
         var tools = current.Tools;
         var table = current.Table;
 
-        _host.AddMessage($"[cyan2]Current theme:[/] [bold]{Markup.Escape(currentName)}[/]");
-        _host.AddMessage($"  [grey]Author:[/] {Markup.Escape(current.Author)}");
-        _host.AddMessage($"  [grey]Tools header:[/] [{tools.HeaderStyle}]{Markup.Escape(tools.HeaderStyle)}[/]");
-        _host.AddMessage($"  [grey]Code fence start:[/] [dim]{Markup.Escape(md.CodeFenceStartMarkup)}[/]");
-        _host.AddMessage($"  [grey]Code fence end:[/]   [dim]{Markup.Escape(md.CodeFenceEndMarkup)}[/]");
-        _host.AddMessage($"  [grey]Code content:[/] [{md.CodeContentStyle}]{Markup.Escape(md.CodeContentStyle)}[/]");
-        _host.AddMessage($"  [grey]Table edges:[/] [{table.EdgeColor}]{Markup.Escape(table.EdgeColor)}[/]");
+        _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]Current theme:[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{Markup.Escape(currentName)}[/]");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]Author:[/] {Markup.Escape(current.Author)}");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]Tools header:[/] [{tools.HeaderStyle}]{Markup.Escape(tools.HeaderStyle)}[/]");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]Code fence start:[/] [dim]{Markup.Escape(md.CodeFenceStartMarkup)}[/]");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]Code fence end:[/]   [dim]{Markup.Escape(md.CodeFenceEndMarkup)}[/]");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]Code content:[/] [{md.CodeContentStyle}]{Markup.Escape(md.CodeContentStyle)}[/]");
+        _host.AddMessage($"  [{ThemeProvider.Current.Tools.General.Muted}]Table edges:[/] [{table.EdgeColor}]{Markup.Escape(table.EdgeColor)}[/]");
         _host.AddMessage("");
 
         var available = _themeService.GetAvailableThemes();
         if (available.Length == 0)
         {
-            _host.AddMessage("[yellow]  No custom theme files found in themes folder.[/]");
-            _host.AddMessage("[grey]  Use /appconfig to set ThemeFile to a theme name, or create a .json in the themes folder.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  No custom theme files found in themes folder.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Use /appconfig to set ThemeFile to a theme name, or create a .json in the themes folder.[/]");
         }
         else
         {
-            _host.AddMessage("[cyan2]Available themes:[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]Available themes:[/]");
             foreach (var themeName in available)
             {
                 var marker = string.Equals(themeName, currentName, StringComparison.OrdinalIgnoreCase)
-                    ? " [bold]►[/]"
+                    ? $" [{ThemeProvider.Current.Tools.Messages.Emphasis}]►[/]"
                     : "  ";
                 _host.AddMessage($"  {marker} {Markup.Escape(themeName)}");
             }
             _host.AddMessage("");
-            _host.AddMessage("[grey]  Use /theme <name> to switch[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Use /theme <name> to switch[/]");
         }
 
         return Task.CompletedTask;
@@ -79,13 +79,13 @@ public sealed class ThemeCommand : ICommand
         if (_themeService.TrySwapTheme(themeName))
         {
             var current = _themeService.CurrentTheme;
-            _host.AddMessage($"[green]Switched to theme:[/] [bold]{Markup.Escape(current.Name)}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]Switched to theme:[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{Markup.Escape(current.Name)}[/]");
         }
         else
         {
-            _host.AddMessage($"[red]Theme not found or failed to load:[/] {Markup.Escape(themeName)}");
-            _host.AddMessage("[grey]  Theme files are stored in the themes folder as .json files.[/]");
-            _host.AddMessage("[grey]  Use /theme to list available themes.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]Theme not found or failed to load:[/] {Markup.Escape(themeName)}");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Theme files are stored in the themes folder as .json files.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Use /theme to list available themes.[/]");
         }
 
         return Task.CompletedTask;

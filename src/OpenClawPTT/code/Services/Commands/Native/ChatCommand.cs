@@ -1,5 +1,6 @@
 using System.Linq;
 using OpenClawPTT.ConfigWizard;
+using OpenClawPTT.Services.Themes;
 using Spectre.Console;
 
 namespace OpenClawPTT.Services.Commands;
@@ -35,13 +36,13 @@ public sealed class ChatCommand : ICommand
         // Reject agent switching while a wizard is active
         if (WizardState.IsActive)
         {
-            _host.AddMessage("[yellow]  Cannot switch agents during configuration.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Cannot switch agents during configuration.[/]");
             return;
         }
 
         if (args.Length == 0)
         {
-            _host.AddMessage("[yellow]  Usage: /chat <name|id>[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Usage: /chat <name|id>[/]");
             return;
         }
 
@@ -52,14 +53,14 @@ public sealed class ChatCommand : ICommand
 
         if (matched == null)
         {
-            _host.AddMessage($"[red]  Agent not found: {Markup.Escape(search)}[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Error}]  Agent not found: {Markup.Escape(search)}[/]");
             return;
         }
 
         // Avoid no-op: check if already active before switching
         if (AgentRegistry.ActiveAgentId?.Equals(matched.AgentId, StringComparison.OrdinalIgnoreCase) == true)
         {
-            _host.AddMessage("[yellow]  That agent is already active.[/]");
+            _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  That agent is already active.[/]");
             return;
         }
 
