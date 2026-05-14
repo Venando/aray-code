@@ -36,6 +36,7 @@ public sealed class ThemeService
 
     private readonly AppConfig _appConfig;
     private ThemeConfig _currentTheme;
+    private readonly Dictionary<string, ThemeConfig> _builtInThemes;
 
     /// <summary>Raised when the active theme is swapped via /theme command.</summary>
     public event EventHandler<ThemeChangedEventArgs>? ThemeChanged;
@@ -47,6 +48,12 @@ public sealed class ThemeService
     {
         _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
         _currentTheme = ThemeConfig.Default;
+
+        // Register in-code themes (no JSON files needed)
+        _builtInThemes = new Dictionary<string, ThemeConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["drakula"] = BuiltInThemes.Drakula,
+        };
     }
 
     /// <summary>
@@ -129,14 +136,23 @@ public sealed class ThemeService
 
     /// <summary>
     /// Attempts to swap the active theme to the one identified by <paramref name="themeName"/>.
-    /// The theme file is expected at <c>{ThemesDir}/{themeName}.json</c>.
+    /// Checks built-in themes (no JSON file) first, then tries the themes folder.
     /// On success, raises <see cref="ThemeChanged"/>.
     /// </summary>
-    /// <returns>True if the theme was loaded successfully; false if the file was not found or contained errors.</returns>
+    /// <returns>True if the theme was loaded successfully; false if not found or had errors.</returns>
     public bool TrySwapTheme(string themeName)
     {
         if (string.IsNullOrWhiteSpace(themeName))
             return false;
+
+        // Check built-in themes first (no JSON file needed)
+        if (_builtInThemes.TryGetValue(themeName, out var builtIn))
+        {
+            var oldTheme = _currentTheme;
+            ApplyTheme(builtIn);
+            ThemeChanged?.Invoke(this, new ThemeChangedEventArgs(oldTheme, _currentTheme, themeName));
+            return true;
+        }
 
         // If the name has no extension, append .json
         var fileName = themeName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
@@ -167,20 +183,31 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Lists all <c>.json</c> theme files found in the themes folder,
-    /// excluding <c>theme.example.json</c>.
+    /// Lists all available themes: built-in in-code themes + <c>.json</c>
+    /// files from the themes folder (excluding <c>theme.example.json</c>).
+    /// Built-in themes appear first, sorted alphabetically.
     /// </summary>
     public string[] GetAvailableThemes()
     {
-        var themesDir = _appConfig.ThemesDir;
-        if (!Directory.Exists(themesDir))
-            return Array.Empty<string>();
+        var themes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        return Directory.GetFiles(themesDir, "*.json")
-            .Select(Path.GetFileNameWithoutExtension)
-            .Where(name => !string.Equals(name, "theme.example", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-            .ToArray()!;
+        // Built-in in-code themes
+        foreach (var key in _builtInThemes.Keys)
+            themes.Add(key);
+
+        // File-based themes from the themes folder
+        var themesDir = _appConfig.ThemesDir;
+        if (Directory.Exists(themesDir))
+        {
+            foreach (var file in Directory.GetFiles(themesDir, "*.json"))
+            {
+                var name = Path.GetFileNameWithoutExtension(file);
+                if (!string.Equals(name, "theme.example", StringComparison.OrdinalIgnoreCase))
+                    themes.Add(name);
+            }
+        }
+
+        return themes.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     /// <summary>
