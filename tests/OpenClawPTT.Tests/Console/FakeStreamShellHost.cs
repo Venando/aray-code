@@ -75,11 +75,9 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
         prop?.SetValue(args, input);
         UserInputSubmitted?.Invoke(args);
     }
-}
 
     public void SetCursorMarkup(string markup) { }
     public void SetSelectionMarkup(string markup) { }
     public void SetCommandSlashMarkup(string markup) { }
     public void ApplyStreamShellTheme(int prefixWidth) { }
-    public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariantEntry[] variants, StreamShell.SelectionInfo? info = null)
-        => Task.FromResult<StreamShell.IVariant[]?>(null);
+}

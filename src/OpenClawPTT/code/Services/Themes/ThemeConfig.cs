@@ -140,6 +140,8 @@ public sealed class MessageStyles
     public string BannerBorder { get; set; } = "deepskyblue3";
     public string HelpCommand { get; set; } = "grey";
     public string Info { get; set; } = "grey";
+    public string Highlight { get; set; } = "cyan2";
+    public string Emphasis { get; set; } = "bold";
     public string Success { get; set; } = "green";
     public string Warning { get; set; } = "yellow";
     public string Error { get; set; } = "red";
@@ -165,6 +167,7 @@ public sealed class PanelStyles
     public string Action { get; set; } = "grey";
     public string ActionSelected { get; set; } = "Grey23";
     public string Time { get; set; } = "grey42";
+    public string SectionHeader { get; set; } = "bold cyan2";
 }
 
 public sealed class StreamShellStyles

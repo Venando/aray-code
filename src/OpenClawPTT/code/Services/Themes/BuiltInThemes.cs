@@ -79,7 +79,8 @@ public static class BuiltInThemes
         Messages = new MessageStyles
         {
             BannerBorder = "#bd93f9", HelpCommand = "#6272a4",
-            Info = "#6272a4", Success = "#50fa7b", Warning = "#ffb86c", Error = "#ff5555",
+            Info = "#6272a4", Highlight = "#bd93f9", Emphasis = "bold",
+            Success = "#50fa7b", Warning = "#ffb86c", Error = "#ff5555",
             RecordingIndicator = "#ff5555", GatewayError = "#ff5555",
             LogTag = "#6272a4", LogOk = "#50fa7b", LogError = "#ff5555",
             FallbackWarning = "#ffb86c", FallbackFrom = "#ff5555", FallbackTo = "#50fa7b",
@@ -91,6 +92,7 @@ public static class BuiltInThemes
             Hint = "#6272a4", SelectedBg = "#44475a",
             SelectedName = "bold #f8f8f2", Action = "#6272a4",
             ActionSelected = "#f8f8f2", Time = "#6272a4",
+            SectionHeader = "bold #bd93f9",
         },
         StreamShell = new StreamShellStyles
         {
@@ -147,7 +149,8 @@ public static class BuiltInThemes
         Messages = new MessageStyles
         {
             BannerBorder = "#569cd6", HelpCommand = "#808080",
-            Info = "#808080", Success = "#4ec9b0", Warning = "#dcdcaa", Error = "#d16969",
+            Info = "#808080", Highlight = "#569cd6", Emphasis = "bold",
+            Success = "#4ec9b0", Warning = "#dcdcaa", Error = "#d16969",
             RecordingIndicator = "#d16969", GatewayError = "#d16969",
             LogTag = "#808080", LogOk = "#4ec9b0", LogError = "#d16969",
             FallbackWarning = "#dcdcaa", FallbackFrom = "#d16969", FallbackTo = "#4ec9b0",
@@ -159,6 +162,7 @@ public static class BuiltInThemes
             Hint = "#808080", SelectedBg = "#3c3c3c",
             SelectedName = "bold #cccccc", Action = "#808080",
             ActionSelected = "#cccccc", Time = "#808080",
+            SectionHeader = "bold #569cd6",
         },
         StreamShell = new StreamShellStyles
         {
@@ -224,7 +228,8 @@ public static class BuiltInThemes
         Messages = new MessageStyles
         {
             BannerBorder = "#569cd6", HelpCommand = "#808080",
-            Info = "#808080", Success = "#4ec9b0", Warning = "#dcdcaa", Error = "#d16969",
+            Info = "#808080", Highlight = "#569cd6", Emphasis = "bold",
+            Success = "#4ec9b0", Warning = "#dcdcaa", Error = "#d16969",
             RecordingIndicator = "#d16969", GatewayError = "#d16969",
             LogTag = "#808080", LogOk = "#4ec9b0", LogError = "#d16969",
             FallbackWarning = "#dcdcaa", FallbackFrom = "#d16969", FallbackTo = "#4ec9b0",
@@ -236,6 +241,7 @@ public static class BuiltInThemes
             Hint = "#808080", SelectedBg = "#04395e",
             SelectedName = "bold #d4d4d4", Action = "#808080",
             ActionSelected = "#d4d4d4", Time = "#808080",
+            SectionHeader = "bold #569cd6",
         },
         StreamShell = new StreamShellStyles
         {
@@ -305,7 +311,8 @@ public static class BuiltInThemes
         Messages = new MessageStyles
         {
             BannerBorder = "#fd971f", HelpCommand = "#75715e",
-            Info = "#75715e", Success = "#a6e22e", Warning = "#e6db74", Error = "#f92672",
+            Info = "#75715e", Highlight = "#66d9ef", Emphasis = "bold",
+            Success = "#a6e22e", Warning = "#e6db74", Error = "#f92672",
             RecordingIndicator = "#f92672", GatewayError = "#f92672",
             LogTag = "#75715e", LogOk = "#a6e22e", LogError = "#f92672",
             FallbackWarning = "#e6db74", FallbackFrom = "#f92672", FallbackTo = "#a6e22e",
@@ -317,6 +324,7 @@ public static class BuiltInThemes
             Hint = "#75715e", SelectedBg = "#49483e",
             SelectedName = "bold #f8f8f2", Action = "#75715e",
             ActionSelected = "#f8f8f2", Time = "#75715e",
+            SectionHeader = "bold #66d9ef",
         },
         StreamShell = new StreamShellStyles
         {
@@ -386,7 +394,8 @@ public static class BuiltInThemes
         Messages = new MessageStyles
         {
             BannerBorder = "#d0874a", HelpCommand = "#676767",
-            Info = "#676767", Success = "#60805a", Warning = "#b8a85a", Error = "#c7444a",
+            Info = "#676767", Highlight = "#50808a", Emphasis = "bold",
+            Success = "#60805a", Warning = "#b8a85a", Error = "#c7444a",
             RecordingIndicator = "#c7444a", GatewayError = "#c7444a",
             LogTag = "#676767", LogOk = "#60805a", LogError = "#c7444a",
             FallbackWarning = "#b8a85a", FallbackFrom = "#c7444a", FallbackTo = "#60805a",
@@ -398,6 +407,7 @@ public static class BuiltInThemes
             Hint = "#676767", SelectedBg = "#373737",
             SelectedName = "bold #c0c0c0", Action = "#676767",
             ActionSelected = "#c0c0c0", Time = "#676767",
+            SectionHeader = "bold #50808a",
         },
         StreamShell = new StreamShellStyles
         {
@@ -467,7 +477,8 @@ public static class BuiltInThemes
         Messages = new MessageStyles
         {
             BannerBorder = "#268bd2", HelpCommand = "#586e75",
-            Info = "#586e75", Success = "#859900", Warning = "#b58900", Error = "#dc322f",
+            Info = "#586e75", Highlight = "#2aa198", Emphasis = "bold",
+            Success = "#859900", Warning = "#b58900", Error = "#dc322f",
             RecordingIndicator = "#dc322f", GatewayError = "#dc322f",
             LogTag = "#586e75", LogOk = "#859900", LogError = "#dc322f",
             FallbackWarning = "#b58900", FallbackFrom = "#dc322f", FallbackTo = "#859900",
@@ -479,6 +490,7 @@ public static class BuiltInThemes
             Hint = "#586e75", SelectedBg = "#073642",
             SelectedName = "bold #93a1a1", Action = "#586e75",
             ActionSelected = "#93a1a1", Time = "#586e75",
+            SectionHeader = "bold #2aa198",
         },
         StreamShell = new StreamShellStyles
         {
@@ -548,7 +560,8 @@ public static class BuiltInThemes
         Messages = new MessageStyles
         {
             BannerBorder = "#80a0ff", HelpCommand = "#5a6a7a",
-            Info = "#5a6a7a", Success = "#c080a0", Warning = "#eaeaea", Error = "#c080a0",
+            Info = "#5a6a7a", Highlight = "#80a0ff", Emphasis = "bold",
+            Success = "#c080a0", Warning = "#eaeaea", Error = "#c080a0",
             RecordingIndicator = "#c080a0", GatewayError = "#c080a0",
             LogTag = "#5a6a7a", LogOk = "#c080a0", LogError = "#c080a0",
             FallbackWarning = "#eaeaea", FallbackFrom = "#c080a0", FallbackTo = "#c080a0",
@@ -560,6 +573,7 @@ public static class BuiltInThemes
             Hint = "#5a6a7a", SelectedBg = "#0a1a2a",
             SelectedName = "bold #c0c0c0", Action = "#5a6a7a",
             ActionSelected = "#c0c0c0", Time = "#5a6a7a",
+            SectionHeader = "bold #80a0ff",
         },
         StreamShell = new StreamShellStyles
         {
