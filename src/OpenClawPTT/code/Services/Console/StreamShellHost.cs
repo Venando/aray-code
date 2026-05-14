@@ -87,7 +87,7 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
 
     public void ResetBottomPanel() => _host.ResetBottomPanel();
 
-    public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariant[] variants, StreamShell.SelectionInfo? info = null)
+    public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariantEntry[] variants, StreamShell.SelectionInfo? info = null)
         => _host.PromptSelection(title, variants, info);
 
     public void Dispose() => _host.Dispose();

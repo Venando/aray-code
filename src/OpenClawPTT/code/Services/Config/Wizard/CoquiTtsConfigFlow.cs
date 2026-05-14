@@ -7,6 +7,7 @@ using OpenClawPTT.Services;
 using OpenClawPTT.Transcriber;
 using OpenClawPTT.TTS;
 using OpenClawPTT.TTS.Providers;
+using Spectre.Console;
 using StreamShell;
 
 namespace OpenClawPTT.ConfigWizard;
@@ -199,13 +200,13 @@ public sealed class CoquiTtsConfigFlow
         {
             ct.ThrowIfCancellationRequested();
 
-            var variants = BuildVariants(allModels, cachedModels, currentModelRef, isFallback: isFallback);
-            variants.Add(new ConfigVariant("", ""));
+            List<IVariantEntry> variants = BuildVariants(allModels, cachedModels, currentModelRef, isFallback: isFallback);
+            variants.Add(new ConfigDecoration(""));
             variants.Add(new ConfigVariant("[grey]Cancel[/]", CancelSentinel));
 
             var selection = await host.PromptSelection(
                 "Select Coqui TTS model, download, remove, or cancel:",
-                variants.ToArray());
+                variants.ToArray(), new SelectionInfo { Rows = 16});
 
             if (selection is not { Length: > 0 } || selection[0] is not ConfigVariant cv)
                 return result;
@@ -291,28 +292,26 @@ public sealed class CoquiTtsConfigFlow
     private static string EscapeLine(string text)
     {
         if (string.IsNullOrEmpty(text)) return "";
-        return text.Replace("[", "[[").Replace("]", "]]");
+        return Markup.Escape(text);
     }
 
-    private static List<IVariant> BuildVariants(
+    private static List<IVariantEntry> BuildVariants(
         IReadOnlyList<CoquiTtsModelInfo> allModels,
         HashSet<string> cachedModels, string? currentModel,
         bool isFallback = false)
     {
-        var variants = new List<IVariant>(allModels.Count * 3 + 10);
+        var variants = new List<IVariantEntry>(allModels.Count * 3 + 10);
 
         // ── Source indicator header ──
         if (isFallback)
         {
-            variants.Add(new ConfigVariant(
-                "[bold yellow]── Built-in list (uv not available) ──[/]",
-                "__fallback_header__"));
+            variants.Add(new ConfigDecoration(
+                "[bold yellow]── Built-in list (uv not available) ──[/]"));
         }
         else
         {
-            variants.Add(new ConfigVariant(
-                "[bold green]── Live from Coqui TTS ──[/]",
-                "__live_header__"));
+            variants.Add(new ConfigDecoration(
+                "[bold green]── Live from Coqui TTS ──[/]"));
         }
 
         // ── Cached models ──
@@ -337,8 +336,8 @@ public sealed class CoquiTtsConfigFlow
         {
             if (variants.Count > 1) // >1 because of the header
             {
-                variants.Add(new ConfigVariant("", ""));
-                variants.Add(new ConfigVariant("[bold cyan]── Available for download ──[/]", "__header__"));
+                variants.Add(new ConfigDecoration(""));
+                variants.Add(new ConfigDecoration("[bold cyan]── Available for download ──[/]"));
             }
 
             foreach (var info in notCached)
@@ -352,8 +351,8 @@ public sealed class CoquiTtsConfigFlow
         // ── Remove ──
         if (cachedModels.Count > 0)
         {
-            variants.Add(new ConfigVariant("", ""));
-            variants.Add(new ConfigVariant("[bold red]── Remove ──[/]", "__remove_header__"));
+            variants.Add(new ConfigDecoration(""));
+            variants.Add(new ConfigDecoration("[bold red]── Remove ──[/]"));
             foreach (var info in allModels)
             {
                 if (!cachedModels.Contains(info.Name))

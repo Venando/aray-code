@@ -16,3 +16,13 @@ public sealed class ConfigVariant : IVariant
 
     public ConfigVariant(string name) : this(name, name) { }
 }
+
+public sealed class ConfigDecoration : IDecoration
+{
+    public string Name { get; }
+
+    public ConfigDecoration(string name)
+    {
+        Name = name;
+    }
+}

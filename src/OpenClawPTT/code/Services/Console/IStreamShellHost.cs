@@ -59,5 +59,5 @@ public interface IStreamShellHost
     /// <summary>
     /// Opens an interactive selection panel. Returns selected variants, or null if cancelled.
     /// </summary>
-    Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariant[] variants, StreamShell.SelectionInfo? info = null);
+    Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariantEntry[] variants, StreamShell.SelectionInfo? info = null);
 }
