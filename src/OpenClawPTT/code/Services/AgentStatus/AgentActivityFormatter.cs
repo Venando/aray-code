@@ -31,20 +31,22 @@ public sealed class AgentActivityFormatter
 
     public string FormatTool(string toolName, string? argsJson)
     {
+        JsonDocument? doc = null;
         JsonElement? args = null;
         if (argsJson is not null)
         {
-            try
-            {
-                using var doc = JsonDocument.Parse(argsJson);
-                args = doc.RootElement;
-            }
-            catch { }
+            try { doc = JsonDocument.Parse(argsJson); args = doc.RootElement; }
+            catch { doc?.Dispose(); doc = null; }
         }
 
+        string result;
         if (_renderers.TryGetValue(toolName, out var renderer))
-            return renderer.Render(args);
-        return $"Executing {toolName}";
+            result = renderer.Render(args);
+        else
+            result = $"Executing {toolName}";
+
+        doc?.Dispose();
+        return result;
     }
 
     public string FormatAssistantMessage(AssistantMessageEvent? msg)
