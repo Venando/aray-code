@@ -16,6 +16,7 @@ internal static class Program
         IConfigWizardOrchestrator wizard = new ConfigWizardOrchestrator(configService);
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         var shellHost = new StreamShellHost();
+        shellHost.SetRenderChunkSize(5);
 
         // Create agent activity store (replaces tracker + snapshots)
         var activityStore = new AgentActivityStore();

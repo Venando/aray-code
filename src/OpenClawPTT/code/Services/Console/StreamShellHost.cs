@@ -43,6 +43,8 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         }
     }
 
+    public void SetRenderChunkSize(int size) => _host.Settings.RenderChunkSize = size;
+
     public event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted
     {
         add => _host.UserInputSubmitted += value;

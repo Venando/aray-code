@@ -103,7 +103,7 @@ public sealed class ColorConsole : IColorConsole
         var middleContent = $"   Agent: [{badgeStyle}]{emoji} {coloredName}[/] [{borderStyle}]·[/] [{badgeStyle}]{Markup.Escape($"[{hotkeyCombination}]")}[/] [{borderStyle}]·[/] {modeDescription} [{borderStyle}]·[/] /help [{borderStyle}]·[/] /quit    ";
         var dashCount = Markup.Remove(middleContent).Length;
         var topLineStart = $"\u2500\u2500 {AppEmoji} PTT Active \u2500";
-        var topLine = $"[{borderStyle}]\u256d{topLineStart}{new string('\u2500', dashCount - topLineStart.Length)}\u256e[/]";
+        var topLine = $"[{borderStyle}]\u256d{topLineStart}{new string('\u2500', dashCount - topLineStart.Length - 1)}\u256e[/]";
         var bottomLine = $"[{borderStyle}]\u2570{new string('\u2500', dashCount)}\u256f[/]";
         ShellMsg(topLine);
         ShellMsg($"[{borderStyle}]\u2502[/]{middleContent}[{borderStyle}]\u2502[/]");

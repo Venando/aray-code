@@ -20,6 +20,8 @@ public interface IStreamShellHost
     /// <summary>Removes a previously registered command by name.</summary>
     void RemoveCommand(string name);
 
+    void SetRenderChunkSize(int size);
+
     /// <summary>
     /// Sets the top separator line (between message feed and input block).
     /// LeftText/RightText support Spectre markup. Called frequently to update status info.
