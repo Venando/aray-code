@@ -53,11 +53,11 @@ public sealed class ThemeService
         _builtInThemes = new Dictionary<string, ThemeConfig>(StringComparer.OrdinalIgnoreCase)
         {
             ["drakula"] = BuiltInThemes.Drakula,
-            ["Dark Modern"] = BuiltInThemes.DarkModern,
+            ["DarkModern"] = BuiltInThemes.DarkModern,
             ["Dark+"] = BuiltInThemes.DarkPlus,
             ["Monokai"] = BuiltInThemes.Monokai,
-            ["Monokai Dimmed"] = BuiltInThemes.MonokaiDimmed,
-            ["Solarized Dark"] = BuiltInThemes.SolarizedDark,
+            ["MonokaiDimmed"] = BuiltInThemes.MonokaiDimmed,
+            ["SolarizedDark"] = BuiltInThemes.SolarizedDark,
             ["Abyss"] = BuiltInThemes.Abyss,
         };
     }
