@@ -12,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="StreamShell" Version="2026.5.15" />
+    <PackageReference Include="StreamShell" Version="1.0.1" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="Wcwidth" Version="0.6.0" />
   </ItemGroup>
