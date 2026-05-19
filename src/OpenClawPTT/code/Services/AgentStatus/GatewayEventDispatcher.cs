@@ -257,6 +257,56 @@ public static class GatewayEventDispatcher
             }
         }
 
+        // ── Content blocks ────────────────────────────────────────────────
+        string? contentText = null;
+        var contentBlocks = new List<ContentBlock>();
+
+        if (msg.TryGetProperty("content", out var content))
+        {
+            tracker.MarkNested("content");
+            if (content.ValueKind == JsonValueKind.String)
+            {
+                contentText = content.GetString();
+            }
+            else if (content.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var block in content.EnumerateArray())
+                {
+                    var blockType = GetString(block, "type");
+                    if (blockType is null) { tracker.MarkNested("content[?]"); continue; }
+
+                    tracker.MarkNested($"content[type={blockType}]");
+
+                    switch (blockType)
+                    {
+                        case "text":
+                        {
+                            var text = GetString(block, "text");
+                            if (contentText is null) contentText = text;
+                            if (text is not null)
+                                contentBlocks.Add(new ContentBlock { Type = blockType, Text = text });
+                            break;
+                        }
+
+                        case "thinking":
+                        {
+                            var thinkText = GetString(block, "thinking");
+                            if (thinkText is not null)
+                                contentBlocks.Add(new ContentBlock { Type = blockType, Thinking = thinkText });
+                            break;
+                        }
+
+                        default:
+                            // Unknown block type — capture type only, do not guess field names.
+                            // Field tracker will report unused nested fields so we can
+                            // discover new block shapes from logs.
+                            contentBlocks.Add(new ContentBlock { Type = blockType });
+                            break;
+                    }
+                }
+            }
+        }
+
         var result = new AssistantMessageEvent
         {
             SessionKey = sessionKey,
@@ -274,22 +324,9 @@ public static class GatewayEventDispatcher
             CacheRead = cacheRead,
             CacheWrite = cacheWrite,
             CostTotal = costTotal,
+            ContentText = contentText,
+            ContentBlocks = contentBlocks,
         };
-
-        // Track content blocks we skip (assistant message content is not stored)
-        if (msg.TryGetProperty("content", out var content))
-        {
-            tracker.MarkNested("content");
-            if (content.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var block in content.EnumerateArray())
-                {
-                    var blockType = GetString(block, "type");
-                    if (blockType is not null)
-                        tracker.MarkNested($"content[type={blockType}]");
-                }
-            }
-        }
 
         tracker.ReportUnused("session.message(assistant)", sessionKey);
 

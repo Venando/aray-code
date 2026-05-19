@@ -120,6 +120,18 @@ public sealed record AssistantMessageEvent
     public long? CacheRead { get; init; }
     public long? CacheWrite { get; init; }
     public decimal? CostTotal { get; init; }       // usage.cost.total
+
+    // Content blocks from message.content[] array
+    public string? ContentText { get; init; }       // first text block (convenience)
+    public IReadOnlyList<ContentBlock> ContentBlocks { get; init; } = Array.Empty<ContentBlock>();
+}
+
+/// <summary>Individual block from a message content[] array.</summary>
+public sealed record ContentBlock
+{
+    public required string Type { get; init; }
+    public string? Text { get; init; }           // Type == "text"
+    public string? Thinking { get; init; }         // Type == "thinking"
 }
 
 
