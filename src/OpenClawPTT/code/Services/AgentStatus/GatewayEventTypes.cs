@@ -132,6 +132,7 @@ public sealed record ContentBlock
     public required string Type { get; init; }
     public string? Text { get; init; }           // Type == "text"
     public string? Thinking { get; init; }         // Type == "thinking"
+    public string? RawJson { get; init; }          // Full JSON for unknown/custom types
 }
 
 
@@ -164,17 +165,25 @@ public sealed record ToolEvent
     public required string RunId { get; init; }
     public required string ToolCallId { get; init; }
     public required string ToolName { get; init; }
-    public required string Phase { get; init; }    // "start" | "result"
+    public required string Phase { get; init; }    // "start" | "update" | "result"
     public int? Seq { get; init; }
     public long? Ts { get; init; }
 
     // Phase == "start"
     public string? ArgsJson { get; init; }
 
+    // Phase == "update"
+    public string? PartialResultJson { get; init; }
+
     // Phase == "result"
     public bool? IsError { get; init; }
-    public string? ResultText { get; init; }       // first text content block
+    public string? Meta { get; init; }              // e.g. original command string
+    public string? ResultText { get; init; }         // first text content block
+    public string? ResultContentJson { get; init; }  // full result.content array
     public string? ResultDetailsJson { get; init; }
+
+    // Complete raw data object for anything not explicitly captured
+    public string? RawDataJson { get; init; }
 }
 
 
