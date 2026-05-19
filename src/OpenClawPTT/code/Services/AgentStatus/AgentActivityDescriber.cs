@@ -39,7 +39,7 @@ public sealed class AgentActivityDescriber
 
         // Tool call
         if (toolTime is { } tt && (msgTime is null || tt >= msgTime))
-            return _formatter.FormatTool(lastTool!.ToolName, lastTool.ArgsJson);
+            return _formatter.FormatTool(lastTool!.ToolName, lastTool.ArgsJson ?? lastTool.RawDataJson ?? lastTool.Meta);
 
         // Assistant message
         if (msgTime is { } mt)

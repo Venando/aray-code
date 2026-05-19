@@ -297,10 +297,10 @@ public static class GatewayEventDispatcher
                         }
 
                         default:
-                            // Unknown block type — capture type only, do not guess field names.
-                            // Field tracker will report unused nested fields so we can
+                            // Unknown block type — capture full JSON so no data is lost.
+                            // Field tracker will still report unused nested fields so we can
                             // discover new block shapes from logs.
-                            contentBlocks.Add(new ContentBlock { Type = blockType });
+                            contentBlocks.Add(new ContentBlock { Type = blockType, RawJson = block.GetRawText() });
                             break;
                     }
                 }
@@ -401,34 +401,43 @@ public static class GatewayEventDispatcher
 
         string? resultText = null;
         string? resultDetailsJson = null;
+        string? resultContentJson = null;
+        string? meta = null;
         bool? isError = null;
 
-        if (phase == "result" && data.TryGetProperty("result", out var result))
+        if (phase == "result")
         {
-            tracker.MarkNested("result");
             isError = tracker.FetchBool(data, "isError");
+            meta = tracker.Fetch(data, "meta");
 
-            if (result.TryGetProperty("content", out var resultContent)
-                && resultContent.ValueKind == JsonValueKind.Array)
+            if (data.TryGetProperty("result", out var result))
             {
-                tracker.MarkNested("result.content");
-                foreach (var block in resultContent.EnumerateArray())
+                tracker.MarkNested("result");
+
+                if (result.TryGetProperty("content", out var resultContent)
+                    && resultContent.ValueKind == JsonValueKind.Array)
                 {
-                    var blockType = GetString(block, "type");
-                    if (blockType is not null)
-                        tracker.MarkNested($"result.content[type={blockType}]");
-                    if (blockType == "text")
+                    tracker.MarkNested("result.content");
+                    resultContentJson = resultContent.GetRawText();
+
+                    foreach (var block in resultContent.EnumerateArray())
                     {
-                        resultText = GetString(block, "text");
-                        break;
+                        var blockType = GetString(block, "type");
+                        if (blockType is not null)
+                            tracker.MarkNested($"result.content[type={blockType}]");
+                        if (blockType == "text")
+                        {
+                            resultText = GetString(block, "text");
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (result.TryGetProperty("details", out var details))
-            {
-                tracker.MarkNested("result.details");
-                resultDetailsJson = details.GetRawText();
+                if (result.TryGetProperty("details", out var details))
+                {
+                    tracker.MarkNested("result.details");
+                    resultDetailsJson = details.GetRawText();
+                }
             }
         }
 
@@ -437,6 +446,13 @@ public static class GatewayEventDispatcher
         {
             tracker.MarkNested("args");
             argsJson = args.GetRawText();
+        }
+
+        string? partialResultJson = null;
+        if (phase == "update" && data.TryGetProperty("partialResult", out var partialResult))
+        {
+            tracker.MarkNested("partialResult");
+            partialResultJson = partialResult.GetRawText();
         }
 
         var evt = new ToolEvent
@@ -450,8 +466,12 @@ public static class GatewayEventDispatcher
             Ts = tracker.FetchLong(p, "ts"),
             ArgsJson = argsJson,
             IsError = isError,
+            Meta = meta,
             ResultText = resultText,
+            ResultContentJson = resultContentJson,
             ResultDetailsJson = resultDetailsJson,
+            PartialResultJson = partialResultJson,
+            RawDataJson = data.GetRawText(),
         };
 
         tracker.ReportUnused("session.tool", sessionKey);

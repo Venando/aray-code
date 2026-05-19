@@ -117,7 +117,9 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
             {
                 var toolName = nameEl.GetString() ?? string.Empty;
                 var args = argsEl.GetRawText();
-                _console.Log("debug", $"ToolCall: {toolName}({args})", LogLevel.Debug);
+                var toolCallId = block.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+                var rawBlock = block.GetRawText();
+                _console.Log("debug", $"ToolCall: id={toolCallId} name={toolName} args={args} raw={rawBlock}", LogLevel.Debug);
                 _events.RaiseAgentToolCall(toolName, args);
             }
             else if (type == "text" && block.TryGetProperty("text", out var textEl))
