@@ -166,6 +166,13 @@ public sealed class StreamShellInputHandler : IDisposable
             var sessionKey = AgentRegistry.ActiveSessionKey;
             if (sessionKey != null)
                 _ = TryFetchHistoryAsync(sessionKey);
+
+            // Bootstrap AgentActivityStore for all other agents (limit=3, no display)
+            foreach (var agent in AgentRegistry.Agents)
+            {
+                if (agent.SessionKey != sessionKey)
+                    _ = BootstrapAgentHistoryAsync(agent.SessionKey);
+            }
         }
         else if (!connected && _gatewayCommandsRegistered)
         {
@@ -309,6 +316,25 @@ public sealed class StreamShellInputHandler : IDisposable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to fetch session history: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Fetches the last 3 history entries for a non-active agent to populate
+    /// <see cref="AgentActivityStore"/> on boot. Does not display anything.
+    /// </summary>
+    private async Task BootstrapAgentHistoryAsync(string sessionKey)
+    {
+        try
+        {
+            // limit=3: enough for status display, minimal bandwidth
+            _ = await _gatewayService.FetchSessionHistoryAsync(sessionKey, limit: 3);
+            // Result is intentionally discarded — we only need the side effect
+            // of ExtractAgentStatusFromHistory populating the activity store.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to bootstrap agent history for {sessionKey}: {ex.Message}");
         }
     }
 

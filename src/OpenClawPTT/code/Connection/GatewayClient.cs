@@ -173,7 +173,7 @@ public sealed class GatewayClient : IGatewayClient
 
         try
         {
-            var messagesEl = await FetchSessionSnapshotAsync(sessionKey);
+            var messagesEl = await FetchSessionSnapshotAsync(sessionKey, limit);
             if (messagesEl == null)
                 return null;
 
@@ -201,11 +201,12 @@ public sealed class GatewayClient : IGatewayClient
     // ─── helpers ─────────────────────────────────────────────────────
 
     /// <summary>Fetches the messages array from session history, trying chat.history then fallback to sessions.preview.</summary>
-    private async Task<JsonElement?> FetchSessionSnapshotAsync(string sessionKey)
+    private async Task<JsonElement?> FetchSessionSnapshotAsync(string sessionKey, int limit)
     {
         var parameters = new Dictionary<string, object?>
         {
             ["sessionKey"] = sessionKey,
+            ["limit"] = limit,
         };
 
         // Try chat.history first (primary RPC for chat history)
@@ -217,6 +218,7 @@ public sealed class GatewayClient : IGatewayClient
             result = await TrySendAsync("sessions.preview", new Dictionary<string, object?>
             {
                 ["sessionKey"] = sessionKey,
+                ["limit"] = limit,
             }, CancellationToken.None);
 
             if (result.ValueKind == JsonValueKind.Undefined || result.ValueKind == JsonValueKind.Null)
