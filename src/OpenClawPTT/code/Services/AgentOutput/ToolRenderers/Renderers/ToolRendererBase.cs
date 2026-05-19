@@ -113,7 +113,7 @@ public abstract class ToolRendererBase : IToolRenderer
     /// <summary>
     /// Converts a <see cref="JsonElement"/> to its string representation, handling all value types.
     /// </summary>
-    protected static string GetValueString(JsonElement element)
+    public static string GetValueString(JsonElement element)
     {
         return element.ValueKind switch
         {

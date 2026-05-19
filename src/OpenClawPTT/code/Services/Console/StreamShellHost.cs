@@ -43,7 +43,17 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         }
     }
 
-    public void SetRenderChunkSize(int size) => _host.Settings.RenderChunkSize = size;
+    public void SetRenderChunkSize(int size)
+    {
+        _host.Settings.PrintingMode = MessagePrintingMode.IntChunks;
+        _host.Settings.RenderChunkSize = size;
+    }
+    
+    public void SetExpDecayRate(double expDecayrate)
+    {
+        _host.Settings.PrintingMode = MessagePrintingMode.ExpDecay;
+        _host.Settings.ExpDecayRate = expDecayrate;
+    }
 
     public event Action<StreamShell.UserInputSubmittedEventArgs>? UserInputSubmitted
     {

@@ -156,7 +156,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
 
             // Assistant message
             if (msgTime is { } mt && (userTime is null || mt >= userTime))
-                return AgentActivityFormatter.Default.FormatAssistantMessage(lastMsg);
+                return AgentActivityFormatter.Default.FormatAssistantMessage(null);
 
             // User message
             if (userTime is not null && lastUser?.ContentText is { } ct)
@@ -166,7 +166,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         }
     }
 
-    private static string FormatHistoryAction(HistoryMessageEvent e)
+    private static string? FormatHistoryAction(HistoryMessageEvent e)
     {
         // Tool calls in the history message
         if (e.ToolCalls.Count > 0)
@@ -177,11 +177,12 @@ public sealed class AgentActivityStore : IAgentActivityStore
 
         // Assistant text
         if (e.Role == "assistant")
-            return AgentActivityFormatter.Default.FormatAssistantMessage(null);
+            return AgentActivityFormatter.Default.FormatAssistantMessage(e.ContentText);
 
         // User text
         if (e.Role == "user" && !string.IsNullOrWhiteSpace(e.ContentText))
-            return AgentActivityFormatter.Default.FormatUserMessage(e.ContentText);
+            return null;
+        //AgentActivityFormatter.Default.FormatUserMessage(e.ContentText);
 
         return null;
     }

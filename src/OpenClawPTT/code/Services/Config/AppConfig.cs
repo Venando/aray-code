@@ -68,7 +68,7 @@ public sealed class AppConfig
     public double ReconnectDelaySeconds { get; set; } = 1.5;
 
     // Bottom panel settings
-    public bool UseAgentStatusPanel { get; set; } = false; // true = new table-style, false = classic AppStatusBottomPanel
+    public bool UseAgentStatusPanel { get; set; } = true; // true = new table-style, false = classic AppStatusBottomPanel
     public int BottomPanelLineCount { get; set; } = 2; // Maximum height of the agent status bottom panel
 
     // Text formatting

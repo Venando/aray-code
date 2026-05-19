@@ -49,6 +49,10 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     private string _lastCurrentInput = string.Empty;
 
     private readonly List<string> _lines = new(16);
+    private readonly string[] _emptyLine = [""];
+    private readonly Dictionary<int, string[]> _arraysCache = new();
+    private string[] _resultArray;
+
 
     // ── Construction ──────────────────────────────────────────────────────
 
@@ -58,10 +62,17 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _resultArray = _emptyLine;
 
         _version = 1;
 
         _store.Changed += OnStoreChanged;
+        AgentRegistry.ActiveSessionChanged += OnActiveSessionChanged;
+    }
+
+    private void OnActiveSessionChanged(string? obj)
+    {
+        MarkDirty();
     }
 
     // ── IBottomPanel ──────────────────────────────────────────────────────
@@ -88,92 +99,134 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
     public bool AllowUserField => !_isSelectionMode;
 
+
     public IReadOnlyList<string> GetLines(string currentInput)
     {
         lock (_sync)
         {
-            if (_disposed) return Array.Empty<string>();
+            if (!IsDirty && currentInput == _lastCurrentInput)
+            {
+                _cachedLineCount = _resultArray.Length;
+                return _resultArray;
+            }
 
-            _lines.Clear();
             _lastCurrentInput = currentInput ?? string.Empty;
 
             // Hide panel while user is typing
-            if (_lastCurrentInput.Length > 0)
+            if (_disposed || _lastCurrentInput.Length > 0)
             {
                 _cachedLineCount = 1;
-                _renderedVersion = _version;
-                return new[] { "" };
+                _resultArray = _emptyLine;
+                return _emptyLine;
             }
+            _lines.Clear();
 
-            // ── Gather agents ─────────────────────────────────────────────
-            var activeSessionKey = AgentRegistry.ActiveSessionKey;
-            var trackedSessions = _store.GetTrackedSessions();
+            FillAgentsRows(_lines);
 
-            _visibleAgents.Clear();
-
-            // Active agent first (if tracked)
-            if (activeSessionKey is not null && trackedSessions.Contains(activeSessionKey))
-                _visibleAgents.Add((activeSessionKey, AgentRegistry.ActiveAgentId));
-
-            // Others: all tracked sessions that aren't active and aren't subagents
-            foreach (var sk in trackedSessions)
+            if (_lines.Count == 0)
             {
-                if (sk == activeSessionKey) continue;
-
-                var state = _store.GetSessionState(sk);
-                if (state is null) continue;
-
-                // Skip subagents
-                if (state.ParentSessionKey is not null || state.SpawnedBy is not null)
-                    continue;
-
-                var agent = AgentRegistry.Agents.FirstOrDefault(
-                    a => a.SessionKey == sk);
-
-                // Respect ShowInStatusPanel setting
-                var show = agent is not null
-                    && AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(agent.AgentId);
-                if (!show && agent is not null) continue;
-
-                _visibleAgents.Add((sk, agent?.AgentId));
-            }
-
-            // No agents → 0 lines
-            if (_visibleAgents.Count == 0)
-            {
-                _cachedLineCount = 0;
-                _renderedVersion = _version;
-                return Array.Empty<string>();
-            }
-
-            // Clamp selection
-            if (_selectedIndex >= _visibleAgents.Count)
-                _selectedIndex = Math.Max(0, _visibleAgents.Count - 1);
-
-            // ── Render ────────────────────────────────────────────────────
-            for (int i = 0; i < _visibleAgents.Count; i++)
-            {
-                var (sessionKey, agentId) = _visibleAgents[i];
-                bool selected = _isSelectionMode && i == _selectedIndex;
-                bool isActive = sessionKey == activeSessionKey;
-
-                var name = GetAgentName(agentId, sessionKey);
-                var bullet = _store.GetStatusEmoji(sessionKey);
-                var action = _store.GetLastActionDescription(sessionKey) ?? "…";
-                var timeAgo = FormatRelativeTime(_store.GetLastActivityTime(sessionKey)) ?? "…";
-
-                _lines.Add(RenderAgentLine(name, bullet, action, timeAgo, selected));
+                _cachedLineCount = 1;
+                _resultArray = _emptyLine;
+                return _emptyLine;
             }
 
             // Hint
             var hintStyle = ThemeProvider.Current.Tools.Panel.Hint;
             _lines.Add($"  [{hintStyle}]\u2191\u2193 navigate  Enter select  Esc back[/]");
 
-            int total = _visibleAgents.Count + 1 + BottomMargin;
-            _cachedLineCount = total;
-            _renderedVersion = _version;
+            _resultArray = FillArray(_lines);
+            return _resultArray;
+        }
+    }
 
-            return PadToLineCount(total);
+    private void FillAgentsRows(List<string> lines)
+    {
+        // ── Gather agents ─────────────────────────────────────────────
+
+        _visibleAgents.Clear();
+
+        FillVisibleAgentsList(_visibleAgents);
+
+        // No agents → 0 lines
+        if (_visibleAgents.Count == 0)
+        {
+            return;
+        }
+
+        // Clamp selection
+        if (_selectedIndex >= _visibleAgents.Count)
+            _selectedIndex = Math.Max(0, _visibleAgents.Count - 1);
+
+        // ── Render ────────────────────────────────────────────────────
+        RenderAgentsLines(_visibleAgents, lines);
+    }
+
+    private void RenderAgentsLines(List<(string SessionKey, string? AgentId)> visibleAgents, List<string> lines)
+    {
+        var activeSessionKey = AgentRegistry.ActiveSessionKey;
+        for (int i = 0; i < visibleAgents.Count; i++)
+        {
+            var (sessionKey, agentId) = visibleAgents[i];
+            bool selected = _isSelectionMode && i == _selectedIndex;
+            bool isActive = sessionKey == activeSessionKey;
+
+            var name = GetAgentName(agentId, sessionKey);
+            var bullet = _store.GetStatusEmoji(sessionKey);
+            var action = _store.GetLastActionDescription(sessionKey) ?? "…";
+            var timeAgo = FormatRelativeTime(_store.GetLastActivityTime(sessionKey)) ?? "…";
+
+            lines.Add(RenderAgentLine(name, bullet, action, timeAgo, selected));
+        }
+    }
+
+    private void FillVisibleAgentsList(List<(string SessionKey, string? AgentId)> visibleAgents)
+    {
+        var trackedSessions = _store.GetTrackedSessions();
+        // Others: all tracked sessions that aren't active and aren't subagents
+        foreach (var sk in trackedSessions)
+        {
+            var state = _store.GetSessionState(sk);
+            if (state is null) continue;
+
+            // Skip subagents
+            if (state.ParentSessionKey is not null || state.SpawnedBy is not null)
+                continue;
+
+            var agent = AgentRegistry.Agents.FirstOrDefault(
+                a => a.SessionKey == sk);
+
+            // Respect ShowInStatusPanel setting
+            var show = agent is not null
+                && AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(agent.AgentId);
+            if (!show && agent is not null) continue;
+
+            visibleAgents.Add((sk, agent?.AgentId));
+        }
+    }
+
+    private string[] FillArray(List<string> items)
+    {
+        _cachedLineCount = _lines.Count;
+
+        if (_resultArray == null || _resultArray.Length != items.Count)
+        {
+            if (_arraysCache.TryGetValue(items.Count, out string[]? array))
+            {
+                items.CopyTo(array);
+                return array;
+            }
+            else
+            {
+                var newArray = new string[items.Count];
+                _arraysCache[items.Count] = newArray;
+                items.CopyTo(newArray);
+                return newArray;
+            }
+        }
+        else
+        {
+            items.CopyTo(_resultArray);
+            return _resultArray;
         }
     }
 
@@ -245,6 +298,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             _disposed = true;
         }
 
+        AgentRegistry.ActiveSessionChanged -= OnActiveSessionChanged;
         _store.Changed -= OnStoreChanged;
         _visibleAgents.Clear();
         _lines.Clear();
@@ -404,15 +458,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             if (!inTag) sb.Append(c);
         }
         return sb.ToString();
-    }
-
-    private string[] PadToLineCount(int count)
-    {
-        while (_lines.Count < count)
-            _lines.Add(string.Empty);
-        if (_lines.Count > count)
-            _lines.RemoveRange(count, _lines.Count - count);
-        return _lines.ToArray();
     }
 
     private void OnStoreChanged(string _) => MarkDirty();

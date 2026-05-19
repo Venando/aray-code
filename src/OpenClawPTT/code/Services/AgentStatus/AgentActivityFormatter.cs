@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace OpenClawPTT.Services;
@@ -13,11 +14,20 @@ public sealed class AgentActivityFormatter
 
     private readonly Dictionary<string, IAgentActivityRenderer> _renderers;
 
+    private readonly TtsContentFilter.SanitizerOptions _sanitizerOptions;
+
+    private readonly StringBuilder _stringBuilder = new();
+
     public AgentActivityFormatter()
     {
         _renderers = BuildRenderers()
             .Where(r => !string.IsNullOrEmpty(r.ToolName))
             .ToDictionary(r => r.ToolName, r => r, StringComparer.OrdinalIgnoreCase);
+
+        _sanitizerOptions = new TtsContentFilter.SanitizerOptions()
+        {
+            MaxLength = 300
+        };
     }
 
     private static IEnumerable<IAgentActivityRenderer> BuildRenderers()
@@ -29,37 +39,65 @@ public sealed class AgentActivityFormatter
         yield return new WebFetchActivityRenderer();
     }
 
-    public string FormatTool(string toolName, string? argsJson)
+    public string FormatTool(string toolName, string? arguments)
     {
-        JsonDocument? doc = null;
-        JsonElement? args = null;
-        if (argsJson is not null)
+
+        string displayName = string.Join(" ", toolName.Split('_').Select(w => char.ToUpper(w[0]) + w[1..]));
+
+        if (string.IsNullOrWhiteSpace(arguments))
         {
-            try { doc = JsonDocument.Parse(argsJson); args = doc.RootElement; }
-            catch { doc?.Dispose(); doc = null; }
+            return $"Executing {displayName}";
         }
 
-        string result;
-        if (_renderers.TryGetValue(toolName, out var renderer))
-            result = renderer.Render(args);
-        else
-            result = $"Executing {toolName}";
-
-        doc?.Dispose();
-        return result;
+        try
+        {
+            using var doc = JsonDocument.Parse(arguments);
+            if (_renderers.TryGetValue(toolName, out var renderer))
+            {
+                return renderer.Render(doc.RootElement);
+            }
+            else
+            {
+                return RenderKvpProperties(_stringBuilder, displayName, doc.RootElement);
+            }
+        }
+        catch
+        {
+            return $"Executing {displayName}";
+        }
     }
 
-    public string FormatAssistantMessage(AssistantMessageEvent? msg)
+    private static string RenderKvpProperties(StringBuilder sb, string displayName, JsonElement args)
     {
-        if (msg is null) return "Sent a message";
-        return msg.StopReason switch
+        sb.Clear();
+        sb.Append(displayName);
+        sb.Append(' ');
+        bool first = true;
+        foreach (var prop in args.EnumerateObject())
         {
-            "toolUse" => "Calling tools",
-            "stop" => "Finished",
-            "error" => "Error",
-            "aborted" => "Aborted",
-            _ => "Sent a message"
-        };
+            if (first)
+            {
+                sb.Append(ToolRendererBase.GetValueString(prop.Value));
+                first = false;
+            }
+            else
+            {
+                sb.Append($", ");
+                sb.Append(prop.Name);
+                sb.Append($": ");
+                sb.Append(ToolRendererBase.GetValueString(prop.Value));
+            }
+        }
+        return sb.ToString();
+    }
+
+    public string FormatAssistantMessage(string? message)
+    {
+        if (message is null) return "Sent a message";
+
+        string formatText = TtsContentFilter.SanitizeForTts(message, _sanitizerOptions);
+
+        return formatText.Replace('\n', ' ').Replace("  ", " ");
     }
 
     public string FormatUserMessage(string? text)
@@ -75,19 +113,40 @@ public sealed class AgentActivityFormatter
 
 internal sealed class ReadActivityRenderer : IAgentActivityRenderer
 {
+    private readonly StringBuilder _sb = new();
+
     public string ToolName => "read";
-    public string Render(JsonElement? args)
+
+    public string Render(JsonElement args)
     {
-        var path = Helpers.GetString(args, "path");
-        return path is not null ? $"Reading {Helpers.ShortenPath(path)}" : "Reading file";
+        _sb.Clear();
+        _sb.Append("Reading ");
+        if (args.TryGetProperty("file", out var fileProp) || args.TryGetProperty("path", out fileProp))
+        {
+            string displayPath = FilePathDisplayHelper.FormatDisplayPath(fileProp.GetString() ?? "");
+            _sb.Append(displayPath);
+        }
+        if (args.TryGetProperty("offset", out var offsetProp) &&
+            args.TryGetProperty("limit", out var limitProp))
+        {
+            int offset = offsetProp.GetInt32();
+            int limit = limitProp.GetInt32();
+            _sb.Append($" (lines {offset}-{offset + limit - 1})");
+        }
+        else if (args.TryGetProperty("limit", out var limitProp2))
+        {
+            _sb.Append($" (lines 1-{limitProp2.GetInt32()})");
+        }
+        return _sb.ToString();
     }
 }
 
 internal sealed class EditActivityRenderer : IAgentActivityRenderer
 {
     public string ToolName => "edit";
-    public string Render(JsonElement? args)
+    public string Render(JsonElement args)
     {
+
         var path = Helpers.GetString(args, "path");
         return path is not null ? $"Editing {Helpers.ShortenPath(path)}" : "Editing file";
     }
@@ -96,7 +155,7 @@ internal sealed class EditActivityRenderer : IAgentActivityRenderer
 internal sealed class WriteActivityRenderer : IAgentActivityRenderer
 {
     public string ToolName => "write";
-    public string Render(JsonElement? args)
+    public string Render(JsonElement args)
     {
         var path = Helpers.GetString(args, "path");
         return path is not null ? $"Writing {Helpers.ShortenPath(path)}" : "Writing file";
@@ -106,7 +165,7 @@ internal sealed class WriteActivityRenderer : IAgentActivityRenderer
 internal sealed class ExecActivityRenderer : IAgentActivityRenderer
 {
     public string ToolName => "exec";
-    public string Render(JsonElement? args)
+    public string Render(JsonElement args)
     {
         var cmd = Helpers.GetString(args, "command");
         if (cmd is null) return "Running command";
@@ -119,7 +178,7 @@ internal sealed class ExecActivityRenderer : IAgentActivityRenderer
 internal sealed class WebFetchActivityRenderer : IAgentActivityRenderer
 {
     public string ToolName => "web_fetch";
-    public string Render(JsonElement? args)
+    public string Render(JsonElement args)
     {
         var url = Helpers.GetString(args, "url");
         if (url is null) return "Fetching URL";

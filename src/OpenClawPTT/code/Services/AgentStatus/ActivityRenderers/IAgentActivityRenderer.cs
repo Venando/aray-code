@@ -9,5 +9,5 @@ namespace OpenClawPTT.Services;
 public interface IAgentActivityRenderer
 {
     string ToolName { get; }
-    string Render(JsonElement? args);
+    string Render(JsonElement args);
 }
