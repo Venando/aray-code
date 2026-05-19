@@ -219,8 +219,8 @@ public sealed class MainAgentsPart : StatusPartBase, IDisposable
         (SessionStateEvent State, AgentInfo Agent) a,
         (SessionStateEvent State, AgentInfo Agent) b)
     {
-        long aTime = a.State.UpdatedAt ?? a.State.StartedAt ?? 0;
-        long bTime = b.State.UpdatedAt ?? b.State.StartedAt ?? 0;
+        long aTime = a.State?.UpdatedAt ?? a.State?.StartedAt ?? 0;
+        long bTime = b.State?.UpdatedAt ?? b.State?.StartedAt ?? 0;
         return bTime.CompareTo(aTime);
     }
 
