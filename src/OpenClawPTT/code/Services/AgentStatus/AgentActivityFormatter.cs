@@ -4,19 +4,16 @@ using System.Text.Json;
 namespace OpenClawPTT.Services;
 
 /// <summary>
-/// Formats tool calls into one-line status descriptions for the bottom panel.
-/// Same registry pattern as <see cref="ToolDisplayHandler"/> but returns
-/// short strings instead of rendering full console output.
+/// Thin registry/dispatcher for agent activity renderers.
+/// Similar to <see cref="ToolDisplayHandler"/> but returns one-line strings
+/// instead of rendering full console output.
 /// </summary>
 public sealed class AgentActivityFormatter
 {
     public static readonly AgentActivityFormatter Default = new();
 
     private readonly Dictionary<string, IAgentActivityRenderer> _renderers;
-
     private readonly TtsContentFilter.SanitizerOptions _sanitizerOptions;
-
-    private readonly StringBuilder _stringBuilder = new();
 
     public AgentActivityFormatter()
     {
@@ -37,12 +34,21 @@ public sealed class AgentActivityFormatter
         yield return new WriteActivityRenderer();
         yield return new ExecActivityRenderer();
         yield return new WebFetchActivityRenderer();
+        yield return new WebSearchActivityRenderer();
+        yield return new SessionsListActivityRenderer();
+        yield return new SessionStatusActivityRenderer();
+        yield return new MemorySearchActivityRenderer();
+        yield return new MemoryGetActivityRenderer();
+        yield return new SubagentsActivityRenderer();
+        yield return new SessionsSpawnActivityRenderer();
+        yield return new UpdatePlanActivityRenderer();
+        yield return new ImageGenerateActivityRenderer();
+        yield return new ProcessActivityRenderer();
     }
 
     public string FormatTool(string toolName, string? arguments)
     {
-
-        string displayName = string.Join(" ", toolName.Split('_').Select(w => char.ToUpper(w[0]) + w[1..]));
+        string displayName = AgentActivityRendererHelpers.FormatDisplayName(toolName);
 
         if (string.IsNullOrWhiteSpace(arguments))
         {
@@ -58,7 +64,7 @@ public sealed class AgentActivityFormatter
             }
             else
             {
-                return RenderKvpProperties(_stringBuilder, displayName, doc.RootElement);
+                return RenderKvpFallback(displayName, doc.RootElement);
             }
         }
         catch
@@ -67,27 +73,24 @@ public sealed class AgentActivityFormatter
         }
     }
 
-    private static string RenderKvpProperties(StringBuilder sb, string displayName, JsonElement args)
+    private static string RenderKvpFallback(string displayName, JsonElement args)
     {
-        sb.Clear();
+        var sb = new StringBuilder();
         sb.Append(displayName);
         sb.Append(' ');
+
         bool first = true;
         foreach (var prop in args.EnumerateObject())
         {
             if (first)
             {
-                sb.Append(ToolRendererBase.GetValueString(prop.Value));
+                sb.Append(AgentActivityRendererHelpers.Truncate(
+                    ToolRendererBase.GetValueString(prop.Value), 50));
                 first = false;
-            }
-            else
-            {
-                sb.Append($", ");
-                sb.Append(prop.Name);
-                sb.Append($": ");
-                sb.Append(ToolRendererBase.GetValueString(prop.Value));
+                break;  // Only show first property for brevity
             }
         }
+
         return sb.ToString();
     }
 
@@ -106,106 +109,5 @@ public sealed class AgentActivityFormatter
         var trimmed = text.Trim();
         if (trimmed.Length > 60) return trimmed[..57] + "…";
         return trimmed;
-    }
-}
-
-// ── Renderers ────────────────────────────────────────────────────────────────
-
-internal sealed class ReadActivityRenderer : IAgentActivityRenderer
-{
-    private readonly StringBuilder _sb = new();
-
-    public string ToolName => "read";
-
-    public string Render(JsonElement args)
-    {
-        _sb.Clear();
-        _sb.Append("Reading ");
-        if (args.TryGetProperty("file", out var fileProp) || args.TryGetProperty("path", out fileProp))
-        {
-            string displayPath = FilePathDisplayHelper.FormatDisplayPath(fileProp.GetString() ?? "");
-            _sb.Append(displayPath);
-        }
-        if (args.TryGetProperty("offset", out var offsetProp) &&
-            args.TryGetProperty("limit", out var limitProp))
-        {
-            int offset = offsetProp.GetInt32();
-            int limit = limitProp.GetInt32();
-            _sb.Append($" (lines {offset}-{offset + limit - 1})");
-        }
-        else if (args.TryGetProperty("limit", out var limitProp2))
-        {
-            _sb.Append($" (lines 1-{limitProp2.GetInt32()})");
-        }
-        return _sb.ToString();
-    }
-}
-
-internal sealed class EditActivityRenderer : IAgentActivityRenderer
-{
-    public string ToolName => "edit";
-    public string Render(JsonElement args)
-    {
-
-        var path = Helpers.GetString(args, "path");
-        return path is not null ? $"Editing {Helpers.ShortenPath(path)}" : "Editing file";
-    }
-}
-
-internal sealed class WriteActivityRenderer : IAgentActivityRenderer
-{
-    public string ToolName => "write";
-    public string Render(JsonElement args)
-    {
-        var path = Helpers.GetString(args, "path");
-        return path is not null ? $"Writing {Helpers.ShortenPath(path)}" : "Writing file";
-    }
-}
-
-internal sealed class ExecActivityRenderer : IAgentActivityRenderer
-{
-    public string ToolName => "exec";
-    public string Render(JsonElement args)
-    {
-        var cmd = Helpers.GetString(args, "command");
-        if (cmd is null) return "Running command";
-        var firstLine = cmd.Split('\n')[0].Trim();
-        if (firstLine.Length > 60) return "Running " + firstLine[..57] + "…";
-        return "Running " + firstLine;
-    }
-}
-
-internal sealed class WebFetchActivityRenderer : IAgentActivityRenderer
-{
-    public string ToolName => "web_fetch";
-    public string Render(JsonElement args)
-    {
-        var url = Helpers.GetString(args, "url");
-        if (url is null) return "Fetching URL";
-        var display = url.Replace("https://", "").Replace("http://", "");
-        if (display.Length > 50) display = display[..47] + "…";
-        return $"Fetching {display}";
-    }
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-internal static class Helpers
-{
-    public static string? GetString(JsonElement? el, string key)
-    {
-        if (el is not { } e) return null;
-        if (e.ValueKind == JsonValueKind.Object
-            && e.TryGetProperty(key, out var v)
-            && v.ValueKind == JsonValueKind.String)
-            return v.GetString();
-        return null;
-    }
-
-    public static string ShortenPath(string path)
-    {
-        var parts = path.Replace('\\', '/').Split('/');
-        if (parts.Length <= 2) return path;
-        return "…/" + string.Join("/", parts[^2..]);
     }
 }
