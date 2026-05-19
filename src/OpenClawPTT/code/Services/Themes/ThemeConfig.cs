@@ -163,8 +163,10 @@ public sealed class PanelStyles
 {
     public string Hint { get; set; } = "dim grey";
     public string SelectedBg { get; set; } = "Grey84";
+    public string ActiveName { get; set; } = "underline";
     public string SelectedName { get; set; } = "bold black";
     public string Action { get; set; } = "grey";
+    public string ActiveAgentAction { get; set; } = "underline";
     public string ActionSelected { get; set; } = "Grey23";
     public string Time { get; set; } = "grey42";
     public string SectionHeader { get; set; } = "bold cyan2";

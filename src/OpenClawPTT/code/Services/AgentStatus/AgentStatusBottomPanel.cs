@@ -175,7 +175,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             var action = _store.GetLastActionDescription(sessionKey) ?? "…";
             var timeAgo = FormatRelativeTime(_store.GetLastActivityTime(sessionKey)) ?? "…";
 
-            lines.Add(RenderAgentLine(name, bullet, action, timeAgo, selected));
+            lines.Add(RenderAgentLine(name, bullet, action, timeAgo, selected, isActive));
         }
     }
 
@@ -331,11 +331,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         var (sessionKey, agentId) = _visibleAgents[_selectedIndex];
         if (agentId is null)
         {
-            ExitSelectionMode();
             return;
         }
-
-        ExitSelectionMode();
 
         _ = Task.Run(async () =>
         {
@@ -355,7 +352,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         string bullet,
         string action,
         string timeAgo,
-        bool selected)
+        bool selected,
+        bool isActive)
     {
         var consoleWidth = ConsoleMetrics.GetWindowWidth();
 
@@ -364,6 +362,9 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         var nameDisplay = selected
             ? $"[{tools.Panel.SelectedName}]{name}[/]"
             : name;
+        nameDisplay = isActive
+            ? $"[{tools.Panel.ActiveName}]{nameDisplay}[/]"
+            : nameDisplay;
         var leftCol = $"{bullet} {nameDisplay}";
         int bulletWidth = CharacterWidth.GetDisplayWidth(StripMarkup(bullet));
         int leftRaw = bulletWidth + 1 + name.Length;
@@ -385,11 +386,17 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 
         var timePadded = timeAgo.PadLeft(TimeColWidth);
 
+        actionDisplay = isActive
+                ? $"[{tools.Panel.ActiveAgentAction}]{actionDisplay}[/]"
+                : actionDisplay;
+
+        actionDisplay = selected
+                ? $"[{tools.Panel.ActionSelected}]{actionDisplay}[/]"
+                : $"[{tools.Panel.Action}]{actionDisplay}[/]";
+
         var line = leftPadded
             + new string(' ', GapAfterName)
-            + (selected
-                ? $"[{tools.Panel.ActionSelected}]{actionDisplay}[/]"
-                : $"[{tools.Panel.Action}]{actionDisplay}[/]")
+            + actionDisplay
             + new string(' ', gapAfterAction + GapBeforeTime)
             + $"[{tools.Panel.Time}]{timePadded}[/]";
 
