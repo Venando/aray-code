@@ -38,11 +38,8 @@ public interface IAgentActivityStore
     /// <summary>Most recent lifecycle event for the session.</summary>
     AgentLifecycleEvent? GetLastLifecycle(string sessionKey);
 
-    /// <summary>
-    /// Human-readable one-line description of the last activity
-    /// (e.g. "Editing src/Settings.tsx", "Sent a message").
-    /// </summary>
-    string? GetLastActionDescription(string sessionKey);
+    /// <summary>Most recent history message for the session.</summary>
+    HistoryMessageEvent? GetLastHistoryMessage(string sessionKey);
 
     /// <summary>
     /// Timestamp (Unix ms) of the most recent activity for this session.

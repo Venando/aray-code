@@ -125,66 +125,14 @@ public sealed class AgentActivityStore : IAgentActivityStore
         }
     }
 
-    public string? GetLastActionDescription(string sessionKey)
+    public HistoryMessageEvent? GetLastHistoryMessage(string sessionKey)
     {
         lock (_lock)
         {
             var rec = Get(sessionKey);
-            if (rec is null) return null;
-
-            // Query all sources by timestamp: live events + history
-            var lastHist = rec.HistoryMessages.Count > 0 ? rec.HistoryMessages[^1] : null;
-            var lastTool = rec.ToolCalls.Count > 0 ? rec.ToolCalls[^1] : null;
-            var lastMsg = rec.AssistantMessages.Count > 0 ? rec.AssistantMessages[^1] : null;
-            var lastUser = rec.UserMessages.Count > 0 ? rec.UserMessages[^1] : null;
-
-            long? histTime = lastHist?.Timestamp;
-            long? toolTime = lastTool?.Ts;
-            long? msgTime = lastMsg?.Timestamp;
-            long? userTime = lastUser?.Timestamp;
-
-            // History message is most recent
-            if (histTime is { } ht && (toolTime is null || ht >= toolTime)
-                && (msgTime is null || ht >= msgTime) && (userTime is null || ht >= userTime))
-            {
-                return FormatHistoryAction(lastHist!);
-            }
-
-            // Tool call
-            if (toolTime is { } tt && (msgTime is null || tt >= msgTime) && (userTime is null || tt >= userTime))
-                return AgentActivityFormatter.Default.FormatTool(lastTool!.ToolName, lastTool.ArgsJson);
-
-            // Assistant message
-            if (msgTime is { } mt && (userTime is null || mt >= userTime))
-                return AgentActivityFormatter.Default.FormatAssistantMessage(null);
-
-            // User message
-            if (userTime is not null && lastUser?.ContentText is { } ct)
-                return AgentActivityFormatter.Default.FormatUserMessage(ct);
-
-            return null;
+            if (rec is null || rec.HistoryMessages.Count == 0) return null;
+            return rec.HistoryMessages[^1];
         }
-    }
-
-    private static string? FormatHistoryAction(HistoryMessageEvent e)
-    {
-        // Tool calls in the history message
-        if (e.ToolCalls.Count > 0)
-        {
-            var lastTc = e.ToolCalls[^1];
-            return AgentActivityFormatter.Default.FormatTool(lastTc.Name, lastTc.ArgumentsJson);
-        }
-
-        // Assistant text
-        if (e.Role == "assistant")
-            return AgentActivityFormatter.Default.FormatAssistantMessage(e.ContentText);
-
-        // User text
-        if (e.Role == "user" && !string.IsNullOrWhiteSpace(e.ContentText))
-            return null;
-        //AgentActivityFormatter.Default.FormatUserMessage(e.ContentText);
-
-        return null;
     }
 
     public long? GetLastActivityTime(string sessionKey)
