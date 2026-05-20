@@ -9,7 +9,7 @@ namespace OpenClawPTT.Services.StatusParts;
 public sealed class ModelPart : StringStatusPartBase
 {
     public ModelPart(DisplayPosition defaultPosition = DisplayPosition.TopSeparatorLeft, int order = 10)
-        : base(defaultPosition, order, " · ")
+        : base(defaultPosition, order, " ")
     {
     }
 

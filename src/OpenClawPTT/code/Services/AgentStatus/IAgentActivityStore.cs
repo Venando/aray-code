@@ -50,6 +50,17 @@ public interface IAgentActivityStore
     /// <summary>Short label for the type of the last activity ("tool", "message", etc.).</summary>
     string? GetActivityType(string sessionKey);
 
+    /// <summary>
+    /// Picks the most recent of (history message, tool call, assistant message) for the
+    /// session and dispatches to the matching handler. Returns <see langword="default"/>
+    /// when none of the three events exist.
+    /// </summary>
+    TResult? SelectLatestActivity<TResult>(
+        string sessionKey,
+        Func<HistoryMessageEvent, TResult> onHistory,
+        Func<ToolEvent, TResult> onTool,
+        Func<AssistantMessageEvent, TResult> onAssistant);
+
     // ── Derived display ───────────────────────────────────────────────────
 
     /// <summary>Status emoji derived from the current session state.</summary>

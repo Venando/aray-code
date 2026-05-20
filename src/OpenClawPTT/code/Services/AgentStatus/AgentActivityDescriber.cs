@@ -17,36 +17,12 @@ public sealed class AgentActivityDescriber
         _formatter = formatter ?? AgentActivityFormatter.Default;
     }
 
-    public string? GetLastActionDescription(string sessionKey)
-    {
-        // Query all sources by timestamp: history + live events
-        var lastHist = _store.GetLastHistoryMessage(sessionKey);
-        var lastTool = _store.GetLastToolCall(sessionKey);
-        var lastMsg = _store.GetLastAssistantMessage(sessionKey);
-        var lastUser = _store.GetLastUserMessage(sessionKey);
-
-        long? histTime = lastHist?.Timestamp;
-        long? toolTime = lastTool?.Ts;
-        long? msgTime = lastMsg?.Timestamp;
-        //long? userTime = lastUser?.Timestamp;
-
-        // History message is most recent
-        if (histTime is { } ht && (toolTime is null || ht >= toolTime)
-            && (msgTime is null || ht >= msgTime))
-        {
-            return FormatHistoryAction(lastHist!);
-        }
-
-        // Tool call
-        if (toolTime is { } tt && (msgTime is null || tt >= msgTime))
-            return _formatter.FormatTool(lastTool!.ToolName, lastTool.ArgsJson ?? lastTool.RawDataJson ?? lastTool.Meta);
-
-        // Assistant message
-        if (msgTime is { } mt)
-            return _formatter.FormatAssistantMessage(lastMsg!.ContentText);
-
-        return null;
-    }
+    public string? GetLastActionDescription(string sessionKey) =>
+        _store.SelectLatestActivity(
+            sessionKey,
+            onHistory:   FormatHistoryAction,
+            onTool:      t => _formatter.FormatTool(t.ToolName, t.ArgsJson ?? t.RawDataJson ?? t.Meta),
+            onAssistant: m => _formatter.FormatAssistantMessage(m.ContentText));
 
     private string? FormatHistoryAction(HistoryMessageEvent e)
     {

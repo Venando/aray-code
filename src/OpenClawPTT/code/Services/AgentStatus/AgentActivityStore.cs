@@ -193,35 +193,51 @@ public sealed class AgentActivityStore : IAgentActivityStore
         }
     }
 
-    public string GetStatusEmoji(string sessionKey)
+    public TResult? SelectLatestActivity<TResult>(
+        string sessionKey,
+        Func<HistoryMessageEvent, TResult> onHistory,
+        Func<ToolEvent, TResult> onTool,
+        Func<AssistantMessageEvent, TResult> onAssistant)
     {
+        HistoryMessageEvent? hist;
+        ToolEvent? tool;
+        AssistantMessageEvent? msg = null;
         lock (_lock)
         {
-            var st = Get(sessionKey)?.State;
-            if (st is null) return AgentStatusEmoji.Unknown;
+            var rec = Get(sessionKey);
+            if (rec is null) return default;
+            hist = rec.HistoryMessages.Count > 0 ? rec.HistoryMessages[^1] : null;
+            tool = rec.ToolCalls.Count > 0 ? rec.ToolCalls[^1] : null;
 
-            // Subagent states
-            if (st.ParentSessionKey is not null || st.SpawnedBy is not null)
+            // Walk back to skip assistant messages with no text content
+            for (int i = rec.AssistantMessages.Count - 1; i >= 0; i--)
             {
-                if (st.SubagentRunState == "historical")
-                    return AgentStatusEmoji.Finished;
-                if (st.HasActiveSubagentRun == true)
-                    return AgentStatusEmoji.ToolExecuting;
-                if (st.Status == "running")
-                    return AgentStatusEmoji.Spawning;
-                return AgentStatusEmoji.UnknownSubagent;
+                if (!string.IsNullOrWhiteSpace(rec.AssistantMessages[i].ContentText))
+                {
+                    msg = rec.AssistantMessages[i];
+                    break;
+                }
             }
-
-            // Main agent
-            if (st.AbortedLastRun == true)
-                return AgentStatusEmoji.Aborted;
-            if (st.Status == "running" && st.ChildSessions.Count > 0)
-                return AgentStatusEmoji.Yielding;
-
-            // Default: ready
-            return AgentStatusEmoji.Ready;
         }
+
+        long histTs = hist?.Timestamp ?? long.MinValue;
+        long toolTs = tool?.Ts        ?? long.MinValue;
+        long msgTs  = msg?.Timestamp  ?? long.MinValue;
+        long best = Math.Max(histTs, Math.Max(toolTs, msgTs));
+        if (best == long.MinValue) return default;
+
+        if (best == histTs) return onHistory(hist!);
+        if (best == toolTs) return onTool(tool!);
+        return onAssistant(msg!);
     }
+
+    public string GetStatusEmoji(string sessionKey) =>
+        SelectLatestActivity(
+            sessionKey,
+            onHistory:   entry => entry.StopReason == "stop" ? AgentStatusEmoji.Ready : AgentStatusEmoji.ToolExecuting,
+            onTool:      entry => AgentStatusEmoji.ToolExecuting,
+            onAssistant: m => m.StopReason == "stop" ? AgentStatusEmoji.Ready : AgentStatusEmoji.ToolExecuting)
+        ?? AgentStatusEmoji.Unknown;
 
     // ── IAgentActivityStore — mutations ────────────────────────────────────
 
@@ -359,11 +375,11 @@ public sealed class AgentActivityStore : IAgentActivityStore
 internal static class AgentStatusEmoji
 {
     public static string Ready => $"[{ThemeProvider.Current.Tools.Messages.Success}]•[/]";
-    public const string Aborted = "▶";
-    public const string ToolExecuting = "▶";
+    public static string Aborted = $"[{ThemeProvider.Current.Tools.Messages.Working}]▶[/]";
+    public static string ToolExecuting = $"[{ThemeProvider.Current.Tools.Messages.Working}]▶[/]";
     public static string Finished => $"[{ThemeProvider.Current.Tools.Messages.Success}]•[/]";
-    public const string Spawning = "▶";
-    public const string UnknownSubagent = "◘";
-    public const string Yielding = "▶";
-    public const string Unknown = "•";
+    public static string Spawning = $"[{ThemeProvider.Current.Tools.Messages.Working}]▶[/]";
+    public static string UnknownSubagent = "◘";
+    public static string Yielding = $"[{ThemeProvider.Current.Tools.Messages.Working}]▶[/]";
+    public static string Unknown = "•";
 }
