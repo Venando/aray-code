@@ -21,7 +21,7 @@ public sealed class AgentActivityDescriber
         _store.SelectLatestActivity(
             sessionKey,
             onHistory:   FormatHistoryAction,
-            onTool:      t => _formatter.FormatTool(t.ToolName, t.ArgsJson ?? t.RawDataJson ?? t.Meta),
+            onTool:      t => _formatter.FormatTool(t.ToolName, t.ArgsJson, t.Meta),
             onAssistant: m => _formatter.FormatAssistantMessage(m.ContentText));
 
     private string? FormatHistoryAction(HistoryMessageEvent e)

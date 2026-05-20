@@ -46,13 +46,30 @@ public sealed class AgentActivityFormatter
         yield return new ProcessActivityRenderer();
     }
 
-    public string FormatTool(string toolName, string? arguments)
+    public string FormatTool(string toolName, string? arguments, string? meta = null)
     {
         string displayName = AgentActivityRendererHelpers.FormatDisplayName(toolName);
 
+        // When arguments are missing but meta is present, synthesize JSON args
+        // so the dedicated renderer can handle it naturally.
+        if (string.IsNullOrWhiteSpace(arguments) && !string.IsNullOrWhiteSpace(meta))
+        {
+            var synthetic = BuildSyntheticArgs(toolName, meta);
+            if (synthetic is not null)
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(synthetic);
+                    if (_renderers.TryGetValue(toolName, out var renderer))
+                        return renderer.Render(doc.RootElement);
+                }
+                catch { /* fall through to generic fallback */ }
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(arguments))
         {
-            return $"Executing {displayName}";
+            return FormatToolFallback(displayName, meta);
         }
 
         try
@@ -69,8 +86,52 @@ public sealed class AgentActivityFormatter
         }
         catch
         {
-            return $"Executing {displayName}";
+            return FormatToolFallback(displayName, meta);
         }
+    }
+
+    /// <summary>
+    /// Builds a synthetic JSON args object from meta when the real args are not available.
+    /// Maps each tool to the property name its renderer expects.
+    /// </summary>
+    private static string? BuildSyntheticArgs(string toolName, string meta)
+    {
+        var (property, value) = toolName.ToLowerInvariant() switch
+        {
+            "read" => ("file",
+                meta.StartsWith("from ", StringComparison.OrdinalIgnoreCase)
+                    ? meta.Substring(5)
+                    : meta),
+            "exec" => ("command", meta),
+            "web_fetch" => ("url", meta),
+            "web_search" => ("query", meta),
+            "memory_search" => ("query", meta),
+            "memory_get" => ("path", meta),
+            "write" => ("path", meta),
+            "edit" => ("path", meta),
+            _ => ((string?)null, null)
+        };
+
+        if (property is null || value is null)
+            return null;
+
+        // Minimal JSON escaping — meta is trusted from gateway, but escape quotes/newlines
+        var escaped = value
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t");
+
+        return $"{{\"{property}\":\"{escaped}\"}}";
+    }
+
+    private static string FormatToolFallback(string displayName, string? meta)
+    {
+        if (!string.IsNullOrWhiteSpace(meta))
+            return $"Executing {displayName} — {meta}";
+
+        return $"Executing {displayName}";
     }
 
     private static string RenderKvpFallback(string displayName, JsonElement args)
