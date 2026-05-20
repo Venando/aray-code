@@ -84,14 +84,11 @@ public sealed class StatusRenderer
             _shellHost.SetTopSeparator(leftText: topLeftText, rightText: topRightText,
                 repeatedCharacter: Style.StatusBar.SeparatorChar[0], repeatedCharMarkup: Style.StatusBar.SeparatorCharMarkup);
 
-            // Build and set bottom separator if any parts are assigned to it
-            if (_bottomLeft.Count > 0 || _bottomRight.Count > 0)
-            {
-                string bottomLeftText = ComposePositionText(_bottomLeft);
-                string bottomRightText = ComposePositionText(_bottomRight);
-                _shellHost.SetBottomSeparator(leftText: bottomLeftText, rightText: bottomRightText,
-                    repeatedCharacter: Style.StatusBar.SeparatorChar[0], repeatedCharMarkup: Style.StatusBar.SeparatorCharMarkup);
-            }
+            // Build and set bottom separator — always apply the same theme as top separator
+            string bottomLeftText = ComposePositionText(_bottomLeft);
+            string bottomRightText = ComposePositionText(_bottomRight);
+            _shellHost.SetBottomSeparator(leftText: bottomLeftText, rightText: bottomRightText,
+                repeatedCharacter: Style.StatusBar.SeparatorChar[0], repeatedCharMarkup: Style.StatusBar.SeparatorCharMarkup);
         }
         catch (Exception ex)
         {
