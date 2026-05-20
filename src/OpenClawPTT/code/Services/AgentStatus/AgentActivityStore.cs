@@ -193,6 +193,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         }
     }
 
+    // TODO: If tool has "result" something something ignore it?
     public TResult? SelectLatestActivity<TResult>(
         string sessionKey,
         Func<HistoryMessageEvent, TResult> onHistory,
