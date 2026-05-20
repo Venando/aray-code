@@ -13,6 +13,9 @@ public sealed class ThemeCommand : ICommand
 {
     private readonly IStreamShellHost _host;
     private readonly ThemeService _themeService;
+    private readonly IConfigurationService _configService;
+    private readonly SessionHistoryService _historyService;
+    private readonly AppConfig _appConfig;
 
     public string Name => "theme";
     public string Description => "Show current theme or switch to a theme. \"/theme\" to list, \"/theme <name>\" to switch";
@@ -20,10 +23,18 @@ public sealed class ThemeCommand : ICommand
     public ShellCommandType Type => ShellCommandType.Configuration;
     public string[]? Suggestions => _themeService.GetAvailableThemes();
 
-    public ThemeCommand(IStreamShellHost host, ThemeService themeService)
+    public ThemeCommand(
+        IStreamShellHost host,
+        ThemeService themeService,
+        IConfigurationService configService,
+        SessionHistoryService historyService,
+        AppConfig appConfig)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
+        _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _historyService = historyService ?? throw new ArgumentNullException(nameof(historyService));
+        _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
     }
 
     public Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
@@ -74,12 +85,21 @@ public sealed class ThemeCommand : ICommand
         return Task.CompletedTask;
     }
 
-    private Task HandleSwitchThemeAsync(string themeName)
+    private async Task HandleSwitchThemeAsync(string themeName)
     {
         if (_themeService.TrySwapTheme(themeName))
         {
             var current = _themeService.CurrentTheme;
             _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]Switched to theme:[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{Markup.Escape(current.Name)}[/]");
+
+            // Persist theme selection to config (DRY: same pattern as /reconfigure → ConfigWizardOrchestrator → configService.Save)
+            _appConfig.ThemeFile = _themeService.GetThemeFileName(themeName) ?? themeName;
+            _configService.Save(_appConfig);
+
+            // Reload history for the current active agent (DRY: delegates to SessionHistoryService, same as /chat and /history)
+            var sessionKey = AgentRegistry.ActiveSessionKey;
+            if (sessionKey != null)
+                await _historyService.PrintSessionHistoryAsync(sessionKey);
         }
         else
         {
@@ -87,7 +107,5 @@ public sealed class ThemeCommand : ICommand
             _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Theme files are stored in the themes folder as .json files.[/]");
             _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Use /theme to list available themes.[/]");
         }
-
-        return Task.CompletedTask;
     }
 }

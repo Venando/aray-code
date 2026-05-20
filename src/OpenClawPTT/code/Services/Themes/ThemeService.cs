@@ -63,8 +63,29 @@ public sealed class ThemeService
     }
 
     /// <summary>
+    /// Returns the file name to store in <see cref="AppConfig.ThemeFile"/> for the given theme name.
+    /// For built-in themes returns the theme name; for file-based themes returns the .json file name.
+    /// Returns null if the theme name is empty or not recognized.
+    /// </summary>
+    public string? GetThemeFileName(string themeName)
+    {
+        if (string.IsNullOrWhiteSpace(themeName))
+            return null;
+
+        // Built-in themes have no file — persist by name
+        if (_builtInThemes.ContainsKey(themeName))
+            return themeName;
+
+        // File-based themes: ensure .json extension
+        return themeName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+            ? themeName
+            : themeName + ".json";
+    }
+
+    /// <summary>
     /// Loads the theme specified in <see cref="AppConfig.ThemeFile"/>.
-    /// If ThemeFile is empty or the file can't be loaded, uses <see cref="ThemeConfig.Default"/>.
+    /// Checks built-in themes first, then tries the themes folder.
+    /// If ThemeFile is empty or the theme can't be loaded, uses <see cref="ThemeConfig.Default"/>.
     /// Updates <see cref="ThemeProvider.Current"/> so all theme-aware consumers pick up the change.
     /// </summary>
     public ThemeConfig LoadTheme()
@@ -73,6 +94,13 @@ public sealed class ThemeService
         if (string.IsNullOrWhiteSpace(themeFile))
         {
             ApplyTheme(ThemeConfig.Default);
+            return _currentTheme;
+        }
+
+        // Check built-in themes first (no JSON file needed)
+        if (_builtInThemes.TryGetValue(themeFile, out var builtIn))
+        {
+            ApplyTheme(builtIn);
             return _currentTheme;
         }
 
