@@ -22,6 +22,9 @@ public interface IStatusPart
     /// <summary>Resets the dirty flag after the rendered text has been consumed by the UI.</summary>
     void MarkClean();
 
+    /// <summary>Marks this part dirty so the next <see cref="GetText()"/> call rebuilds the cache.</summary>
+    void MarkDirty();
+
     /// <summary>Where this status part should be displayed.</summary>
     DisplayPosition Position { get; set; }
 

@@ -185,6 +185,24 @@ public sealed class StatusService : IStatusService, IDisposable
         });
     }
 
+    /// <inheritdoc />
+    public void RefreshTheme()
+    {
+        Mutate(() =>
+        {
+            _activeAgentPart.MarkDirty();
+            _modelPart.MarkDirty();
+            _thinkingLevelPart.MarkDirty();
+            _contextPart.MarkDirty();
+            _conversationNamePart.MarkDirty();
+            _gatewayStatusPart.MarkDirty();
+            _ttsStatusPart.MarkDirty();
+            _sttStatusPart.MarkDirty();
+            _llmStatusPart.MarkDirty();
+            _mainAgentsPart?.MarkDirty();
+        });
+    }
+
     // ── Lifecycle & event handling ──────────────────────────────────────
 
     /// <summary>

@@ -30,6 +30,12 @@ public interface IStatusService
     void ApplyConfigPositions(AppConfig cfg);
 
     /// <summary>
+    /// Marks all status parts dirty so their cached text is rebuilt on the
+    /// next render, picking up any runtime theme changes.
+    /// </summary>
+    void RefreshTheme();
+
+    /// <summary>
     /// Gets the current status color of a service component, or null if not tracked.
     /// </summary>
     StatusColor? GetServiceStatus(ServiceKind kind);

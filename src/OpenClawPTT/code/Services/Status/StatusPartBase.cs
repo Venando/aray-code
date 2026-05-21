@@ -60,7 +60,7 @@ public abstract class StatusPartBase : IStatusPart
     }
 
     /// <summary>Marks this part dirty so the next <see cref="GetText()"/> call rebuilds the cache.</summary>
-    protected void MarkDirty()
+    public void MarkDirty()
     {
         _dirty = true;
     }
