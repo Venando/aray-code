@@ -214,8 +214,9 @@ public class AgentOutputCoordinatorTests
         coordinator.Dispose();
 
         // Handler should be disposed after coordinator dispose
-        var ex = Assert.Throws<ObjectDisposedException>(() => handler.PlayTtsAsync("text").Wait());
-        Assert.Equal(nameof(AudioResponseHandler), ex.ObjectName);
+        var ex = Assert.Throws<AggregateException>(() => handler.PlayTtsAsync("text").Wait());
+        Assert.IsType<ObjectDisposedException>(ex.InnerException);
+        Assert.Equal(nameof(AudioResponseHandler), ((ObjectDisposedException)ex.InnerException!).ObjectName);
     }
 
     [Fact]

@@ -15,9 +15,9 @@ public class ToolDisplayHandlerStabilityTests
     private sealed class FakeToolOutput : IToolOutput
     {
         public void Start(string prefix) { }
-        public void Print(string text, ConsoleColor color = ConsoleColor.White) { }
-        public void PrintLine(string text, ConsoleColor color = ConsoleColor.White) { }
-        public void PrintTruncated(string text, string continuationPrefix, int rightMarginIndent, ConsoleColor color = ConsoleColor.White, int maxRows = 4) { }
+        public void Print(string text, string? style = null) { }
+        public void PrintLine(string text, string? style = null) { }
+        public void PrintTruncated(string text, string continuationPrefix, int rightMarginIndent, string? style = null, int maxRows = 4) { }
         public void PrintMarkup(string markup) { }
         public void Finish() { }
         public void Flush() { }

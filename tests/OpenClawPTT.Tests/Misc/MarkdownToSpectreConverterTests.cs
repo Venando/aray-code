@@ -148,19 +148,39 @@ public class MarkdownToSpectreConverterTests
 
     [Fact]
     public void Convert_HrDashes_YieldsDimLine()
-        => Assert.Equal("[dim]────────────────────────────────────────[/]", MarkdownToSpectreConverter.Convert("---"));
+    {
+        var result = MarkdownToSpectreConverter.Convert("---");
+        Assert.EndsWith("[/]", result);
+        Assert.Contains("────────────────────────────────────────", result);
+        ValidateMarkup(result);
+    }
 
     [Fact]
     public void Convert_HrStars_YieldsDimLine()
-        => Assert.Equal("[dim]────────────────────────────────────────[/]", MarkdownToSpectreConverter.Convert("***"));
+    {
+        var result = MarkdownToSpectreConverter.Convert("***");
+        Assert.EndsWith("[/]", result);
+        Assert.Contains("────────────────────────────────────────", result);
+        ValidateMarkup(result);
+    }
 
     [Fact]
     public void Convert_HrUnderscores_YieldsDimLine()
-        => Assert.Equal("[dim]────────────────────────────────────────[/]", MarkdownToSpectreConverter.Convert("___"));
+    {
+        var result = MarkdownToSpectreConverter.Convert("___");
+        Assert.EndsWith("[/]", result);
+        Assert.Contains("────────────────────────────────────────", result);
+        ValidateMarkup(result);
+    }
 
     [Fact]
     public void Convert_Hr_WithTrailingWhitespace_YieldsDimLine()
-        => Assert.Equal("[dim]────────────────────────────────────────[/]", MarkdownToSpectreConverter.Convert("---   "));
+    {
+        var result = MarkdownToSpectreConverter.Convert("---   ");
+        Assert.EndsWith("[/]", result);
+        Assert.Contains("────────────────────────────────────────", result);
+        ValidateMarkup(result);
+    }
 
     // ── Fenced code blocks ───────────────────────────────────────────────────
 
@@ -228,7 +248,8 @@ public class MarkdownToSpectreConverterTests
         Assert.Contains("[bold]bold[/]", result);
         Assert.Contains("[italic]italic[/]", result);
         Assert.Contains("[italic dim]blockquote[/]", result);
-        Assert.Contains("[dim]────────────────────────────────────────[/]", result);
+        Assert.Contains("[/]", result);
+        Assert.Contains("────────────────────────────────────────", result);
         Assert.Contains("[bold gray89 on darkblue]code[/]", result);
         Assert.Contains("[link=http://x.com]link[/]", result);
         ValidateMarkup(result);

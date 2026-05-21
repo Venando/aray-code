@@ -63,7 +63,10 @@ public class ConversationNamingServiceTests : IDisposable
             ev.Set();
         };
 
+        // Need 3 messages to trigger initial naming (InitialNamingThreshold = 3)
         service.OnMessageSent("Can you review this C# code for me?");
+        service.OnMessageSent("Here is the second message");
+        service.OnMessageSent("And a third one");
         ev.Wait(TimeSpan.FromSeconds(2));
 
         Assert.Equal("Code Review", capturedName);
@@ -96,8 +99,10 @@ public class ConversationNamingServiceTests : IDisposable
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
         service.ConversationNameChanged += _ => ev.Set();
 
+        // Send 3 messages to trigger naming once
         service.OnMessageSent("First message");
         service.OnMessageSent("Second message");
+        service.OnMessageSent("Third message");
         ev.Wait(TimeSpan.FromSeconds(2));
 
         mockLlm.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -120,7 +125,9 @@ public class ConversationNamingServiceTests : IDisposable
             ev.Set();
         };
 
-        service.OnMessageSent("Message");
+        service.OnMessageSent("Message 1");
+        service.OnMessageSent("Message 2");
+        service.OnMessageSent("Message 3");
         ev.Wait(TimeSpan.FromSeconds(2));
 
         Assert.Equal("Code Review", capturedName);
@@ -143,7 +150,9 @@ public class ConversationNamingServiceTests : IDisposable
             ev.Set();
         };
 
-        service.OnMessageSent("Message");
+        service.OnMessageSent("Message 1");
+        service.OnMessageSent("Message 2");
+        service.OnMessageSent("Message 3");
         ev.Wait(TimeSpan.FromSeconds(2));
         Assert.Equal("Test Name", service.GetCurrentConversationName());
 
@@ -167,7 +176,9 @@ public class ConversationNamingServiceTests : IDisposable
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
         service.ConversationNameChanged += _ => ev.Set();
 
-        service.OnMessageSent("Message");
+        service.OnMessageSent("Message 1");
+        service.OnMessageSent("Message 2");
+        service.OnMessageSent("Message 3");
         ev.Wait(TimeSpan.FromSeconds(2));
         Assert.Equal("Test Name", service.GetCurrentConversationName());
 
@@ -190,7 +201,9 @@ public class ConversationNamingServiceTests : IDisposable
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
         service.ConversationNameChanged += _ => ev.Set();
 
-        service.OnMessageSent("Message");
+        service.OnMessageSent("Message 1");
+        service.OnMessageSent("Message 2");
+        service.OnMessageSent("Message 3");
         ev.Wait(TimeSpan.FromSeconds(2));
         Assert.Equal("Test Name", service.GetCurrentConversationName());
 
@@ -213,7 +226,9 @@ public class ConversationNamingServiceTests : IDisposable
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
         service.ConversationNameChanged += _ => ev.Set();
 
-        service.OnMessageSent("Message");
+        service.OnMessageSent("Message 1");
+        service.OnMessageSent("Message 2");
+        service.OnMessageSent("Message 3");
         ev.Wait(TimeSpan.FromSeconds(2));
 
         service.OnCommandExecuted(null, new CommandExecutedEventArgs(
@@ -235,7 +250,9 @@ public class ConversationNamingServiceTests : IDisposable
         using var service = new ConversationNamingService(mockLlm.Object, CreateDefaultConfig());
         service.ConversationNameChanged += _ => ev.Set();
 
-        service.OnMessageSent("Message");
+        service.OnMessageSent("Message 1");
+        service.OnMessageSent("Message 2");
+        service.OnMessageSent("Message 3");
         ev.Wait(TimeSpan.FromSeconds(2));
         Assert.Equal("Test Name", service.GetCurrentConversationName());
 
@@ -278,6 +295,8 @@ public class ConversationNamingServiceTests : IDisposable
         };
 
         service.OnMessageSent("Using AI to generate code");
+        service.OnMessageSent("Second message");
+        service.OnMessageSent("Third message");
         ev.Wait(TimeSpan.FromSeconds(2));
 
         Assert.Equal("Custom Title", capturedName);
@@ -312,6 +331,8 @@ public class ConversationNamingServiceTests : IDisposable
         };
 
         service.OnMessageSent("Hello");
+        service.OnMessageSent("Second");
+        service.OnMessageSent("Third");
         ev.Wait(TimeSpan.FromSeconds(2));
 
         Assert.Equal("Default Fallback", capturedName);
@@ -335,6 +356,8 @@ public class ConversationNamingServiceTests : IDisposable
         service.ConversationNameChanged += _ => ev.Set();
 
         service.OnMessageSent("test");
+        service.OnMessageSent("test2");
+        service.OnMessageSent("test3");
         ev.Wait(TimeSpan.FromSeconds(2));
 
         mockLlm.Verify(x => x.SendAsync(

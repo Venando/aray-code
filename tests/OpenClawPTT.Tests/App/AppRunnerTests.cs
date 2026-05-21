@@ -20,7 +20,7 @@ public class AppRunnerTests
 
     private sealed class TestServiceFactory : IServiceFactory
     {
-        public IAgentStatusTracker? AgentStatusTracker => null;
+        public IAgentActivityStore? AgentActivityStore => null;
 
         public Mock<IGatewayService> Gateway { get; } = new();
         public Mock<IAudioService> Audio { get; } = new();

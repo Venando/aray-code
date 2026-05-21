@@ -59,6 +59,11 @@ public class ToolDisplayHandlerIntegrationTests
         public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariantEntry[] variants, StreamShell.SelectionInfo? info = null)
             => Task.FromResult<StreamShell.IVariant[]?>(null);
         public void Dispose() { }
+        public void SetRenderChunkSize(int size) { }
+        public void SetCursorMarkup(string markup) { }
+        public void SetSelectionMarkup(string markup) { }
+        public void SetCommandSlashMarkup(string markup) { }
+        public void ApplyStreamShellTheme(int prefixWidth) { }
     }
 
     /// <summary>
@@ -73,11 +78,11 @@ public class ToolDisplayHandlerIntegrationTests
         public string Prefix = "";
 
         public void Start(string prefix) => Prefix = prefix;
-        public void Print(string text, ConsoleColor color = ConsoleColor.White)
+        public void Print(string text, string? style = null)
             => Lines.Add($"PRINT:{text}");
-        public void PrintLine(string text, ConsoleColor color = ConsoleColor.White)
+        public void PrintLine(string text, string? style = null)
             => Lines.Add($"PRINTLN:{text}");
-        public void PrintTruncated(string text, string continuationPrefix, int rightMarginIndent, ConsoleColor color = ConsoleColor.White, int maxRows = 4)
+        public void PrintTruncated(string text, string continuationPrefix, int rightMarginIndent, string? style = null, int maxRows = 4)
             => Lines.Add($"TRUNC:{text}");
         public void PrintMarkup(string markup)
             => Lines.Add($"MARKUP:{markup}");

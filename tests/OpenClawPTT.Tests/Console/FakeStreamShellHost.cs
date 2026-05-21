@@ -35,20 +35,25 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
 
     public void Clear() { Messages.Clear(); }
 
-    public string? LastSeparatorLeftText { get; private set; }
-    public string? LastSeparatorRightText { get; private set; }
+    public string? LastTopSeparatorLeftText { get; private set; }
+    public string? LastTopSeparatorRightText { get; private set; }
+    public string? LastBottomSeparatorLeftText { get; private set; }
+    public string? LastBottomSeparatorRightText { get; private set; }
+    public string? LastSeparatorLeftText => LastTopSeparatorLeftText;
+    public string? LastSeparatorRightText => LastTopSeparatorRightText;
 
     public void SetTopSeparator(string? leftText = null, string? rightText = null,
         char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null)
     {
-        LastSeparatorLeftText = leftText;
-        LastSeparatorRightText = rightText;
+        LastTopSeparatorLeftText = leftText;
+        LastTopSeparatorRightText = rightText;
     }
 
     public void SetBottomSeparator(string? leftText = null, string? rightText = null,
         char repeatedCharacter = '\u2500', string? repeatedCharMarkup = null)
     {
-        LastSeparatorRightText = rightText;
+        LastBottomSeparatorLeftText = leftText;
+        LastBottomSeparatorRightText = rightText;
     }
 
     public void Stop() { /* no-op */ }
@@ -76,6 +81,7 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
         UserInputSubmitted?.Invoke(args);
     }
 
+    public void SetRenderChunkSize(int size) { }
     public void SetCursorMarkup(string markup) { }
     public void SetSelectionMarkup(string markup) { }
     public void SetCommandSlashMarkup(string markup) { }

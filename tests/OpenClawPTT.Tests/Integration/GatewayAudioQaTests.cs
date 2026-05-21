@@ -172,9 +172,10 @@ public class GatewayAudioQaTests
             summarizer: null, pttStateMachine: null, ttsProvider: null);
         handler.Dispose();
 
-        // Subsequent calls should throw ObjectDisposedException
-        var ex = Assert.Throws<ObjectDisposedException>(() => handler.PlayTtsAsync("text").Wait());
-        Assert.Equal(nameof(AudioResponseHandler), ex.ObjectName);
+        // Subsequent calls should throw ObjectDisposedException (wrapped in AggregateException by .Wait())
+        var ex = Assert.Throws<AggregateException>(() => handler.PlayTtsAsync("text").Wait());
+        Assert.IsType<ObjectDisposedException>(ex.InnerException);
+        Assert.Equal(nameof(AudioResponseHandler), ((ObjectDisposedException)ex.InnerException!).ObjectName);
     }
 
     [Fact]

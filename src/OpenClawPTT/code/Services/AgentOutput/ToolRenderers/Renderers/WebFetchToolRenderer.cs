@@ -15,6 +15,7 @@ public sealed class WebFetchToolRenderer : ToolRendererBase
         if (args.TryGetProperty("url", out var urlProp))
         {
             string url = urlProp.GetString() ?? "";
+            url = url.Replace("https://", "").Replace("http://", "");
             PrintValue(url, Style.Reader.FetchUrl);
         }
         if (args.TryGetProperty("maxChars", out var maxCharsProp))
