@@ -70,7 +70,7 @@ public class ServiceFactory : IServiceFactory
         var device = new DeviceIdentity(cfg.DataDir);
         device.EnsureKeypair();
         var gatewayClient = new GatewayClient(cfg, device, new GatewayEventSource(), _colorConsole,
-            activityStore: _activityStore);
+            activityStore: _activityStore, tracker: _tracker);
 
         return new GatewayService(cfg, _colorConsole, coordinator, summarizer, pttStateMachine,
             activityStore: _activityStore, ttsProviderTask: ttsProviderTask,
