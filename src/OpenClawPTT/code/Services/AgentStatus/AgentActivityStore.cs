@@ -241,10 +241,10 @@ public sealed class AgentActivityStore : IAgentActivityStore
     public string GetStatusEmoji(string sessionKey) =>
         SelectLatestActivity(
             sessionKey,
-            onHistory:   entry => entry.StopReason == "stop" ? AgentStatusEmoji.Ready : AgentStatusEmoji.ToolExecuting,
+            onHistory:   entry => entry.StopReason == "stop" ? AgentStatusEmoji.Ready : ((entry.StopReason == "aborted") ? AgentStatusEmoji.Aborted : AgentStatusEmoji.ToolExecuting),
             onTool:      entry => AgentStatusEmoji.ToolExecuting,
-            onAssistant: m => m.StopReason == "stop" ? AgentStatusEmoji.Ready : AgentStatusEmoji.ToolExecuting,
-            onUser: m => AgentStatusEmoji.ToolExecuting)
+            onAssistant: entry => entry.StopReason == "stop" ? AgentStatusEmoji.Ready : ((entry.StopReason == "aborted") ? AgentStatusEmoji.Aborted : AgentStatusEmoji.ToolExecuting),
+            onUser: entry => AgentStatusEmoji.ToolExecuting)
         ?? AgentStatusEmoji.Unknown;
 
     // ── IAgentActivityStore — mutations ────────────────────────────────────
@@ -383,7 +383,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
 internal static class AgentStatusEmoji
 {
     public static string Ready => $"[{ThemeProvider.Current.Tools.Messages.Success}]•[/]";
-    public static string Aborted = $"[{ThemeProvider.Current.Tools.Messages.Working}]▶[/]";
+    public static string Aborted = $"[{ThemeProvider.Current.Tools.Messages.LogError}]•[/]";
     public static string ToolExecuting = $"[{ThemeProvider.Current.Tools.Messages.Working}]▶[/]";
     public static string Finished => $"[{ThemeProvider.Current.Tools.Messages.Success}]•[/]";
     public static string Spawning = $"[{ThemeProvider.Current.Tools.Messages.Working}]▶[/]";

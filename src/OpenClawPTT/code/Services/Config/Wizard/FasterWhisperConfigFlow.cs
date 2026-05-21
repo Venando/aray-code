@@ -160,7 +160,7 @@ public sealed class FasterWhisperConfigFlow
                 continue;
 
             var isActive = info.Name == currentModel;
-            var activeMarker = isActive ? " [{ThemeProvider.Current.Tools.Messages.Highlight}][[active]][/]" : "";
+            var activeMarker = isActive ? $" [{ThemeProvider.Current.Tools.Messages.Highlight}][[active]][/]" : "";
             variants.Add(new ConfigVariant(
                 $"[{ThemeProvider.Current.Tools.Messages.Success}]✓ {info.Name}[/] [{ThemeProvider.Current.Tools.General.Muted}]({info.Description})[/]{activeMarker}",
                 $"use:{info.Name}"));
@@ -191,7 +191,7 @@ public sealed class FasterWhisperConfigFlow
         if (cachedModels.Count > 0)
         {
             variants.Add(new ConfigVariant("", ""));
-            variants.Add(new ConfigVariant("[bold {ThemeProvider.Current.Tools.Messages.Error}]── Remove ──[/]", "__remove_header__"));
+            variants.Add(new ConfigVariant($"[bold {ThemeProvider.Current.Tools.Messages.Error}]── Remove ──[/]", "__remove_header__"));
             foreach (var info in allModels)
             {
                 if (!cachedModels.Contains(info.Name))
