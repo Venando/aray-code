@@ -12,6 +12,7 @@ public sealed class ThemeConfig
     public MarkdownTheme Markdown { get; set; } = new();
     public TableTheme Table { get; set; } = new();
     public ToolTheme Tools { get; set; } = new();
+    public PaletteStyle Palette { get; set; } = new();
     public static ThemeConfig Default => new();
 }
 
@@ -179,4 +180,20 @@ public sealed class StreamShellStyles
     public string SelectionMarkup { get; set; } = "bold cyan on Grey27";
     public string CommandSlashMarkup { get; set; } = "Red1";
     public string InputPrefixStyle { get; set; } = "bold SkyBlue1";
+}
+
+/// <summary>
+/// Styles for the StreamShell command palette selection UI.
+/// Each string is a Spectre.Console markup style.
+/// </summary>
+public sealed class PaletteStyle
+{
+    public string SelectedStyle { get; set; } = "on white";
+    public string SelectedCursorColor { get; set; } = "black";
+    public string SelectedCursorSymbol { get; set; } = "→";
+    public string SelectedNameColor { get; set; } = "gray27";
+    public string SelectedDescriptionColor { get; set; } = "gray15";
+    public string NormalIndent { get; set; } = " ";
+    public string NormalNameColor { get; set; } = "grey";
+    public string NavigationHintStyle { get; set; } = "dim gray";
 }

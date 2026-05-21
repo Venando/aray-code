@@ -101,6 +101,8 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
     public void ApplyStreamShellTheme(int prefixWidth)
     {
         var t = ThemeProvider.Current.Tools;
+        var p = ThemeProvider.Current.Palette;
+
         _host.Settings.CursorMarkup = t.StreamShell.CursorMarkup;
         _host.Settings.SelectionMarkup = t.StreamShell.SelectionMarkup;
         _host.Settings.CommandSlashMarkup = t.StreamShell.CommandSlashMarkup;
@@ -109,6 +111,15 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         int wsCount = Math.Max(0, prefixWidth - 2);
         _host.Settings.InputPrefix = $"[{t.StreamShell.InputPrefixStyle}]{new string(' ', wsCount)}> [/]";
         _host.Settings.ContinuationPrefix = new string(' ', prefixWidth);
+
+        // Apply palette
+        _host.Settings.Palette.SelectedStyle = p.SelectedStyle;
+        _host.Settings.Palette.SelectedCursorColor = p.SelectedCursorColor;
+        _host.Settings.Palette.SelectedCursorSymbol = p.SelectedCursorSymbol;
+        _host.Settings.Palette.SelectedNameColor = p.SelectedNameColor;
+        _host.Settings.Palette.SelectedDescriptionColor = p.SelectedDescriptionColor;
+        _host.Settings.Palette.NormalIndent = p.NormalIndent;
+        _host.Settings.Palette.NormalNameColor = p.NormalNameColor;
     }
     public void SetDefaultPanel(StreamShell.IBottomPanel panel) => _host.SetDefaultPanel(panel);
 
