@@ -179,7 +179,6 @@ public partial class AppRunner
             nameof(AppConfig.PiperModelPath),
             nameof(AppConfig.PiperVoice),
             nameof(AppConfig.EspeakNgPath),
-            nameof(AppConfig.PythonPath),
             nameof(AppConfig.TtsDirectMaxChars),
             nameof(AppConfig.TtsMaxChars),
             nameof(AppConfig.TtsCodeBlockMode),

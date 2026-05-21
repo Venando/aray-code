@@ -19,10 +19,10 @@ public sealed class SttConfigSection : ConfigSectionBase
 
     private static readonly (string Name, string Value)[] ProviderOptions =
     {
-        ("Groq", TagGroq),
-        ("OpenAI", TagOpenAi),
-        ("Whisper.cpp — C++ (local)", TagWhisperCpp),
-        ("faster-whisper — uv (local)", TagFasterWhisper),
+        ("Groq (cloud)", TagGroq),
+        ("OpenAI (cloud)", TagOpenAi),
+        ("whisper.cpp — C++ binary, manual install", TagWhisperCpp),
+        ("faster-whisper — Python via uv, auto-managed", TagFasterWhisper),
     };
 
     public SttConfigSection()
