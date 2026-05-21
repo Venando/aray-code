@@ -160,9 +160,25 @@ public partial class AppRunner : IDisposable
 
             var finished = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
 
-            if (finished == delayTask)
+            // Determine if this is a genuine timeout (not user cancellation).
+            // Covers both: delayTask won the race, AND connectTask won but faulted
+            // because the timeout token fired (OCE misclassification fix).
+            bool isTimeout = finished == delayTask
+                || (finished == connectTask && !connectTask.IsCompletedSuccessfully
+                    && timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested);
+
+            if (isTimeout)
             {
                 _console.LogError("gateway", "[connect] Global connect timeout exceeded — aborting stuck connection.");
+
+                // Cancel the linked token to nudge the abandoned connectTask
+                try { linked.Cancel(); } catch { /* already cancelled */ }
+
+                // Give the abandoned task a short grace period to unwind and release
+                // ReconnectLock before we throw (lock-contention fix).
+                try { await connectTask.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None); }
+                catch { /* best effort — task may have faulted or still be running */ }
+
                 throw new TimeoutException(
                     $"Gateway connection did not complete within {GlobalConnectTimeout.TotalSeconds}s. " +
                     "The connection may be stuck in DNS resolution, TCP handshake, or waiting for the server.");
