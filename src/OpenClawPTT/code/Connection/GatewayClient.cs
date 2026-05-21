@@ -173,7 +173,8 @@ public sealed class GatewayClient : IGatewayClient
 
         try
         {
-            var messagesEl = await FetchSessionSnapshotAsync(sessionKey, limit);
+            // Fetching twice as much because part of the messages are filtered
+            var messagesEl = await FetchSessionSnapshotAsync(sessionKey, 2 * limit);
             if (messagesEl == null)
                 return null;
 
