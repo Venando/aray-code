@@ -19,21 +19,16 @@ namespace OpenClawPTT.Services;
 /// </summary>
 public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
 {
-    // ── Layout ───────────────────────────────────────────────────────────
-    private const int BottomMargin = 0;
-    private const int NameColWidth = 12;  // "• " + name (max 10)
-    private const int TimeColWidth = 4;   // "12m", "1h", etc.
-    private const int GapAfterName = 2;
-    private const int GapBeforeTime = 2;
+    // ── Throttle ────────────────────────────────────────────────────────
+    private const int ThrottleIntervalMs = 3000;
 
-    private const int MaxNameDisplayLength = 10;
-
-    // ── Dependencies ──────────────────────────────────────────────────────
+    // ── Dependencies ────────────────────────────────────────────────────
     private readonly IAgentActivityStore _store;
     private readonly IConfigurationService _configService;
+    private readonly VisibleAgentListBuilder _listBuilder;
     private SessionHistoryService? _historyService;
 
-    // ── State ─────────────────────────────────────────────────────────────
+    // ── State ────────────────────────────────────────────────────────────
     private readonly object _sync = new();
     private bool _disposed;
 
@@ -53,6 +48,8 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     private readonly Dictionary<int, string[]> _arraysCache = new();
     private string[] _resultArray;
 
+    private System.Threading.Timer? _throttleTimer;
+
 
     // ── Construction ──────────────────────────────────────────────────────
 
@@ -62,6 +59,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _listBuilder = new VisibleAgentListBuilder(store);
         _resultArray = _emptyLine;
 
         _version = 1;
@@ -144,8 +142,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         // ── Gather agents ─────────────────────────────────────────────
 
         _visibleAgents.Clear();
-
-        FillVisibleAgentsList(_visibleAgents);
+        _visibleAgents.AddRange(_listBuilder.BuildVisibleAgents());
 
         // No agents → 0 lines
         if (_visibleAgents.Count == 0)
@@ -170,40 +167,12 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             bool selected = _isSelectionMode && i == _selectedIndex;
             bool isActive = sessionKey == activeSessionKey;
 
-            var name = GetAgentName(agentId, sessionKey);
+            var name = AgentStatusLineRenderer.GetAgentName(agentId, sessionKey);
             var bullet = _store.GetStatusEmoji(sessionKey);
             var action = new AgentActivityDescriber(_store).GetLastActionDescription(sessionKey) ?? "…";
-            var timeAgo = FormatRelativeTime(_store.GetLastActivityTime(sessionKey)) ?? "…";
+            var timeAgo = AgentStatusLineRenderer.FormatRelativeTime(_store.GetLastActivityTime(sessionKey)) ?? "…";
 
-            lines.Add(RenderAgentLine(name, bullet, action, timeAgo, selected, isActive));
-        }
-    }
-
-    private void FillVisibleAgentsList(List<(string SessionKey, string? AgentId)> visibleAgents)
-    {
-        var trackedSessions = _store.GetTrackedSessions();
-        // Others: all tracked sessions that aren't active and aren't subagents
-        foreach (var sk in trackedSessions)
-        {
-            if (sk.Contains("cron") || !sk.Contains("main"))
-                continue;
-
-            var state = _store.GetSessionState(sk);
-            if (state is null) continue;
-
-            // Skip subagents
-            if (state.ParentSessionKey is not null || state.SpawnedBy is not null)
-                continue;
-
-            var agent = AgentRegistry.Agents.FirstOrDefault(
-                a => a.SessionKey == sk);
-
-            // Respect ShowInStatusPanel setting
-            var show = agent is not null
-                && AgentSettingsPersistenceLegacy.GetPersistedShowInStatusPanel(agent.AgentId);
-            if (!show && agent is not null) continue;
-
-            visibleAgents.Add((sk, agent?.AgentId));
+            lines.Add(AgentStatusLineRenderer.RenderAgentLine(name, bullet, action, timeAgo, selected, isActive));
         }
     }
 
@@ -305,6 +274,10 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         _store.Changed -= OnStoreChanged;
         _visibleAgents.Clear();
         _lines.Clear();
+
+        _throttleTimer?.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+        _throttleTimer?.Dispose();
+        _throttleTimer = null;
     }
 
     // ── Selection helpers ─────────────────────────────────────────────────
@@ -348,161 +321,37 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         _historyService = historyService;
     }
 
-    // ── Rendering ─────────────────────────────────────────────────────────
-
-    private static string RenderAgentLine(
-        string name,
-        string bullet,
-        string action,
-        string timeAgo,
-        bool selected,
-        bool isActive)
-    {
-        var consoleWidth = ConsoleMetrics.GetWindowWidth();
-
-        // Left column: "• Name" padded to NameColWidth (display-width aware)
-        var tools = ThemeProvider.Current.Tools;
-        var nameDisplay = selected
-            ? $"[{tools.Panel.SelectedName}]{name}[/]"
-            : name;
-        nameDisplay = isActive
-            ? $"[{tools.Panel.ActiveName}]{nameDisplay}[/]"
-            : nameDisplay;
-        var leftCol = $"{bullet} {nameDisplay}";
-        int bulletWidth = CharacterWidth.GetDisplayWidth(StripMarkup(bullet));
-        int nameDisplayWidth = CharacterWidth.GetDisplayWidth(StripMarkup(name));
-        int leftRaw = bulletWidth + 1 + nameDisplayWidth;
-        int leftPad = NameColWidth - leftRaw;
-        var leftPadded = leftPad > 0 ? leftCol + new string(' ', leftPad) : leftCol;
-
-        // Action: escape + truncate (using display width, not string length)
-        int usedWidth = NameColWidth + GapAfterName + GapBeforeTime + TimeColWidth + 1;
-        int actionMax = consoleWidth - usedWidth;
-        var actionRaw = action;
-        int actionDisplayWidth = CharacterWidth.GetDisplayWidth(actionRaw);
-        if (actionDisplayWidth > actionMax && actionMax > 3)
-        {
-            actionRaw = TruncateByDisplayWidth(actionRaw, actionMax - 1) + "…";
-            actionDisplayWidth = CharacterWidth.GetDisplayWidth(actionRaw);
-        }
-        else if (actionDisplayWidth > actionMax)
-        {
-            actionRaw = TruncateByDisplayWidth(actionRaw, actionMax);
-            actionDisplayWidth = CharacterWidth.GetDisplayWidth(actionRaw);
-        }
-        var actionDisplay = Markup.Escape(actionRaw);
-        int gapAfterAction = consoleWidth - NameColWidth - GapAfterName - actionDisplayWidth - GapBeforeTime - TimeColWidth - 1;
-        if (gapAfterAction < 0) gapAfterAction = 0;
-
-        var timePadded = timeAgo.PadLeft(TimeColWidth);
-
-        actionDisplay = isActive
-                ? $"[{tools.Panel.ActiveAgentAction}]{actionDisplay}[/]"
-                : actionDisplay;
-
-        actionDisplay = selected
-                ? $"[{tools.Panel.ActionSelected}]{actionDisplay}[/]"
-                : $"[{tools.Panel.Action}]{actionDisplay}[/]";
-
-        var line = leftPadded
-            + new string(' ', GapAfterName)
-            + actionDisplay
-            + new string(' ', gapAfterAction + GapBeforeTime)
-            + $"[{tools.Panel.Time}]{timePadded}[/]";
-
-        return selected ? $"[on {tools.Panel.SelectedBg}]{line}[/]" : line;
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────────
-
-    private static string GetAgentName(string? agentId, string sessionKey)
-    {
-        if (agentId is not null)
-        {
-            var agent = AgentRegistry.Agents.FirstOrDefault(a => a.AgentId == agentId);
-            if (agent is not null)
-                return FormatName(agent.Name);
-        }
-
-        // Fall back to session state display name
-        // (store is static, we access via a method)
-        return FormatName(sessionKey);
-    }
-
-    private static string FormatName(string? raw)
-    {
-        var name = raw ?? "?";
-        var displayWidth = CharacterWidth.GetDisplayWidth(name);
-        if (displayWidth > MaxNameDisplayLength)
-        {
-            var truncated = TruncateByDisplayWidth(name, MaxNameDisplayLength);
-            return Markup.Escape(truncated);
-        }
-        return Markup.Escape(name);
-    }
-
-    /// <summary>Formats a Unix-ms timestamp as a relative time string.</summary>
-    private static string? FormatRelativeTime(long? timestampMs)
-    {
-        if (timestampMs is not { } ts) return null;
-
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var diff = now - ts;
-
-        if (diff < 0) return "now";
-
-        var seconds = diff / 1000;
-        if (seconds < 60) return $"{seconds}s";
-        var minutes = seconds / 60;
-        if (minutes < 60) return $"{minutes}m";
-        var hours = minutes / 60;
-        if (hours < 24) return $"{hours}h";
-        var days = hours / 24;
-        return $"{days}d";
-    }
-
-    /// <summary>Truncates a string so its display width does not exceed <paramref name="maxWidth"/>.</summary>
-    private static string TruncateByDisplayWidth(string text, int maxWidth)
-    {
-        if (maxWidth <= 0) return string.Empty;
-
-        var sb = new System.Text.StringBuilder();
-        int width = 0;
-        foreach (char c in text)
-        {
-            int charWidth = CharacterWidth.GetDisplayWidth(c.ToString());
-            if (width + charWidth > maxWidth)
-                break;
-            sb.Append(c);
-            width += charWidth;
-        }
-        return sb.ToString();
-    }
-
-    private static string StripMarkup(string markup)
-    {
-        if (string.IsNullOrEmpty(markup)) return string.Empty;
-        var sb = new System.Text.StringBuilder(markup.Length);
-        bool inTag = false;
-        for (int i = 0; i < markup.Length; i++)
-        {
-            char c = markup[i];
-            if (c == '[' && i + 1 < markup.Length)
-            {
-                if (markup[i + 1] == '[') { sb.Append('['); i++; continue; }
-                inTag = true;
-                continue;
-            }
-            if (c == ']' && inTag) { inTag = false; continue; }
-            if (!inTag) sb.Append(c);
-        }
-        return sb.ToString();
-    }
+    // ── Dirty tracking (throttled) ──────────────────────────────────────
 
     private void OnStoreChanged(string _) => MarkDirty();
 
     private void MarkDirty()
     {
-        lock (_sync) { _version++; }
+        lock (_sync)
+        {
+            if (_disposed) return;
+
+            if (_throttleTimer is null)
+            {
+                _throttleTimer = new System.Threading.Timer(
+                    _ => OnThrottleElapsed(),
+                    null,
+                    ThrottleIntervalMs,
+                    System.Threading.Timeout.Infinite);
+            }
+            else
+            {
+                _throttleTimer.Change(ThrottleIntervalMs, Timeout.Infinite);
+            }
+        }
+    }
+
+    private void OnThrottleElapsed()
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _version++;
+        }
     }
 }
