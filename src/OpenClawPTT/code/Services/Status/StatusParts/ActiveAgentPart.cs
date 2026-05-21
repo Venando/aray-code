@@ -98,7 +98,6 @@ public sealed class ActiveAgentPart : StatusPartBase
 
         Builder.Append(' ');
         Builder.Append(_store.GetStatusEmoji(sessionKey));
-        Builder.Append(' ');
 
         _lastRenderedKey = sessionKey;
         _lastRenderedDisplayName = _state.DisplayName;
