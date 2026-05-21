@@ -19,17 +19,16 @@ public class UserMessageHandler : IEventHandler<UserMessageEvent>
         _tracker = tracker;
     }
 
-    public Task HandleAsync(UserMessageEvent evt)
+    public async Task HandleAsync(UserMessageEvent evt)
     {
         if (string.IsNullOrWhiteSpace(evt.ContentText))
-            return Task.CompletedTask;
+            return;
 
         // If we sent this message locally, it was already printed by
         // TextMessageSender — skip to avoid double-printing.
         if (_tracker.WasRecentlySent(evt.ContentText))
-            return Task.CompletedTask;
+            return;
 
-        _console.PrintUserMessage(evt.ContentText);
-        return Task.CompletedTask;
+        await _console.PrintUserMessageStreaming(evt.ContentText);
     }
 }
