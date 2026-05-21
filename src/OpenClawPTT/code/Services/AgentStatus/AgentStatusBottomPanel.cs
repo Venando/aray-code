@@ -231,7 +231,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     if (_selectedIndex < _visibleAgents.Count - 1)
                     {
                         _selectedIndex++;
-                        MarkDirty();
+                        MarkDirtyImmediate();
                     }
                     return true;
 
@@ -239,7 +239,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     if (_selectedIndex > 0)
                     {
                         _selectedIndex--;
-                        MarkDirty();
+                        MarkDirtyImmediate();
                     }
                     else
                     {
@@ -288,14 +288,14 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     {
         _isSelectionMode = true;
         _selectedIndex = 0;
-        MarkDirty();
+        MarkDirtyImmediate();
     }
 
     private void ExitSelectionMode()
     {
         _isSelectionMode = false;
         _selectedIndex = 0;
-        MarkDirty();
+        MarkDirtyImmediate();
     }
 
     private void SelectCurrentAgent()
@@ -326,6 +326,15 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     // ── Dirty tracking (throttled) ──────────────────────────────────────
 
     private void OnStoreChanged(string _) => MarkDirty();
+
+    private void MarkDirtyImmediate()
+    {
+        lock (_sync)
+        {
+            if (_disposed) return;
+            _version++;
+        }
+    }
 
     private void MarkDirty()
     {
