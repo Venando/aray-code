@@ -24,7 +24,6 @@ public sealed class TtsConfigSection : ConfigSectionBase
         ("Edge", "Edge"),
         ("Coqui TTS (uv)", "CoquiUv"),
         ("Piper", "Piper"),
-        ("ElevenLabs (not supported)", "ElevenLabs"),
     ];
 
     private static readonly (string Name, string Value)[] TtsModeOptions =
@@ -131,14 +130,6 @@ public sealed class TtsConfigSection : ConfigSectionBase
 
         ConfigSelectionHelper.PrintSubSection(host, config.TtsProvider.ToString());
 
-        // ── ElevenLabs is not supported yet — exit early ──
-        if (config.TtsProvider == TtsProviderType.ElevenLabs)
-        {
-            host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  ElevenLabs TTS is not yet supported.[/]");
-            result.IsChanged = changed;
-            return result;
-        }
-
         // ── Coqui TTS (uv): delegate to model download/choose flow ──
         if (config.TtsProvider == TtsProviderType.CoquiUv)
         {
@@ -191,7 +182,6 @@ public sealed class TtsConfigSection : ConfigSectionBase
     private static void SeedDefaults(AppConfig config)
     {
         config.TtsRegion ??= "eastus";
-        config.PythonPath ??= "python";
         config.CoquiModelName ??= "tts_models/multilingual/mxtts/vits";
         config.PiperPath ??= "piper";
     }

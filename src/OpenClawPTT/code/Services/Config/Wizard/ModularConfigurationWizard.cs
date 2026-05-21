@@ -105,7 +105,7 @@ public sealed class ModularConfigurationWizard
             }
 
             host.AddMessage("");
-            host.AddMessage("[{ThemeProvider.Current.Tools.Messages.Success}]  ✓ Setup complete![/]");
+            host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  ✓ Setup complete![/]");
             return config;
         }
         finally
@@ -136,7 +136,7 @@ public sealed class ModularConfigurationWizard
                 // Build menu variants with live status from current config
                 var variants = new List<IVariant>
                 {
-                    new ConfigVariant("[{ThemeProvider.Current.Tools.Messages.Error}]Cancel[/]", PromptSelectionHelper.CancelSentinel)
+                    new ConfigVariant($"[{ThemeProvider.Current.Tools.Messages.Error}]Cancel[/]", PromptSelectionHelper.CancelSentinel)
                 };
                 foreach (var section in _sections)
                 {
@@ -145,7 +145,7 @@ public sealed class ModularConfigurationWizard
                 }
 
                 host.AddMessage("");
-                host.AddMessage("[{ThemeProvider.Current.Tools.Panel.SectionHeader}]Configuration[/] — [{ThemeProvider.Current.Tools.General.Muted}]pick a section to edit[/]");
+                host.AddMessage($"[{ThemeProvider.Current.Tools.Panel.SectionHeader}]Configuration[/] — [{ThemeProvider.Current.Tools.General.Muted}]pick a section to edit[/]");
 
                 string choice;
                 const int maxAttempts = 3;
@@ -170,14 +170,14 @@ public sealed class ModularConfigurationWizard
                     attempts++;
                     if (attempts >= maxAttempts)
                     {
-                        host.AddMessage("[{ThemeProvider.Current.Tools.Messages.Warning}]  Too many cancellations — exiting reconfiguration.[/]");
+                        host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Too many cancellations — exiting reconfiguration.[/]");
                         return anyChanged ? config : existing;
                     }
                 }
 
                 if (choice == PromptSelectionHelper.CancelSentinel)
                 {
-                    host.AddMessage("[{ThemeProvider.Current.Tools.General.Muted}]  Reconfiguration cancelled.[/]");
+                    host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]  Reconfiguration cancelled.[/]");
                     break;
                 }
 

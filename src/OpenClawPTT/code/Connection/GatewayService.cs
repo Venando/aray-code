@@ -183,7 +183,7 @@ public sealed class GatewayService : IGatewayService
         _coordinator.SetAudioHandler(null);
         throw new InvalidOperationException(
             $"TTS provider '{ttsService.ProviderType}' requires configuration. " +
-            "Check TtsSubscriptionKey / TtsOpenAiApiKey / TtsApiKey / CoquiModelPath settings.");
+            "Check TtsSubscriptionKey / TtsOpenAiApiKey / CoquiModelPath settings.");
     }
 
     public async Task<List<ChatHistoryEntry>?> FetchSessionHistoryAsync(string sessionKey, int limit = 5)

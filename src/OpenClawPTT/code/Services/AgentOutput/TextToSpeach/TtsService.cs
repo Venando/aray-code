@@ -13,7 +13,6 @@ public enum TtsProviderType
     Edge,
     // Coqui + Python removed — use CoquiUv
     Piper,
-    ElevenLabs,
     /// <summary>
     /// Coqui TTS via <c>uv</c> — automatic Python/packages/dependencies.
     /// Replacement for <see cref="TtsProviderType.Coqui"/> and <see cref="TtsProviderType.Python"/>.

@@ -115,7 +115,6 @@ public sealed class AppConfig
     public string? CoquiModelPath { get; set; }
     public string? CoquiModelName { get; set; }
     public string? CoquiConfigPath { get; set; }
-    public string? PythonPath { get; set; }
 
     // Piper TTS settings
     public string? PiperPath { get; set; }
@@ -125,19 +124,12 @@ public sealed class AppConfig
     // eSpeak NG path for Coqui TTS (platform-specific default)
     public string? EspeakNgPath { get; set; }
 
-
-
     // Direct LLM settings (bypass agent for direct LLM calls)
     public string? DirectLlmToken { get; set; }
     public string? DirectLlmUrl { get; set; }
     public string? DirectLlmModelName { get; set; }
     public string DirectLlmApiType { get; set; } = "openai-completions"; // "openai-completions" or "anthropic-messages"
     public int DirectLlmMaxTokens { get; set; } = 4096; // Max tokens for Anthropic responses
-
-    // Audio response settings
-
-    public string? TtsApiKey { get; set; } // Optional ElevenLabs API key
-    public string? TtsVoiceId { get; set; } // Default ElevenLabs voice
 
     // TTS SISO settings
     public string TtsOutputMode { get; set; } = "siso"; // "always-on", "siso", "off"
@@ -184,12 +176,12 @@ public sealed class AppConfig
         ["GroqApiKey"] = "Groq STT API key",
         ["RealTimeReplyOutput"] = "Show agent replies in real-time during recording",
         ["ReplyDisplayMode"] = "Where to show replies: Console, Audio, Both",
-        ["SttProvider"] = "STT provider: groq, openai, whisper-cpp",
+        ["SttProvider"] = "STT provider: groq, openai, whisper-cpp, faster-whisper",
         ["OpenAiApiKey"] = "OpenAI API key (for STT or Direct LLM)",
         ["OpenAiModel"] = "OpenAI model name for STT",
-        ["WhisperCppModel"] = "Whisper.cpp model name (e.g. base, small.en, medium)",
-        ["WhisperCppBinaryPath"] = "Path to whisper CLI binary (auto-detected if not set)",
-        ["FasterWhisperModel"] = "faster-whisper model name (e.g. base, small.en, medium)",
+        ["WhisperCppModel"] = "whisper.cpp model name — requires C++ binary installed (e.g. base, small.en, medium)",
+        ["WhisperCppBinaryPath"] = "Path to whisper.cpp CLI binary (auto-detected from PATH if not set)",
+        ["FasterWhisperModel"] = "faster-whisper model name — uses uv (auto-downloads, no manual install needed)",
         ["GroqModel"] = "Groq model for STT",
         ["HotkeyCombination"] = "Push-to-talk hotkey (e.g. Alt+=)",
         ["HoldToTalk"] = "Hold key to record, release to send (vs toggle)",
@@ -224,7 +216,7 @@ public sealed class AppConfig
         ["ConnectionStatusPosition"] = "Status bar position for GW/TTS connection status",
         ["DirectLlmPosition"] = "Status bar position for direct LLM status",
         ["MainAgentsPosition"] = "Status bar position for main agents list (None, TopSeparatorLeft, TopSeparatorRight, BottomSeparatorLeft, BottomSeparatorRight, AppStatusPanelLeft, AppStatusPanelRight)",
-        ["TtsProvider"] = "TTS provider: OpenAI, Edge, CoquiUv, Coqui, Piper, Python, ElevenLabs",
+        ["TtsProvider"] = "TTS provider: OpenAI, Edge, CoquiUv, Piper",
         ["TtsOpenAiApiKey"] = "OpenAI API key for TTS",
         ["TtsSubscriptionKey"] = "Azure TTS subscription key",
         ["TtsRegion"] = "Azure TTS region",
@@ -233,7 +225,6 @@ public sealed class AppConfig
         ["CoquiModelPath"] = "Path to Coqui TTS model file",
         ["CoquiModelName"] = "Coqui TTS model name",
         ["CoquiConfigPath"] = "Path to Coqui TTS config",
-        ["PythonPath"] = "Path to Python interpreter for TTS",
         ["PiperPath"] = "Path to Piper TTS binary",
         ["PiperModelPath"] = "Path to Piper TTS voice model",
         ["PiperVoice"] = "Piper voice name",
@@ -243,8 +234,6 @@ public sealed class AppConfig
         ["DirectLlmModelName"] = "Model name for direct LLM",
         ["DirectLlmApiType"] = "LLM API type: openai-completions or anthropic-messages",
 
-        ["TtsApiKey"] = "ElevenLabs TTS API key",
-        ["TtsVoiceId"] = "ElevenLabs voice ID",
         ["TtsOutputMode"] = "TTS mode: always-on, siso (single-in-single-out), off",
         ["TtsDirectMaxChars"] = "Max chars for direct TTS (no summary)",
         ["TtsMaxChars"] = "Upper limit for TTS output; longer gets skipped/summarized",

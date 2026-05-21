@@ -73,8 +73,8 @@ public sealed class FasterWhisperConfigFlow
         {
             config.SttProvider = AppConfig.ProviderFasterWhisper;
             var uvStatus = FasterWhisperEnvironment.IsUvAvailable()
-                ? "[{ThemeProvider.Current.Tools.Messages.Success}]found[/]"
-                : "[{ThemeProvider.Current.Tools.Messages.Error}]not installed[/]";
+                ? $"[{ThemeProvider.Current.Tools.Messages.Success}]found[/]"
+                : $"[{ThemeProvider.Current.Tools.Messages.Error}]not installed[/]";
             host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  uv: {uvStatus}[/]");
             host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  Model: {modelResult}[/]");
         }
@@ -101,7 +101,7 @@ public sealed class FasterWhisperConfigFlow
 
             var variants = BuildFasterWhisperVariants(cachedModels, currentModel);
             variants.Add(new ConfigVariant("", ""));
-            variants.Add(new ConfigVariant("[{ThemeProvider.Current.Tools.General.Muted}]Cancel[/]", CancelSentinel));
+            variants.Add(new ConfigVariant($"[{ThemeProvider.Current.Tools.General.Muted}]Cancel[/]", CancelSentinel));
 
             var selection = await host.PromptSelection(
                 "Select faster-whisper model, download, remove, or cancel:",
@@ -124,7 +124,7 @@ public sealed class FasterWhisperConfigFlow
                 var modelName = choice["remove:".Length..];
                 var confirm = await host.PromptSelection(
                     $"Remove model '{modelName}'?",
-                    [new ConfigVariant("[{ThemeProvider.Current.Tools.Messages.Error}]Yes, remove[/]", "yes"),
+                    [new ConfigVariant($"[{ThemeProvider.Current.Tools.Messages.Error}]Yes, remove[/]", "yes"),
                      new ConfigVariant("Cancel", "no")]);
 
                 if (confirm is { Length: > 0 } && confirm[0] is ConfigVariant cv2 && cv2.Value == "yes")
@@ -160,7 +160,7 @@ public sealed class FasterWhisperConfigFlow
                 continue;
 
             var isActive = info.Name == currentModel;
-            var activeMarker = isActive ? " [{ThemeProvider.Current.Tools.Messages.Highlight}][[active]][/]" : "";
+            var activeMarker = isActive ? $" [{ThemeProvider.Current.Tools.Messages.Highlight}][[active]][/]" : "";
             variants.Add(new ConfigVariant(
                 $"[{ThemeProvider.Current.Tools.Messages.Success}]✓ {info.Name}[/] [{ThemeProvider.Current.Tools.General.Muted}]({info.Description})[/]{activeMarker}",
                 $"use:{info.Name}"));
@@ -176,7 +176,7 @@ public sealed class FasterWhisperConfigFlow
             if (variants.Count > 0)
             {
                 variants.Add(new ConfigVariant("", ""));
-                variants.Add(new ConfigVariant("[{ThemeProvider.Current.Tools.Panel.SectionHeader}]── Available for download ──[/]", "__header__"));
+                variants.Add(new ConfigVariant($"[{ThemeProvider.Current.Tools.Panel.SectionHeader}]── Available for download ──[/]", "__header__"));
             }
 
             foreach (var info in notCached)
@@ -191,7 +191,7 @@ public sealed class FasterWhisperConfigFlow
         if (cachedModels.Count > 0)
         {
             variants.Add(new ConfigVariant("", ""));
-            variants.Add(new ConfigVariant("[bold {ThemeProvider.Current.Tools.Messages.Error}]── Remove ──[/]", "__remove_header__"));
+            variants.Add(new ConfigVariant($"[bold {ThemeProvider.Current.Tools.Messages.Error}]── Remove ──[/]", "__remove_header__"));
             foreach (var info in allModels)
             {
                 if (!cachedModels.Contains(info.Name))

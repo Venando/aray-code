@@ -157,7 +157,7 @@ public sealed class MessageStyles
     public string AgentBadge { get; set; } = "white on gray15";
     public string IntroductionBorder { get; set; } = "deepskyblue3";
     public string PanelCap { get; set; } = "white";
-    public object Working { get; set; } = "orange1";
+    public string Working { get; set; } = "orange1";
 }
 
 public sealed class PanelStyles
