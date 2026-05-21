@@ -39,7 +39,7 @@ public class GatewayReconnector : IDisposable
     {
         if (_cancellationToken.IsCancellationRequested) return;
 
-        await _reconnectLock.WaitAsync(ct);
+        await _reconnectLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             if (_isReconnecting) return;
@@ -66,12 +66,12 @@ public class GatewayReconnector : IDisposable
                 attempt++;
                 var delayMs = CalculateBackoffDelay(attempt);
                 _console.Log("gateway", $"Waiting {delayMs / 1000.0:F1}s before reconnection attempt {attempt}/{MaxRetryCount}...");
-                await Task.Delay(delayMs, linkedCt);
+                await Task.Delay(delayMs, linkedCt).ConfigureAwait(false);
 
                 _console.Log("gateway", $"Attempting to reconnect (attempt {attempt}/{MaxRetryCount})...");
                 try
                 {
-                    await _gatewayConnector.ConnectAsync(linkedCt);
+                    await _gatewayConnector.ConnectAsync(linkedCt).ConfigureAwait(false);
                     _console.LogOk("gateway", "Reconnected successfully.");
                     ReconnectSucceeded?.Invoke();
                     return;

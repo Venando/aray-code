@@ -130,6 +130,13 @@ public partial class AppRunner : IDisposable
     }
 
 
+    /// <summary>
+    /// Hard ceiling for the entire gateway connection attempt (including handshake
+    /// and authentication). If the gateway is unreachable or the handshake hangs,
+    /// we abort after this time rather than staying stuck indefinitely.
+    /// </summary>
+    private static readonly TimeSpan GlobalConnectTimeout = TimeSpan.FromSeconds(45);
+
     /// <summary>Result of the guided connect attempt.</summary>
     private enum ConnectResult { Success, ContinueWithoutGateway, GiveUp }
 
@@ -143,7 +150,25 @@ public partial class AppRunner : IDisposable
         {
             _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Yellow);
             _console.PrintInfo("Connecting to gateway...");
-            await gateway.ConnectAsync(ct);
+            _console.Log("gateway", $"[connect] Starting connection attempt (hard timeout: {GlobalConnectTimeout.TotalSeconds}s)...");
+
+            using var timeoutCts = new CancellationTokenSource(GlobalConnectTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+            var connectTask = gateway.ConnectAsync(linked.Token);
+            var delayTask = Task.Delay(GlobalConnectTimeout, linked.Token);
+
+            var finished = await Task.WhenAny(connectTask, delayTask).ConfigureAwait(false);
+
+            if (finished == delayTask)
+            {
+                _console.LogError("gateway", "[connect] Global connect timeout exceeded — aborting stuck connection.");
+                throw new TimeoutException(
+                    $"Gateway connection did not complete within {GlobalConnectTimeout.TotalSeconds}s. " +
+                    "The connection may be stuck in DNS resolution, TCP handshake, or waiting for the server.");
+            }
+
+            await connectTask.ConfigureAwait(false);
             _console.LogOk("gateway", "Gateway connected.");
             // Status set to Green via gateway.Connected event handler (handles initial + reconnect)
             return ConnectResult.Success;
@@ -169,7 +194,6 @@ public partial class AppRunner : IDisposable
                 foreach (var action in classification.SuggestedActions)
                     _console.PrintInfo($"    \u2192 {action}");
             }
-
 
             if (classification.ShouldStopApp)
             {

@@ -23,6 +23,10 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
     private readonly CancellationTokenSource _disposeCts = new CancellationTokenSource();
 
+    // Linked CTS for the current connection's receive loop — kept alive until
+    // DisposeConnection so _recvTask can still honour cancellation.
+    private CancellationTokenSource? _connectionCts;
+
     // ─── Dependencies ───────────────────────────────────────────────
     private readonly IGatewayEventSource _events;
     private readonly ISnapshotProcessor _snapshotProcessor;
@@ -89,16 +93,20 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
     public async Task ConnectAsync(CancellationToken ct)
     {
-        await _gatewayReconnector.ReconnectLock.WaitAsync(ct);
+        await _gatewayReconnector.ReconnectLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            await DisposeConnection(ct);
-            await ConnectWebSocketAndHandshakeAsync(ct);
+            _console.Log("gateway", "[connect] Acquired reconnect lock.");
+            await DisposeConnection(ct).ConfigureAwait(false);
+            _console.Log("gateway", "[connect] DisposeConnection done.");
+            await ConnectWebSocketAndHandshakeAsync(ct).ConfigureAwait(false);
+            _console.Log("gateway", "[connect] WebSocket handshake complete.");
 
             var linkCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _disposeCts.Token);
-            try { await CompleteAuthenticationAsync(linkCts.Token); }
+            try { await CompleteAuthenticationAsync(linkCts.Token).ConfigureAwait(false); }
             finally { linkCts.Dispose(); }
 
+            _console.Log("gateway", "[connect] Authentication complete. Firing ConnectionSucceeded.");
             ConnectionSucceeded?.Invoke();
         }
         finally { _gatewayReconnector.ReconnectLock.Release(); }
@@ -108,20 +116,36 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     {
         _ws = _socketFactory();
 
-        var linkCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _disposeCts.Token);
-        var linkedCt = linkCts.Token;
+        // Dispose any previous connection CTS before creating a new one.
+        _connectionCts?.Dispose();
+        _connectionCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _disposeCts.Token);
+        var linkedCt = _connectionCts.Token;
         try
         {
             _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
-            _gatewayMessager = new GatewayMessager(_ws, _events, _cfg, ct => _ = HandleDisconnectionAsync(ct), console: _console, jobRunner: _jobRunner, activityStore: _activityStore);
+            _gatewayMessager = new GatewayMessager(_ws, _events, _cfg, ct2 => _ = HandleDisconnectionAsync(ct2), console: _console, jobRunner: _jobRunner, activityStore: _activityStore);
 
-            await ConnectWebSocketAsync(linkedCt);
+            await ConnectWebSocketAsync(linkedCt).ConfigureAwait(false);
+            _console.Log("gateway", "[connect] WebSocket connected, starting receive loop...");
+
+            // Register the challenge waiter BEFORE starting the receive loop so
+            // we never miss a fast connect.challenge event.
+            var challengeTcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _gatewayMessager.GetFraming().RegisterEventWaiter("connect.challenge", challengeTcs);
+
             _recvTask = Task.Run(() => _gatewayMessager.ReceiveLoop(linkedCt), linkedCt);
 
-            var nonce = await WaitForChallengeNonceAsync(linkedCt);
-            await SendConnectRequestAndValidateAsync(nonce, linkedCt);
+            _console.Log("gateway", "[connect] Waiting for connect.challenge ...");
+            var nonce = await WaitForChallengeNonceAsync(challengeTcs, linkedCt).ConfigureAwait(false);
+            _console.Log("gateway", "[connect] Got challenge nonce. Sending connect request...");
+            await SendConnectRequestAndValidateAsync(nonce, linkedCt).ConfigureAwait(false);
         }
-        finally { linkCts.Dispose(); }
+        catch
+        {
+            // Ensure receive task gets cancelled on failure paths so it exits promptly.
+            try { _connectionCts?.Cancel(); } catch { /* already disposed */ }
+            throw;
+        }
     }
 
     /// <summary>Default timeout for the TCP + TLS + WS upgrade phase.</summary>
@@ -151,22 +175,40 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         _console.Log("gateway", "WebSocket open.");
     }
 
-    private async Task<string> WaitForChallengeNonceAsync(CancellationToken linkedCt)
+    private async Task<string> WaitForChallengeNonceAsync(TaskCompletionSource<JsonElement> challengeTcs, CancellationToken linkedCt)
     {
-        _console.Log("gateway", "Waiting for connect.challenge ...");
         if (_gatewayMessager == null)
             throw new InvalidOperationException("Gateway messager not initialized.");
-        var challenge = await _gatewayMessager.GetFraming().WaitForEventAsync("connect.challenge", TimeSpan.FromSeconds(10), linkedCt);
-        return challenge.GetProperty("nonce").GetString()!;
+
+        using var timeCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(linkedCt, timeCts.Token);
+
+        await using (linked.Token.Register(() => challengeTcs.TrySetCanceled()))
+        {
+            try
+            {
+                var challenge = await challengeTcs.Task.ConfigureAwait(false);
+                return challenge.GetProperty("nonce").GetString()!;
+            }
+            catch (OperationCanceledException) when (timeCts.IsCancellationRequested && !linkedCt.IsCancellationRequested)
+            {
+                throw new TimeoutException("Timed out waiting for connect.challenge after 10s.");
+            }
+            finally
+            {
+                _gatewayMessager?.GetFraming().RemoveEventWaiter("connect.challenge");
+            }
+        }
     }
 
     private async Task SendConnectRequestAndValidateAsync(string nonce, CancellationToken linkedCt)
     {
         var connectParams = BuildConnectParams(nonce);
 
-        _console.Log("gateway", "Sending connect ...");
-        JsonElement hello = await SendRequestAsync("connect", connectParams, linkedCt);
+        _console.Log("gateway", "[connect] Sending connect request...");
+        JsonElement hello = await SendRequestAsync("connect", connectParams, linkedCt).ConfigureAwait(false);
 
+        _console.Log("gateway", "[connect] Validating hello-ok...");
         ValidateHelloOk(hello);
         _console.LogOk("gateway", "Authenticated — hello-ok received.");
 
@@ -292,7 +334,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
                 {
                     ["sessionKey"] = newSessionKey
                 };
-                await SendRequestAsync("sessions.subscribe", subscribeParams, CancellationToken.None);
+                await SendRequestAsync("sessions.subscribe", subscribeParams, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -309,7 +351,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
             ["sessionKey"] = sessionKey
         };
 
-        await SendRequestAsync("sessions.subscribe", subscribeParams, linkedCt);
+        await SendRequestAsync("sessions.subscribe", subscribeParams, linkedCt).ConfigureAwait(false);
     }
 
     // ─── connection resilience ───────────────────────────────────────
@@ -320,7 +362,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         {
             try
             {
-                await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "disconnect", ct);
+                await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "disconnect", ct).ConfigureAwait(false);
             }
             catch { /* ignore */ }
         }
@@ -336,7 +378,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
             if (AgentRegistry.ActiveAgentId != null)
                 _cfg.LastActiveAgentId = AgentRegistry.ActiveAgentId;
 
-            await DisposeConnection(ct);
+            await DisposeConnection(ct).ConfigureAwait(false);
             _ = _gatewayReconnector.ScheduleReconnectAsync(ct);
         }
         catch (Exception ex)
@@ -349,6 +391,16 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
     private async Task DisposeConnection(CancellationToken ct)
     {
+        // Cancel the connection-scoped CTS so the receive loop exits promptly.
+        try { _connectionCts?.Cancel(); } catch { /* already disposed */ }
+
+        // Give the receive loop a short grace period to exit after cancellation.
+        if (_recvTask != null)
+        {
+            try { await _recvTask.WaitAsync(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false); }
+            catch { /* best effort — we'll abort the socket below */ }
+        }
+
         _gatewayMessager?.Dispose();
         _gatewayMessager = null;
 
@@ -363,7 +415,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
                 try
                 {
-                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", linkedCts.Token);
+                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", linkedCts.Token).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -375,6 +427,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         {
             _ws.Dispose();
             _ws = null!;
+            _recvTask = null;
         }
     }
 
@@ -383,6 +436,9 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     public void Dispose()
     {
         try { _disposeCts.Cancel(); } catch (ObjectDisposedException) { /* already disposed */ }
+
+        // Cancel connection-scoped CTS so receive loop exits.
+        try { _connectionCts?.Cancel(); } catch { }
 
         _recvTask?.Wait(TimeSpan.FromSeconds(3));
 
@@ -398,6 +454,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         _gatewayMessager = null;
 
         _gatewayReconnector?.Dispose();
+        _connectionCts?.Dispose();
         try { _disposeCts.Dispose(); } catch (ObjectDisposedException) { /* already disposed */ }
     }
 }

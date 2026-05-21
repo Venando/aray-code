@@ -79,6 +79,21 @@ public static class GatewayErrorClassifier
 
         var message = ex.Message ?? string.Empty;
 
+        // Explicit timeout — usually means the server/gateway is unreachable or the
+        // handshake got stuck (e.g. DNS, TCP, or waiting for connect.challenge).
+        if (ex is TimeoutException)
+        {
+            return new ErrorClassification
+            {
+                Category = ErrorCategory.Transient,
+                Code = "CONNECT_TIMEOUT",
+                HumanMessage = $"Connection timed out: {message}",
+                ShouldRetry = true,
+                RawMessage = message,
+                StackTrace = ex.StackTrace
+            };
+        }
+
         // Network-level failures are transient
         if (ex is System.Net.WebSockets.WebSocketException ||
             ex is System.IO.IOException ||

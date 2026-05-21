@@ -57,7 +57,7 @@ public class MessageFraming : IMessageFraming
 
         var json = JsonSerializer.Serialize(frame);
         var buf = Encoding.UTF8.GetBytes(json);
-        await _ws.SendAsync(buf, WebSocketMessageType.Text, true, ct);
+        await _ws.SendAsync(buf, WebSocketMessageType.Text, true, ct).ConfigureAwait(false);
 
         var wait = timeout ?? TimeSpan.FromSeconds(30);
         using var timeCts = new CancellationTokenSource(wait);
@@ -66,7 +66,7 @@ public class MessageFraming : IMessageFraming
         try
         {
             await using (linked.Token.Register(() => tcs.TrySetCanceled()))
-                return await tcs.Task;
+                return await tcs.Task.ConfigureAwait(false);
         }
         finally
         {
@@ -92,9 +92,21 @@ public class MessageFraming : IMessageFraming
 
         await using (linked.Token.Register(() => tcs.TrySetCanceled()))
         {
-            try { return await tcs.Task; }
+            try { return await tcs.Task.ConfigureAwait(false); }
             finally { _eventWaiters.TryRemove(eventName, out _); }
         }
+    }
+
+    /// <summary>Registers a pre-built TCS as an event waiter (used to avoid race with receive loop).</summary>
+    public virtual void RegisterEventWaiter(string eventName, TaskCompletionSource<JsonElement> tcs)
+    {
+        _eventWaiters[eventName] = tcs;
+    }
+
+    /// <summary>Removes a registered event waiter without completing it.</summary>
+    public virtual void RemoveEventWaiter(string eventName)
+    {
+        _eventWaiters.TryRemove(eventName, out _);
     }
 
     // ─── cleanup ────────────────────────────────────────────────────

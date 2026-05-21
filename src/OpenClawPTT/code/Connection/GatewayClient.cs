@@ -76,7 +76,7 @@ public sealed class GatewayClient : IGatewayClient
         // ConnectAsync handles WebSocket handshake and session subscription.
         if (_lifecycle == null)
             throw new InvalidOperationException("Lifecycle not initialized.");
-        await _lifecycle.ConnectAsync(ct);
+        await _lifecycle.ConnectAsync(ct).ConfigureAwait(false);
     }
 
     // ─── disconnect ─────────────────────────────────────────────────
@@ -84,7 +84,8 @@ public sealed class GatewayClient : IGatewayClient
     public async Task DisconnectAsync(CancellationToken ct)
     {
         ThrowIfDisposed();
-        await (_lifecycle?.DisconnectAsync(ct) ?? Task.CompletedTask);
+        if (_lifecycle != null)
+            await _lifecycle.DisconnectAsync(ct).ConfigureAwait(false);
     }
 
     // ─── send ───────────────────────────────────────────────────────
@@ -103,7 +104,7 @@ public sealed class GatewayClient : IGatewayClient
             ["message"] = body
         };
 
-        return await TrySendAsync("chat.send", chatParams, ct);
+        return await TrySendAsync("chat.send", chatParams, ct).ConfigureAwait(false);
     }
 
     private async Task<JsonElement> TrySendAsync(string method, object? chatParams, CancellationToken ct)
@@ -116,7 +117,7 @@ public sealed class GatewayClient : IGatewayClient
         if (framing == null)
             return default;
 
-        return await framing.SendRequestAsync(method, chatParams, ct);
+        return await framing.SendRequestAsync(method, chatParams, ct).ConfigureAwait(false);
     }
 
     /// <summary>

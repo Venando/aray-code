@@ -75,7 +75,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
                 WebSocketReceiveResult result;
                 do
                 {
-                    result = await _ws.ReceiveAsync(buf, ct);
+                    result = await _ws.ReceiveAsync(buf, ct).ConfigureAwait(false);
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         _console.Log("gateway", "Server closed connection.");
@@ -315,7 +315,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
     /// for fallback detection).
     /// </summary>
     public async Task<JsonElement> SendEventAsync(string eventName, object? parameters, CancellationToken ct)
-        => await _framing.SendRequestAsync(eventName, parameters, ct);
+        => await _framing.SendRequestAsync(eventName, parameters, ct).ConfigureAwait(false);
 
     public void ClearFraming()
     {

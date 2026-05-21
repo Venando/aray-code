@@ -111,19 +111,19 @@ public sealed class GatewayService : IGatewayService
     {
         // Connected event is fired via the ConnectionSucceeded relay
         // in InitGatewayClient — no need for an explicit second fire here.
-        await _gatewayClient.ConnectAsync(ct);
+        await _gatewayClient.ConnectAsync(ct).ConfigureAwait(false);
     }
 
     public async Task SendTextAsync(string text, CancellationToken ct)
     {
-        await _gatewayClient.SendTextAsync(text, ct);
+        await _gatewayClient.SendTextAsync(text, ct).ConfigureAwait(false);
     }
 
     public async Task<JsonElement> SendRpcAsync(string method, object? parameters, CancellationToken ct)
     {
         try
         {
-            return await _gatewayClient.SendEventAsync(method, parameters, ct);
+            return await _gatewayClient.SendEventAsync(method, parameters, ct).ConfigureAwait(false);
         }
         catch (GatewayException ex)
         {
