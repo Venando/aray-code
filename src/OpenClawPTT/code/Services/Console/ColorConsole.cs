@@ -132,32 +132,6 @@ public sealed class ColorConsole : IColorConsole
     }
 
     /// <inheritdoc />
-    public async Task PrintUserMessageStreaming(string text, CancellationToken ct = default)
-    {
-        var prefix = UserMessagePrefix;
-        var output = new StreamShellLineOutput(_shellHost, prefix);
-        var formatter = new AgentReplyFormatter(prefix, ReservedRightMargin, prefixAlreadyPrinted: false, output: output);
-
-        var escaped = Markup.Escape(text);
-        const int chunkSize = 3;
-        const int delayMs = 15;
-
-        for (int i = 0; i < escaped.Length; i += chunkSize)
-        {
-            if (ct.IsCancellationRequested) return;
-
-            int len = Math.Min(chunkSize, escaped.Length - i);
-            formatter.ProcessDelta(escaped.Substring(i, len));
-
-            if (i + len < escaped.Length)
-                await Task.Delay(delayMs, ct);
-        }
-
-        formatter.Finish();
-        output.Finish();
-    }
-
-    /// <inheritdoc />
     public void PrintMarkupedUserMessage(string text)
     {
         ShellMsg($"{UserMessagePrefix}{text}");

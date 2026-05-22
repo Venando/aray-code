@@ -29,6 +29,6 @@ public class UserMessageHandler : IEventHandler<UserMessageEvent>
         if (_tracker.WasRecentlySent(evt.ContentText))
             return;
 
-        await _console.PrintUserMessageStreaming(evt.ContentText);
+        _console.PrintUserMessage(evt.ContentText);
     }
 }

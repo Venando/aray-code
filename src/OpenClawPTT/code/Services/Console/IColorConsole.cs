@@ -25,13 +25,6 @@ public interface IColorConsole
     /// <summary>Display user's own text message.</summary>
     void PrintUserMessage(string text);
 
-    /// <summary>
-    /// Display user's text message with a gradual typing animation.
-    /// Text is fed through the word-wrap formatter in small chunks so each
-    /// completed line appears in StreamShell as it is filled.
-    /// </summary>
-    Task PrintUserMessageStreaming(string text, CancellationToken ct = default);
-
     /// <summary>Spectre markup prefix for user messages (e.g. " [green] You:[/] ").</summary>
     string UserMessagePrefix { get; set; }
 
