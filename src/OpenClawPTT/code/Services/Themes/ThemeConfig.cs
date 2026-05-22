@@ -179,6 +179,7 @@ public sealed class StreamShellStyles
     public string CursorMarkup { get; set; } = "bold black on cyan";
     public string SelectionMarkup { get; set; } = "bold cyan on Grey27";
     public string CommandSlashMarkup { get; set; } = "Red1";
+    public string NativeCommandNameStyle { get; set; } = "yellow";
     public string InputPrefixStyle { get; set; } = "bold SkyBlue1";
 }
 

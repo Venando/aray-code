@@ -100,7 +100,7 @@ public sealed class ColorConsole : IColorConsole
         var nameStr = agentName?.ToString() ?? "";
         var coloredName = $"[{effectiveColor}]{Markup.Escape(nameStr)}[/]";
         var modeDescription = appConfig.HoldToTalk ? "Hold-to-talk" : "Toggle recording";
-        var middleContent = $"   Agent: [{badgeStyle}]{emoji} {coloredName}[/] [{borderStyle}]·[/] [{badgeStyle}]{Markup.Escape($"[{hotkeyCombination}]")}[/] [{borderStyle}]·[/] {modeDescription} [{borderStyle}]·[/] /help [{borderStyle}]·[/] /quit    ";
+        var middleContent = $"   Agent: [{badgeStyle}]{emoji} {coloredName}[/] [{borderStyle}]·[/] [{badgeStyle}]{Markup.Escape($"[{hotkeyCombination}]")}[/] [{borderStyle}]·[/] {modeDescription} [{borderStyle}]·[/] /apphelp    ";
         var dashCount = Markup.Remove(middleContent).Length;
         var topLineStart = $"\u2500\u2500 {AppEmoji} PTT Active \u2500";
         var topLine = $"[{borderStyle}]\u256d{topLineStart}{new string('\u2500', dashCount - topLineStart.Length - 1)}\u256e[/]";

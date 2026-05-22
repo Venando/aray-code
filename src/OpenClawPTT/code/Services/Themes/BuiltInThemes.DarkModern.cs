@@ -100,7 +100,7 @@ public static partial class BuiltInThemes
         StreamShell = new StreamShellStyles
         {
             CursorMarkup = "bold #1e1e1e on #cccccc", SelectionMarkup = "bold #cccccc on #3c3c3c",
-            CommandSlashMarkup = "#c586c0", InputPrefixStyle = "bold #569cd6",
+            CommandSlashMarkup = "#c586c0", NativeCommandNameStyle = "#dcdcaa", InputPrefixStyle = "bold #569cd6",
         },
     };
 }
