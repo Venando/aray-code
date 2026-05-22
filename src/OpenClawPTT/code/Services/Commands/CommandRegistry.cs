@@ -1,5 +1,6 @@
 using Spectre.Console;
 using StreamShell;
+using OpenClawPTT.Services.Themes;
 
 namespace OpenClawPTT.Services.Commands;
 
@@ -32,8 +33,13 @@ public sealed class CommandRegistry
         if (command == null) throw new ArgumentNullException(nameof(command));
         _commands.Add(command);
 
+        var style = ThemeProvider.Current.Tools.StreamShell.NativeCommandNameStyle;
+        var nameMarkup = command.Source == CommandSource.Native
+            ? $"[{style}]{command.Name}[/]"
+            : command.Name;
+
         _host.AddCommand(new Command(
-            command.Source == CommandSource.Native ? $"[yellow]{command.Name}[/]" : command.Name, // TODO: make native command yellow: $"[yellow]{command.Name}[/]"
+            nameMarkup,
             Markup.Escape(command.Description),
             (args, named) => WrapHandler(command, args, named),
             command.Suggestions));
