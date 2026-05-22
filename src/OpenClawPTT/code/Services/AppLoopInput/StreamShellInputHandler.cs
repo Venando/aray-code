@@ -124,6 +124,7 @@ public sealed class StreamShellInputHandler : IDisposable
     public async Task RegisterBaseAsync()
     {
         // ── Always-on native commands ──────────────────────────────────────
+        _registry.Register(new AppHelpCommand(_host, _console));
         _registry.Register(new QuitCommand(_host, _onQuit));
         _registry.Register(new ReconfigureCommand(_host, _wizard ?? new ConfigWizardOrchestrator(_configService), _configService));
         _registry.Register(new CrewCommand(_host, _agentSettingsPersistence, _appConfig, _historyService, _configService));
