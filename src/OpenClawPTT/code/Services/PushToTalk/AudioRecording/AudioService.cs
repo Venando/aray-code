@@ -78,7 +78,12 @@ public sealed class AudioService : IAudioService
             : _hotkeyCombination;
 
         // Show recording indicator in bottom panel (fancy animated)
-        SetRecordingPanel(effectiveHotkey);
+        lock (_panelLock)
+        {
+            _recordingPanel?.Dispose();
+            _recordingPanel = new RecordingBottomPanel(effectiveHotkey, _holdToTalk);
+            _shellHost?.SetBottomPanel(_recordingPanel);
+        }
 
         _visualFeedback.Show();
     }
@@ -98,10 +103,7 @@ public sealed class AudioService : IAudioService
 
         recorder.StopRecording();
         _visualFeedback.Hide();
-        ClearRecordingPanel();
-
-        var tools = ThemeProvider.Current.Tools;
-        _console.PrintMarkup($"[{tools.General.Muted}]  ─ Recording discarded ─[/]");
+        ShowDiscarded();
     }
 
     public async Task<string?> StopAndTranscribeAsync(CancellationToken ct)
@@ -119,12 +121,12 @@ public sealed class AudioService : IAudioService
         
         var wav = recorder.StopRecording();
         _visualFeedback.Hide();
-        ClearRecordingPanel();
-        _console.PrintInfo("■ Recording stopped");
+        ShowTranscribing();
         
         if (wav.Length < 1024)
         {
             _console.PrintWarning("Recording too short — hold the hotkey for at least 0.5 seconds.");
+            DismissRecordingPanel();
             return null;
         }
 
@@ -141,10 +143,8 @@ public sealed class AudioService : IAudioService
                 TimeSpan.FromSeconds(_transcriptionTimeoutSeconds));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
             var transcribed = await transcriber.TranscribeAsync(wav, ct: linkedCts.Token);
-            var shellHost = _console.GetStreamShellHost();
-            var prefix = $"Transcribed ({wav.Length / 1024.0:F1} KB): ";
-            var tools = ThemeProvider.Current.Tools;
-            _console.PrintMarkup($"[{tools.Messages.Success}][{tools.General.TruncatedMore}]  ✓ {Markup.Escape(prefix)}[/][/] [{tools.Messages.Success}]{Markup.Escape(transcribed)}[/]");
+            var sizeKb = wav.Length / 1024.0;
+            ShowConfirming(transcribed, sizeKb);
             TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Succeeded, transcribed);
             return transcribed;
         }
@@ -152,33 +152,50 @@ public sealed class AudioService : IAudioService
         {
             _console.PrintWarning($"  Transcription timed out ({_transcriptionTimeoutSeconds}s)");
             TranscriptionStatusCallback?.Invoke(TranscriptionPhase.TimedOut, "Transcription timed out");
+            DismissRecordingPanel();
             return null;
         }
         catch (Exception ex)
         {
             _console.PrintError($"Transcription failed ({wav.Length / 1024.0:F1} KB): {ex.Message}");
             TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Failed, ex.Message);
+            DismissRecordingPanel();
             return null;
         }
     }
 
-    /// <summary>
-    /// Creates and activates the recording bottom panel.
-    /// </summary>
-    private void SetRecordingPanel(string effectiveHotkey)
+    public void ShowTranscribing()
     {
         lock (_panelLock)
         {
-            _recordingPanel?.Dispose();
-            _recordingPanel = new RecordingBottomPanel(effectiveHotkey, _holdToTalk);
-            _shellHost?.SetBottomPanel(_recordingPanel);
+            _recordingPanel?.SetTranscribing();
         }
     }
 
-    /// <summary>
-    /// Disposes the recording bottom panel and resets to default.
-    /// </summary>
-    private void ClearRecordingPanel()
+    public void ShowConfirming(string transcribed, double sizeKb)
+    {
+        lock (_panelLock)
+        {
+            _recordingPanel?.SetConfirming(transcribed, sizeKb);
+        }
+    }
+
+    public void ShowDiscarded()
+    {
+        lock (_panelLock)
+        {
+            if (_recordingPanel == null) return;
+            _recordingPanel.SetDiscarded();
+            // Auto-dismiss after 1.5 seconds
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1.5));
+                DismissRecordingPanel();
+            });
+        }
+    }
+
+    public void DismissRecordingPanel()
     {
         lock (_panelLock)
         {
@@ -321,6 +338,6 @@ public sealed class AudioService : IAudioService
             _visualFeedback.Dispose();
         }
         recorderToDispose?.Dispose();
-        ClearRecordingPanel();
+        DismissRecordingPanel();
     }
 }

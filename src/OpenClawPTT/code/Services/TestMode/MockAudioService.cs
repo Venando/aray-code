@@ -128,6 +128,11 @@ public sealed class MockAudioService : IAudioService
         }
     }
 
+    public void ShowTranscribing() { }
+    public void ShowConfirming(string transcribed, double sizeKb) { }
+    public void ShowDiscarded() { }
+    public void DismissRecordingPanel() { }
+
     public void RecreateTranscriber(AppConfig config, IColorConsole console) { /* no-op for test mode */ }
 
     public void RecreateRecorder(AppConfig config, IColorConsole console) { /* no-op for test mode */ }
