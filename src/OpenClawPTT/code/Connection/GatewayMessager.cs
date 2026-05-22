@@ -25,6 +25,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
     private readonly IEventDispatcher _dispatcher;
     private readonly IBackgroundJobRunner _jobRunner;
     private readonly IAgentActivityStore _activityStore;
+    private readonly IRecentMessageTracker _tracker;
 
     public IMessageFraming GetFraming() => _framing;
 
@@ -37,7 +38,8 @@ public class GatewayMessager : IDisposable, IRpcCaller
         IColorConsole? console = null,
         IEventDispatcher? dispatcher = null,
         IBackgroundJobRunner? jobRunner = null,
-        IAgentActivityStore? activityStore = null)
+        IAgentActivityStore? activityStore = null,
+        IRecentMessageTracker? tracker = null)
     {
         _ws = ws;
         _cfg = cfg;
@@ -49,6 +51,7 @@ public class GatewayMessager : IDisposable, IRpcCaller
         _dispatcher = dispatcher ?? new EventDispatcher(_console);
         _jobRunner = jobRunner ?? new BackgroundJobRunner(msg => _console.Log("jobrunner", msg));
         _activityStore = activityStore ?? new AgentActivityStore();
+        _tracker = tracker ?? new RecentMessageTracker();
 
         // Register default handlers
         _dispatcher.RegisterHandler<SessionMessageEvent>(
@@ -61,6 +64,8 @@ public class GatewayMessager : IDisposable, IRpcCaller
             new SideResultHandler(_console, _cfg));
         _dispatcher.RegisterHandler<GatewayEvent>(
             new GatewayEventHandler(_console));
+        _dispatcher.RegisterHandler<UserMessageEvent>(
+            new UserMessageHandler(_console, _tracker));
     }
 
     public async Task ReceiveLoop(CancellationToken ct)
@@ -239,6 +244,12 @@ public class GatewayMessager : IDisposable, IRpcCaller
                 _console.Log("debug", $"Event {name} filtered out (sessionKey={msgSessionKey})", LogLevel.Debug);
                 return;
             }
+        }
+
+        // Dispatch cross-node user messages (after session filter so only active session)
+        if (dispatched is UserMessageEvent userMsgEvt)
+        {
+            _dispatcher.DispatchAndForget(userMsgEvt);
         }
 
         // Fire raw event received through the gateway event source

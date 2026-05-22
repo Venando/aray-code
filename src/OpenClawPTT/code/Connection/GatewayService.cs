@@ -23,6 +23,7 @@ public sealed class GatewayService : IGatewayService
     private Task? _ttsWireTask;
     private Action<bool>? _onTtsSynthesisStatus;
     private bool _disposed;
+    private readonly IRecentMessageTracker? _tracker;
 
     public event Action? Connected;
     public event Action? Disconnected;
@@ -37,7 +38,7 @@ public sealed class GatewayService : IGatewayService
     public event Action<string, string>? AgentToolCall; // (toolName, arguments)
     public event Action<string, JsonElement>? EventReceived;
 
-    public GatewayService(AppConfig config, IColorConsole console, AgentOutputCoordinator coordinator, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null, IAgentActivityStore? activityStore = null, Task<ITextToSpeech?>? ttsProviderTask = null, IAudioPlayer? audioPlayer = null, IGatewayClient? initialGatewayClient = null)
+    public GatewayService(AppConfig config, IColorConsole console, AgentOutputCoordinator coordinator, ITtsSummarizer? summarizer = null, IPttStateMachine? pttStateMachine = null, IAgentActivityStore? activityStore = null, Task<ITextToSpeech?>? ttsProviderTask = null, IAudioPlayer? audioPlayer = null, IGatewayClient? initialGatewayClient = null, IRecentMessageTracker? tracker = null)
     {
         _config = config;
         _console = console;
@@ -51,6 +52,7 @@ public sealed class GatewayService : IGatewayService
         _gatewayClient = initialGatewayClient != null
             ? InitGatewayClient(initialGatewayClient)
             : CreateGatewayClient();
+        _tracker = tracker;
 
         // Wire TTS provider asynchronously when the background init task completes.
         // No temporal coupling window — the task reference is available from construction,
@@ -245,7 +247,7 @@ public sealed class GatewayService : IGatewayService
 
     private IGatewayClient CreateGatewayClient()
     {
-        var client = new GatewayClient(_config, _device, new GatewayEventSource(), _console, activityStore: _activityStore);
+        var client = new GatewayClient(_config, _device, new GatewayEventSource(), _console, activityStore: _activityStore, tracker: _tracker);
         return InitGatewayClient(client);
     }
 

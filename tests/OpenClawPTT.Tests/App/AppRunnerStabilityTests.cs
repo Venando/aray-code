@@ -23,6 +23,7 @@ public class AppRunnerStabilityTests
     private sealed class TestServiceFactory : IServiceFactory
     {
         public IAgentActivityStore? AgentActivityStore => null;
+        public IRecentMessageTracker? RecentMessageTracker => null;
 
         public Mock<IGatewayService> Gateway { get; } = new();
         public Mock<IAudioService> Audio { get; } = new();

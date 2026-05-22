@@ -7,11 +7,13 @@ public sealed class TextMessageSender : ITextMessageSender
 {
     private readonly IGatewayService _gateway;
     private readonly IColorConsole _console;
+    private readonly IRecentMessageTracker _tracker;
 
-    public TextMessageSender(IGatewayService gateway, IColorConsole console)
+    public TextMessageSender(IGatewayService gateway, IColorConsole console, IRecentMessageTracker tracker)
     {
         _gateway = gateway;
         _console = console;
+        _tracker = tracker;
     }
 
     public async Task SendAsync(string text, CancellationToken ct, bool printMessage)
@@ -22,6 +24,7 @@ public sealed class TextMessageSender : ITextMessageSender
             {
                 _console.PrintUserMessage(text);
             }
+            _tracker.TrackSent(text);
             await _gateway.SendTextAsync(text, ct);
         }
         catch (GatewayException gex)

@@ -23,6 +23,8 @@ public interface IServiceFactory
     /// <summary>Optional agent status tracker, if provided by the factory.</summary>
     IAgentActivityStore? AgentActivityStore { get; }
 
+    IRecentMessageTracker? RecentMessageTracker { get; }
+
     IGatewayService CreateGatewayService(AppConfig cfg, ITtsSummarizer? summarizer = null,
         IPttStateMachine? pttStateMachine = null, Task<ITextToSpeech?>? ttsProviderTask = null);
     IAudioService CreateAudioService(AppConfig cfg);

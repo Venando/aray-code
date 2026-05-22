@@ -22,6 +22,7 @@ public sealed class GatewayClient : IGatewayClient
     private readonly Func<IGatewayConnectionLifecycle>? _lifecycleFactory;
     private readonly IColorConsole _console;
     private readonly IAgentActivityStore? _activityStore;
+    private readonly IRecentMessageTracker? _tracker;
 
     private IGatewayConnectionLifecycle? _lifecycle;
 
@@ -37,13 +38,13 @@ public sealed class GatewayClient : IGatewayClient
     public event Action? ReconnectFailed;
 
     public GatewayClient(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource eventSource, IColorConsole console,
-        Func<IGatewayConnectionLifecycle>? lifecycleFactory = null, IAgentActivityStore? activityStore = null)
+        Func<IGatewayConnectionLifecycle>? lifecycleFactory = null, IAgentActivityStore? activityStore = null, IRecentMessageTracker? tracker = null)
     {
         _cfg = cfg;
         _dev = dev;
         _eventSource = eventSource;
         _console = console;
-        _lifecycleFactory = lifecycleFactory ?? (() => new GatewayConnectionLifecycle(_cfg, _dev, _eventSource, console, activityStore: activityStore));
+        _lifecycleFactory = lifecycleFactory ?? (() => new GatewayConnectionLifecycle(_cfg, _dev, _eventSource, console, activityStore: activityStore, tracker: tracker));
         _lifecycle = _lifecycleFactory();
         if (_lifecycle != null)
         {
@@ -52,6 +53,7 @@ public sealed class GatewayClient : IGatewayClient
             _lifecycle.ReconnectFailed += () => ReconnectFailed?.Invoke();
         }
         _activityStore = activityStore;
+        _tracker = tracker;
     }
 
     // ─── IGatewayClient properties ──────────────────────────────────

@@ -12,6 +12,7 @@ public class ServiceFactory : IServiceFactory
     private readonly IStreamShellHost _shellHost;
     private readonly IColorConsole _colorConsole;
     private readonly IAgentActivityStore? _activityStore;
+    private readonly IRecentMessageTracker _tracker;
     private AgentSettingsService? _agentSettingsService;
     private IAgentSettingsPersistence? _agentSettingsPersistence;
 
@@ -21,11 +22,14 @@ public class ServiceFactory : IServiceFactory
         _shellHost = shellHost;
         _colorConsole = new ColorConsole(shellHost);
         _activityStore = activityStore;
+        _tracker = new RecentMessageTracker();
     }
 
     public IColorConsole ColorConsole => _colorConsole;
 
     public IAgentActivityStore? AgentActivityStore => _activityStore;
+
+    public IRecentMessageTracker? RecentMessageTracker => _tracker;
 
     /// <summary>
     /// Initialize the agent settings persistence with the settings service.
@@ -66,11 +70,11 @@ public class ServiceFactory : IServiceFactory
         var device = new DeviceIdentity(cfg.DataDir);
         device.EnsureKeypair();
         var gatewayClient = new GatewayClient(cfg, device, new GatewayEventSource(), _colorConsole,
-            activityStore: _activityStore);
+            activityStore: _activityStore, tracker: _tracker);
 
         return new GatewayService(cfg, _colorConsole, coordinator, summarizer, pttStateMachine,
             activityStore: _activityStore, ttsProviderTask: ttsProviderTask,
-            audioPlayer: audioPlayer, initialGatewayClient: gatewayClient);
+            audioPlayer: audioPlayer, initialGatewayClient: gatewayClient, tracker: _tracker);
     }
 
     public virtual IAudioService CreateAudioService(AppConfig cfg)
@@ -92,7 +96,7 @@ public class ServiceFactory : IServiceFactory
         => new InputHandler(textSender);
 
     public ITextMessageSender CreateTextMessageSender(IGatewayService gateway)
-        => new TextMessageSender(gateway, _colorConsole);
+        => new TextMessageSender(gateway, _colorConsole, _tracker);
 
     public virtual IDirectLlmService CreateDirectLlmService(AppConfig cfg)
         => new DirectLlmService(cfg);

@@ -17,6 +17,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     private readonly Func<IClientWebSocket> _socketFactory;
     private readonly IColorConsole _console;
     private readonly IAgentActivityStore? _activityStore;
+    private readonly IRecentMessageTracker? _tracker;
 
     private IClientWebSocket _ws = null!;
     private Task? _recvTask;
@@ -43,7 +44,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
     public event Action? ReconnectFailed;
 
     public GatewayConnectionLifecycle(AppConfig cfg, DeviceIdentity dev, IGatewayEventSource events, IColorConsole console,
-        Func<IClientWebSocket>? socketFactory = null, ISnapshotProcessor? snapshotProcessor = null, IAgentActivityStore? activityStore = null)
+        Func<IClientWebSocket>? socketFactory = null, ISnapshotProcessor? snapshotProcessor = null, IAgentActivityStore? activityStore = null,
+        IRecentMessageTracker? tracker = null)
     {
         _cfg = cfg;
         _deviceIdentity = dev;
@@ -62,6 +64,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         _gatewayReconnector.ReconnectFailed += () => ReconnectFailed?.Invoke();
 
         _activityStore = activityStore;
+        _tracker = tracker;
     }
 
     // ─── ISender ──────────────────────────────────────────────────────
@@ -123,7 +126,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         try
         {
             _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
-            _gatewayMessager = new GatewayMessager(_ws, _events, _cfg, ct2 => _ = HandleDisconnectionAsync(ct2), console: _console, jobRunner: _jobRunner, activityStore: _activityStore);
+            _gatewayMessager = new GatewayMessager(_ws, _events, _cfg, ct2 => _ = HandleDisconnectionAsync(ct2), console: _console, jobRunner: _jobRunner, activityStore: _activityStore, tracker: _tracker);
 
             await ConnectWebSocketAsync(linkedCt).ConfigureAwait(false);
             _console.Log("gateway", "[connect] WebSocket connected, starting receive loop...");
