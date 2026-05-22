@@ -26,7 +26,7 @@ public static partial class BuiltInThemes
         Tools = MonokaiDimmedTools,
         Palette = new PaletteStyle
         {
-            SelectedStyle = "on #3a3a3a",
+            SelectedBackground = "on #3a3a3a",
             SelectedCursorColor = "#c0c0c0",
             SelectedCursorSymbol = "→",
             SelectedNameColor = "#c0c0c0",

@@ -188,7 +188,7 @@ public sealed class StreamShellStyles
 /// </summary>
 public sealed class PaletteStyle
 {
-    public string SelectedStyle { get; set; } = "on white";
+    public string SelectedBackground { get; set; } = "on white";
     public string SelectedCursorColor { get; set; } = "black";
     public string SelectedCursorSymbol { get; set; } = "→";
     public string SelectedNameColor { get; set; } = "gray27";
