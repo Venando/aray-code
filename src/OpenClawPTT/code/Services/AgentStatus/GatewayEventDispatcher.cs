@@ -62,7 +62,7 @@ public static class GatewayEventDispatcher
 
     private static object? LogSkip(string name, IColorConsole? console)
     {
-        console?.Log("dispatch", $"Skipping infrastructure event: {name}", LogLevel.Info);
+        console?.Log("dispatch", $"Skipping infrastructure event: {name}", LogLevel.Debug);
         return null;
     }
 
@@ -501,6 +501,7 @@ public static class GatewayEventDispatcher
             "lifecycle" => ExtractAgentLifecycle(p, data, sessionKey, runId, tracker),
             "assistant" => ExtractAgentStream(p, data, sessionKey, runId, tracker),
             "item" => ExtractAgentItem(p, data, sessionKey, runId, tracker),
+            "command_output" => LogSkipAgentStream("agent", "command_output", sessionKey, console),
             _ => LogUnknownStream("agent", stream, sessionKey, console),
         };
     }
@@ -510,6 +511,14 @@ public static class GatewayEventDispatcher
     {
         console?.Log("dispatch",
             $"{eventName} stream='{stream}' (sk={sessionKey}) — not dispatched", LogLevel.Info);
+        return null;
+    }
+
+    private static object? LogSkipAgentStream(
+        string eventName, string stream, string sessionKey, IColorConsole? console)
+    {
+        console?.Log("dispatch",
+            $"{eventName} stream='{stream}' (sk={sessionKey}) — not dispatched", LogLevel.Debug);
         return null;
     }
 
