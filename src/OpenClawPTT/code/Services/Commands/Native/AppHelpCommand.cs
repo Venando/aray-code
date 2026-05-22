@@ -87,37 +87,12 @@ public sealed class AppHelpCommand : ICommand
             ("/llm", "<message|summary-test|title-test> Send to configured LLM"),
         });
 
-        _host.AddMessage("");
         _host.AddMessage($"  [{highlight}]══════ OpenClaw Gateway Commands ══════[/]");
         _host.AddMessage($"  [{muted}]Forwarded to the OpenClaw gateway. Only available when connected.[/]");
         _host.AddMessage($"  [{muted}]Use /help for the full list, or /commands for a categorized catalog.[/]");
-        _host.AddMessage("");
-
-        PrintOpenClawQuickRef(new[]
-        {
-            ("/help", "Short help summary"),
-            ("/commands", "Generated command catalog"),
-            ("/status", "Execution/runtime status"),
-            ("/model", "[name|#|status] Show or set active model"),
-            ("/models", "[provider] [page] List available models"),
-            ("/think", "<level> Set thinking level"),
-            ("/verbose", "on|off|full Toggle verbose tool output"),
-            ("/reasoning", "on|off|stream Toggle reasoning visibility"),
-            ("/new", "[model] Start a new session"),
-            ("/reset", "[soft [message]] Reset current session"),
-            ("/compact", "[instructions] Compact session context"),
-            ("/stop", "Abort the current run"),
-            ("/subagents", "list|kill|log|info Manage sub-agents"),
-            ("/tts", "on|off|status|chat TTS controls"),
-            ("/tools", "[compact|verbose] Show available tools"),
-            ("/context", "[list|detail|json] Explain context assembly"),
-            ("/tasks", "List active/recent background tasks"),
-            ("/diagnostics", "[note] Support-report flow"),
-        });
 
         _host.AddMessage("");
         _host.AddMessage($"  [{info}]Tip:[/] [{muted}]Type [/][{emphasis}]/apphelp[/][{muted}] anytime to see this again.[/]");
-        _host.AddMessage($"  [{info}]Tip:[/] [{muted}]Press [/][{emphasis}]?[/][{muted}] for tab-completion of all available commands.[/]");
         _host.AddMessage("");
 
         return Task.CompletedTask;
