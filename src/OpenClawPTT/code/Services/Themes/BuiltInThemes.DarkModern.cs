@@ -26,7 +26,7 @@ public static partial class BuiltInThemes
         Tools = DarkModernTools,
         Palette = new PaletteStyle
         {
-            SelectedStyle = "on #3c3c3c",
+            SelectedBackground = "on #3c3c3c",
             SelectedCursorColor = "#cccccc",
             SelectedCursorSymbol = "→",
             SelectedNameColor = "#cccccc",

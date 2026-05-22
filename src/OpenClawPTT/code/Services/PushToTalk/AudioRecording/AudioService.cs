@@ -12,6 +12,7 @@ namespace OpenClawPTT.Services;
 public sealed class AudioService : IAudioService
 {
     private readonly IColorConsole _console;
+    private readonly IStreamShellHost? _shellHost;
     private IAudioRecorder _recorder;
     private ITranscriber _transcriber;
     /// <inheritdoc />
@@ -26,15 +27,19 @@ public sealed class AudioService : IAudioService
     private readonly object _transcriberLock = new();
     private readonly object _recorderLock = new();
     private int _disposedFlag; // 0 = not disposed, 1 = disposed
+
+    private RecordingBottomPanel? _recordingPanel;
+    private readonly object _panelLock = new();
     
     /// <summary>
     /// Creates an AudioService. Uses <paramref name="recorder"/> if provided,
     /// otherwise creates a real <see cref="AudioRecorder"/> from config.
     /// </summary>
-    public AudioService(AppConfig config, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IAudioRecorder? recorder = null)
+    public AudioService(AppConfig config, IColorConsole console, IAgentSettingsPersistence agentSettingsPersistence, IAudioRecorder? recorder = null, IStreamShellHost? shellHost = null)
     {
         _console = console ?? throw new ArgumentNullException(nameof(console));
         _agentSettingsPersistence = agentSettingsPersistence ?? throw new ArgumentNullException(nameof(agentSettingsPersistence));
+        _shellHost = shellHost;
         _recorder = recorder ?? new AudioRecorder(config.SampleRate, config.Channels, config.BitsPerSample, config.MaxRecordSeconds);
         _transcriber = TranscriberFactory.Create(config, console);
         _visualFeedback = VisualFeedbackFactory.Create(config);
@@ -71,7 +76,15 @@ public sealed class AudioService : IAudioService
         var effectiveHotkey = activeAgentId != null
             ? (_agentSettingsPersistence.GetPersistedHotkey(activeAgentId) ?? _hotkeyCombination)
             : _hotkeyCombination;
-        _console.PrintRecordingIndicator(true, effectiveHotkey, _holdToTalk);
+
+        // Show recording indicator in bottom panel (fancy animated)
+        lock (_panelLock)
+        {
+            _recordingPanel?.Dispose();
+            _recordingPanel = new RecordingBottomPanel(effectiveHotkey, _holdToTalk);
+            _shellHost?.SetBottomPanel(_recordingPanel);
+        }
+
         _visualFeedback.Show();
     }
     
@@ -90,7 +103,7 @@ public sealed class AudioService : IAudioService
 
         recorder.StopRecording();
         _visualFeedback.Hide();
-        _console.PrintMarkup($"[{ThemeProvider.Current.Tools.General.Muted}]  ─ Recording discarded ─[/]");
+        ShowDiscarded();
     }
 
     public async Task<string?> StopAndTranscribeAsync(CancellationToken ct)
@@ -108,11 +121,12 @@ public sealed class AudioService : IAudioService
         
         var wav = recorder.StopRecording();
         _visualFeedback.Hide();
-        _console.PrintInfo("■ Recording stopped");
+        ShowTranscribing();
         
         if (wav.Length < 1024)
         {
             _console.PrintWarning("Recording too short — hold the hotkey for at least 0.5 seconds.");
+            DismissRecordingPanel();
             return null;
         }
 
@@ -129,10 +143,8 @@ public sealed class AudioService : IAudioService
                 TimeSpan.FromSeconds(_transcriptionTimeoutSeconds));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
             var transcribed = await transcriber.TranscribeAsync(wav, ct: linkedCts.Token);
-            var shellHost = _console.GetStreamShellHost();
-            var prefix = $"Transcribed ({wav.Length / 1024.0:F1} KB): ";
-            var tools = ThemeProvider.Current.Tools;
-            _console.PrintMarkup($"[{tools.Messages.Success}][{tools.General.TruncatedMore}]  ✓ {Markup.Escape(prefix)}[/][/] [{tools.Messages.Success}]{Markup.Escape(transcribed)}[/]");
+            var sizeKb = wav.Length / 1024.0;
+            ShowConfirming(transcribed, sizeKb);
             TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Succeeded, transcribed);
             return transcribed;
         }
@@ -140,13 +152,56 @@ public sealed class AudioService : IAudioService
         {
             _console.PrintWarning($"  Transcription timed out ({_transcriptionTimeoutSeconds}s)");
             TranscriptionStatusCallback?.Invoke(TranscriptionPhase.TimedOut, "Transcription timed out");
+            DismissRecordingPanel();
             return null;
         }
         catch (Exception ex)
         {
             _console.PrintError($"Transcription failed ({wav.Length / 1024.0:F1} KB): {ex.Message}");
             TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Failed, ex.Message);
+            DismissRecordingPanel();
             return null;
+        }
+    }
+
+    public void ShowTranscribing()
+    {
+        lock (_panelLock)
+        {
+            _recordingPanel?.SetTranscribing();
+        }
+    }
+
+    public void ShowConfirming(string transcribed, double sizeKb)
+    {
+        lock (_panelLock)
+        {
+            _recordingPanel?.SetConfirming(transcribed, sizeKb);
+        }
+    }
+
+    public void ShowDiscarded()
+    {
+        lock (_panelLock)
+        {
+            if (_recordingPanel == null) return;
+            _recordingPanel.SetDiscarded();
+            // Auto-dismiss after 1.5 seconds
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1.5));
+                DismissRecordingPanel();
+            });
+        }
+    }
+
+    public void DismissRecordingPanel()
+    {
+        lock (_panelLock)
+        {
+            _recordingPanel?.Dispose();
+            _recordingPanel = null;
+            _shellHost?.ResetBottomPanel();
         }
     }
     
@@ -283,5 +338,6 @@ public sealed class AudioService : IAudioService
             _visualFeedback.Dispose();
         }
         recorderToDispose?.Dispose();
+        DismissRecordingPanel();
     }
 }

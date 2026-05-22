@@ -26,7 +26,7 @@ public static partial class BuiltInThemes
         Tools = AbyssTools,
         Palette = new PaletteStyle
         {
-            SelectedStyle = "on #0a1a2a",
+            SelectedBackground = "on #0a1a2a",
             SelectedCursorColor = "#c0c0c0",
             SelectedCursorSymbol = "→",
             SelectedNameColor = "#c0c0c0",

@@ -107,11 +107,17 @@ public sealed class AppLoop : IAppLoop
                 bool sent = await WaitForSendConfirmationAsync(ct);
                 if (sent)
                 {
+                    _audioService.DismissRecordingPanel();
                     await SendTranscribedMessage(transcribed, ct);
+                }
+                else
+                {
+                    _audioService.ShowDiscarded();
                 }
             }
             else
             {
+                _audioService.DismissRecordingPanel();
                 await SendTranscribedMessage(transcribed, ct);
             }
         }
@@ -121,11 +127,10 @@ public sealed class AppLoop : IAppLoop
     /// <summary>
     /// Shows confirmation prompt and waits for user action.
     /// Returns true if the user confirmed sending, false if discarded.
+    /// The confirmation UI is shown in the bottom panel by AudioService.
     /// </summary>
     private async Task<bool> WaitForSendConfirmationAsync(CancellationToken ct)
     {
-        _console.PrintMarkup("[deepskyblue3]  ─[/] [bold][gray62]Press hotkey to send[/][/] [grey]or Escape to discard[/] [deepskyblue3]─[/]");
-
         while (!ct.IsCancellationRequested)
         {
             await Task.Delay(50, ct);
@@ -133,10 +138,7 @@ public sealed class AppLoop : IAppLoop
                 return true;
 
             if (_pttController.PollCancelRecording())
-            {
-                _console.PrintMarkup("[grey]  ─ Message discarded ─[/]");
                 return false;
-            }
         }
 
         return false;

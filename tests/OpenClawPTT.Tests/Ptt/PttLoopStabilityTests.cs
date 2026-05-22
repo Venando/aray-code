@@ -113,6 +113,10 @@ public class PttLoopStabilityTests : IDisposable
         public Task<string?> StopAndTranscribeAsync(CancellationToken ct = default)
             => Task.FromResult<string?>(null);
         public void StopDiscard() { }
+        public void ShowTranscribing() { }
+        public void ShowConfirming(string transcribed, double sizeKb) { }
+        public void ShowDiscarded() { }
+        public void DismissRecordingPanel() { }
         public void RecreateTranscriber(AppConfig config, IColorConsole console) { /* no-op for tests */ }
         public void RecreateRecorder(AppConfig config, IColorConsole console) { /* no-op for tests */ }
         public Task VerifyTranscriberAsync(AppConfig config, IColorConsole console, CancellationToken ct = default)

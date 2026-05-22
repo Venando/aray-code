@@ -26,7 +26,7 @@ public static partial class BuiltInThemes
         Tools = MonokaiTools,
         Palette = new PaletteStyle
         {
-            SelectedStyle = "on #49483e",
+            SelectedBackground = "on #49483e",
             SelectedCursorColor = "#f8f8f2",
             SelectedCursorSymbol = "→",
             SelectedNameColor = "#f8f8f2",

@@ -26,7 +26,7 @@ public static partial class BuiltInThemes
         Tools = SolarizedTools,
         Palette = new PaletteStyle
         {
-            SelectedStyle = "on #073642",
+            SelectedBackground = "on #073642",
             SelectedCursorColor = "#93a1a1",
             SelectedCursorSymbol = "→",
             SelectedNameColor = "#93a1a1",

@@ -20,7 +20,7 @@ public static partial class BuiltInThemes
         Tools = DarkPlusTools,
         Palette = new PaletteStyle
         {
-            SelectedStyle = "on #264f78",
+            SelectedBackground = "on #264f78",
             SelectedCursorColor = "#d4d4d4",
             SelectedCursorSymbol = "→",
             SelectedNameColor = "#d4d4d4",

@@ -82,7 +82,7 @@ public class ServiceFactory : IServiceFactory
         if (_agentSettingsPersistence == null)
             throw new InvalidOperationException("AgentSettingsPersistence not initialized. Call InitializeAgentSettingsPersistence first.");
         var recorder = new AudioRecorder(cfg.SampleRate, cfg.Channels, cfg.BitsPerSample, cfg.MaxRecordSeconds);
-        return new AudioService(cfg, _colorConsole, _agentSettingsPersistence, recorder);
+        return new AudioService(cfg, _colorConsole, _agentSettingsPersistence, recorder, _shellHost);
     }
 
     public IPttController CreatePttController(AppConfig cfg, IAudioService audioService, IHotkeyHookFactory? hotkeyHookFactory = null)

@@ -29,7 +29,7 @@ public static partial class BuiltInThemes
         Tools = DrakTools,
         Palette = new PaletteStyle
         {
-            SelectedStyle = "on #44475a",
+            SelectedBackground = "on #44475a",
             SelectedCursorColor = "#f8f8f2",
             SelectedCursorSymbol = "→",
             SelectedNameColor = "#f8f8f2",

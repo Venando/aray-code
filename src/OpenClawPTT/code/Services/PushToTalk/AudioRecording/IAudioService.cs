@@ -16,6 +16,28 @@ public interface IAudioService : IDisposable
     void StopDiscard();
 
     /// <summary>
+    /// Shows the transcribing state in the recording bottom panel (spinner).
+    /// Called after recording stops and before transcription completes.
+    /// </summary>
+    void ShowTranscribing();
+
+    /// <summary>
+    /// Shows the confirmation state in the recording bottom panel.
+    /// Displays the transcribed text with send/discard instructions.
+    /// </summary>
+    void ShowConfirming(string transcribed, double sizeKb);
+
+    /// <summary>
+    /// Shows the discarded state in the recording bottom panel for 1.5s, then clears.
+    /// </summary>
+    void ShowDiscarded();
+
+    /// <summary>
+    /// Dismisses the recording bottom panel and restores the default panel.
+    /// </summary>
+    void DismissRecordingPanel();
+
+    /// <summary>
     /// Re-creates the transcriber after a config change (e.g. STT provider/model switched).
     /// </summary>
     void RecreateTranscriber(AppConfig config, IColorConsole console);
