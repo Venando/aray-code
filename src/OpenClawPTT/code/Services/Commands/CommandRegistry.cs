@@ -33,7 +33,7 @@ public sealed class CommandRegistry
         _commands.Add(command);
 
         _host.AddCommand(new Command(
-            command.Source == CommandSource.Native ? command.Name : command.Name, // TODO: make native command yellow: $"[yellow]{command.Name}[/]"
+            command.Source == CommandSource.Native ? $"[yellow]{command.Name}[/]" : command.Name, // TODO: make native command yellow: $"[yellow]{command.Name}[/]"
             Markup.Escape(command.Description),
             (args, named) => WrapHandler(command, args, named),
             command.Suggestions));
