@@ -43,17 +43,7 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
 
     public int LineCount => 2;
 
-    public bool IsDirty
-    {
-        get
-        {
-            lock (_sync)
-            {
-                if (_disposed) return false;
-                return _isDirty;
-            }
-        }
-    }
+    public bool IsDirty => true;
 
     public string? CurrentSuggestion => null;
     public bool ShowBottomSeparator => true;
@@ -97,7 +87,7 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
         lock (_sync) { _isDirty = false; }
     }
 
-    public bool TryHandleKey(ConsoleKeyInfo key) => false;
+    public bool TryHandleKey(ConsoleKeyInfo key) => true;
 
     public Task RunAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
