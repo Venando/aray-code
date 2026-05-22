@@ -113,7 +113,7 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         _host.Settings.ContinuationPrefix = new string(' ', prefixWidth);
 
         // Apply palette
-        _host.Settings.Palette.SelectedBackground = p.SelectedBackground;
+        _host.Settings.Palette.SelectedStyle = p.SelectedBackground;
         _host.Settings.Palette.SelectedCursorColor = p.SelectedCursorColor;
         _host.Settings.Palette.SelectedCursorSymbol = p.SelectedCursorSymbol;
         _host.Settings.Palette.SelectedNameColor = p.SelectedNameColor;
