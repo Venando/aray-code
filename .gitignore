@@ -41,3 +41,4 @@ projects/.worktrees/
 docs/
 .worktrees/
 *.lscache
+src/ArayCode/installer
