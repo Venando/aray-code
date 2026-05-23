@@ -525,10 +525,10 @@ public static class GatewayEventDispatcher
     }
 
     private static object? LogUnknownStream(
-        string eventName, string stream, string sessionKey, IColorConsole? console)
+        string eventName, string? stream, string sessionKey, IColorConsole? console)
     {
         console?.Log("dispatch",
-            $"{eventName} stream='{stream}' (sk={sessionKey}) — not dispatched", LogLevel.Info);
+            $"{eventName} stream='{stream ?? "null"}' (sk={sessionKey}) — not dispatched", LogLevel.Info);
         return null;
     }
 

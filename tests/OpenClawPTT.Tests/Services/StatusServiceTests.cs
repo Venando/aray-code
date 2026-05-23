@@ -74,7 +74,7 @@ public class StatusServiceTests
 
 
     [Fact]
-    public void ThreadSafe_ConcurrentCalls_NoCrash()
+    public async Task ThreadSafe_ConcurrentCalls_NoCrash()
     {
         var host = new FakeStreamShellHost();
         var service = new StatusService(host);
@@ -88,7 +88,7 @@ public class StatusServiceTests
                 service.SetServiceStatus(ServiceKind.Tts, StatusColor.Red);
         });
 
-        Task.WaitAll(t1, t2);
+        await Task.WhenAll(t1, t2);
     }
 
     [Fact]

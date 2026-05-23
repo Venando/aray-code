@@ -191,11 +191,16 @@ internal sealed class TestableGatewayService : IGatewayService
     private readonly IGatewayClient _gatewayClient;
     private bool _disposed;
 
-    // IGatewayUIEvents
-    public event Action? Connected;
-    public event Action? Disconnected;
-    public event Action? Reconnecting;
-    public event Action? ReconnectFailed;
+    // IGatewayUIEvents — backing fields for explicit event impl
+    private Action? _connected;
+    private Action? _disconnected;
+    private Action? _reconnecting;
+    private Action? _reconnectFailed;
+
+    public event Action? Connected { add => _connected += value; remove => _connected -= value; }
+    public event Action? Disconnected { add => _disconnected += value; remove => _disconnected -= value; }
+    public event Action? Reconnecting { add => _reconnecting += value; remove => _reconnecting -= value; }
+    public event Action? ReconnectFailed { add => _reconnectFailed += value; remove => _reconnectFailed -= value; }
     public event Action<string, string?>? AgentReplyFull; // (text, stopReason)
     public event Action<string>? AgentReplyFinal;
     public event Action? AgentReplyDeltaStart;
