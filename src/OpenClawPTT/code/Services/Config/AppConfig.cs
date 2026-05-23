@@ -121,6 +121,12 @@ public sealed class AppConfig
     public string? PiperModelPath { get; set; }
     public string? PiperVoice { get; set; }
 
+    // Supertonic 3 TTS settings
+    public string? TtsSupertonicVoice { get; set; }    // Voice: M1-M5, F1-F5 (default: M1)
+    public string? TtsSupertonicLang { get; set; }      // Language code (default: "en")
+    public int? TtsSupertonicQuality { get; set; }      // Steps 5-12 (default: 8, higher = better)
+    public double? TtsSupertonicSpeed { get; set; }     // Speed 0.7-2.0 (default: 1.05)
+
     // eSpeak NG path for Coqui TTS (platform-specific default)
     public string? EspeakNgPath { get; set; }
 
@@ -216,7 +222,7 @@ public sealed class AppConfig
         ["ConnectionStatusPosition"] = "Status bar position for GW/TTS connection status",
         ["DirectLlmPosition"] = "Status bar position for direct LLM status",
         ["MainAgentsPosition"] = "Status bar position for main agents list (None, TopSeparatorLeft, TopSeparatorRight, BottomSeparatorLeft, BottomSeparatorRight, AppStatusPanelLeft, AppStatusPanelRight)",
-        ["TtsProvider"] = "TTS provider: OpenAI, Edge, CoquiUv, Piper",
+        ["TtsProvider"] = "TTS provider: OpenAI, Edge, CoquiUv, Piper, Supertonic",
         ["TtsOpenAiApiKey"] = "OpenAI API key for TTS",
         ["TtsSubscriptionKey"] = "Azure TTS subscription key",
         ["TtsRegion"] = "Azure TTS region",
@@ -228,6 +234,10 @@ public sealed class AppConfig
         ["PiperPath"] = "Path to Piper TTS binary",
         ["PiperModelPath"] = "Path to Piper TTS voice model",
         ["PiperVoice"] = "Piper voice name",
+        ["TtsSupertonicVoice"] = "Supertonic 3 voice: M1-M5, F1-F5",
+        ["TtsSupertonicLang"] = "Supertonic 3 language code (e.g. en, ja, uk)",
+        ["TtsSupertonicQuality"] = "Supertonic 3 quality: 5 (low) to 12 (high), default 8",
+        ["TtsSupertonicSpeed"] = "Supertonic 3 speed: 0.7 (slow) to 2.0 (fast), default 1.05",
         ["EspeakNgPath"] = "Path to eSpeak NG installation",
         ["DirectLlmToken"] = "API token for direct LLM access",
         ["DirectLlmUrl"] = "API URL for direct LLM",

@@ -23,6 +23,7 @@ public sealed class TtsConfigSection : ConfigSectionBase
         ("OpenAI", "OpenAI"),
         ("Edge", "Edge"),
         ("Coqui TTS (uv)", "CoquiUv"),
+        ("Supertonic 3", "Supertonic"),
         ("Piper", "Piper"),
     ];
 
@@ -63,6 +64,7 @@ public sealed class TtsConfigSection : ConfigSectionBase
         AddOpenAiItems();
         AddEdgeItems();
         AddPiperItems();
+        AddSupertonicItems();
 
         // Note: "Coqui" and "Python" tagged items are intentionally omitted.
         // The old Coqui/Python provider-specific config fields (CoquiModelPath,
@@ -100,6 +102,50 @@ public sealed class TtsConfigSection : ConfigSectionBase
         AddConfigItem("Piper", ConfigSetupItem.ForString(
             title: "Piper model path",
             fieldName: nameof(AppConfig.PiperModelPath),
+            isEmptyToDefault: true));
+    }
+
+    private void AddSupertonicItems()
+    {
+        AddConfigItem("Supertonic", ConfigSetupItem.ForSelection(
+            title: "Voice",
+            fieldName: nameof(AppConfig.TtsSupertonicVoice),
+            options:
+            [
+                ("M1 (Male 1)", "M1"),
+                ("M2 (Male 2)", "M2"),
+                ("M3 (Male 3)", "M3"),
+                ("M4 (Male 4)", "M4"),
+                ("M5 (Male 5)", "M5"),
+                ("F1 (Female 1)", "F1"),
+                ("F2 (Female 2)", "F2"),
+                ("F3 (Female 3)", "F3"),
+                ("F4 (Female 4)", "F4"),
+                ("F5 (Female 5)", "F5"),
+            ]));
+
+        AddConfigItem("Supertonic", ConfigSetupItem.ForSelection(
+            title: "Language",
+            fieldName: nameof(AppConfig.TtsSupertonicLang),
+            options:
+            [
+                ("English (en)", "en"),
+                ("Japanese (ja)", "ja"),
+                ("Korean (ko)", "ko"),
+                ("Ukrainian (uk)", "uk"),
+                ("Russian (ru)", "ru"),
+                ("Arabic (ar)", "ar"),
+                ("Auto-detect (na)", "na"),
+            ]));
+
+        AddConfigItem("Supertonic", ConfigSetupItem.ForString(
+            title: "Quality (5=low, 12=high, default 8)",
+            fieldName: nameof(AppConfig.TtsSupertonicQuality),
+            isEmptyToDefault: true));
+
+        AddConfigItem("Supertonic", ConfigSetupItem.ForString(
+            title: "Speed (0.7=slow, 2.0=fast, default 1.05)",
+            fieldName: nameof(AppConfig.TtsSupertonicSpeed),
             isEmptyToDefault: true));
     }
 
@@ -155,8 +201,9 @@ public sealed class TtsConfigSection : ConfigSectionBase
         }
 
         // ── Voice and TTS output mode (indices 1..) ──
-        // For CoquiUv, skip "Voice name" (it expects a speaker_wav path, not a simple name)
-        var startIndex = config.TtsProvider == TtsProviderType.CoquiUv ? IndexTtsMode : IndexVoice;
+        // For CoquiUv and Supertonic, skip "Voice name" — they have their own voice config items
+        var skipVoice = config.TtsProvider is TtsProviderType.CoquiUv or TtsProviderType.Supertonic;
+        var startIndex = skipVoice ? IndexTtsMode : IndexVoice;
         if (await RunConfigItemsAsync(host, config, isInitialSetup, ct, result, startIndex: startIndex))
             changed = true;
 
@@ -184,5 +231,9 @@ public sealed class TtsConfigSection : ConfigSectionBase
         config.TtsRegion ??= "eastus";
         config.CoquiModelName ??= "tts_models/multilingual/mxtts/vits";
         config.PiperPath ??= "piper";
+        config.TtsSupertonicVoice ??= "M1";
+        config.TtsSupertonicLang ??= "en";
+        config.TtsSupertonicQuality ??= 8;
+        config.TtsSupertonicSpeed ??= 1.05;
     }
 }

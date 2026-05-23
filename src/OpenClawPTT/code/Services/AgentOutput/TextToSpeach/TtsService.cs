@@ -18,6 +18,12 @@ public enum TtsProviderType
     /// Replacement for <see cref="TtsProviderType.Coqui"/> and <see cref="TtsProviderType.Python"/>.
     /// </summary>
     CoquiUv,
+
+    /// <summary>
+    /// Supertonic 3 — 99M-parameter fast local TTS via <c>uv</c>.
+    /// ONNX Runtime-based, CPU-only, 31 languages, 10 preset voices.
+    /// </summary>
+    Supertonic,
 }
 
 /// <summary>
@@ -54,17 +60,22 @@ public sealed class TtsService : ITtsService
             throw new InvalidOperationException($"Failed to initialize TTS provider: {ProviderType}");
         }
 
-        // CoquiUv requires async initialization — block in constructor for simplicity
-        if (_provider is Providers.CoquiUvTtsProvider coquiUv)
+        // Async initialization for providers that need it — block in constructor
+        try
         {
-            try
+            switch (_provider)
             {
-                coquiUv.InitializeAsync(_cts.Token).GetAwaiter().GetResult();
+                case Providers.CoquiUvTtsProvider coquiUv:
+                    coquiUv.InitializeAsync(_cts.Token).GetAwaiter().GetResult();
+                    break;
+                case Providers.Supertonic.SupertonicTtsProvider supertonic:
+                    supertonic.InitializeAsync(_cts.Token).GetAwaiter().GetResult();
+                    break;
             }
-            catch (AggregateException ae)
-            {
-                throw ae.InnerException ?? ae;
-            }
+        }
+        catch (AggregateException ae)
+        {
+            throw ae.InnerException ?? ae;
         }
     }
 
@@ -122,6 +133,14 @@ public sealed class TtsService : ITtsService
                 config.PiperPath ?? "piper",
                 config.PiperModelPath ?? "",
                 config.PiperVoice ?? "en_US-lessac"),
+
+            TtsProviderType.Supertonic => new Providers.Supertonic.SupertonicTtsProvider(
+                console,
+                config.CustomDataDir ?? config.DataDir,
+                defaultVoice: config.TtsSupertonicVoice ?? "M1",
+                defaultLang: config.TtsSupertonicLang ?? "en",
+                defaultQuality: config.TtsSupertonicQuality ?? 8,
+                defaultSpeed: config.TtsSupertonicSpeed ?? 1.05),
 
             TtsProviderType.Edge => config.TtsSubscriptionKey != null
                 ? new Providers.EdgeTtsProvider(config.TtsSubscriptionKey, config.TtsRegion ?? "eastus")
