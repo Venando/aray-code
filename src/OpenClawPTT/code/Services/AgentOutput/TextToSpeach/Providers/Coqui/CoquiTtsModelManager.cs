@@ -230,10 +230,14 @@ public sealed class CoquiTtsModelManager
             if (modelNames == null || modelNames.Count == 0)
                 return null;
 
+            // Filter to TTS models only — vocoder_models/ and
+            // voice_conversion_models/ cannot function as standalone
+            // TTS models and will fail with config errors like 'use_phonemes'.
             var liveList = modelNames
-            .Select(name => CoquiTtsModelInfo.FromModelName(name))
-            .OrderBy(m => m.Name)
-            .ToList();
+                .Where(name => name.StartsWith("tts_models/", StringComparison.Ordinal))
+                .Select(name => CoquiTtsModelInfo.FromModelName(name))
+                .OrderBy(m => m.Name)
+                .ToList();
 
             CoquiUvEnvironment.ClearBrokenFlagKeepPython();
 
