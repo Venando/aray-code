@@ -242,8 +242,8 @@ internal sealed class TestableGatewayService : IGatewayService
         es.EventReceived += (name, payload) => EventReceived?.Invoke(name, payload);
 
         // Wire delta/full paths based on config
-        bool useDelta = _config.ReplyDisplayMode != ReplyDisplayMode.Full;
-        bool useFull = _config.ReplyDisplayMode != ReplyDisplayMode.Delta;
+        const bool useDelta = true;
+        const bool useFull = true;
 
         if (useDelta)
         {

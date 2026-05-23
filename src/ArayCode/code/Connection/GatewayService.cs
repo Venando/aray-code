@@ -259,8 +259,9 @@ public sealed class GatewayService : IGatewayService
     /// </summary>
     private void WireEventHandlers(IGatewayEventSource events)
     {
-        bool useDelta = _config.ReplyDisplayMode != ReplyDisplayMode.Full;
-        bool useFull = _config.ReplyDisplayMode != ReplyDisplayMode.Delta;
+        // Full mode is the only supported mode — always subscribe to both delta and full events
+        const bool useDelta = true;
+        const bool useFull = true;
 
         // ── Always wired (display-mode independent) ──
         events.Disconnected += () => Disconnected?.Invoke();

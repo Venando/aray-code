@@ -31,15 +31,6 @@ public sealed class InputDisplayConfigSection : ConfigSectionBase
                 title: "Hold-to-talk mode? (Hold = hold down, Release = send)",
                 fieldName: nameof(AppConfig.HoldToTalk)),
 
-            ConfigSetupItem.ForEnum<ReplyDisplayMode>(
-                title: "Reply display mode",
-                fieldName: nameof(AppConfig.ReplyDisplayMode)),
-
-            ConfigSetupItem.ForString(
-                title: "Transcription context prefix",
-                fieldName: nameof(AppConfig.TranscriptionPromptPrefix),
-                isEmptyToDefault: true,
-                allowClear: true),
 
             ConfigSetupItem.ForBool(
                 title: "Require confirmation before sending messages?",
