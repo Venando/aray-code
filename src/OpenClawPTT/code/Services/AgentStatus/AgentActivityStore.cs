@@ -22,13 +22,23 @@ public sealed class AgentActivityStore : IAgentActivityStore
 
     private sealed class SessionRecord
     {
-        public SessionStateEvent? State;
+        public const int MaxRecords = 5;
+
+        public readonly List<SessionStateEvent> States = new();
         public readonly List<AssistantMessageEvent> AssistantMessages = new();
         public readonly List<ToolEvent> ToolCalls = new();
         public readonly List<UserMessageEvent> UserMessages = new();
         public readonly List<AgentLifecycleEvent> Lifecycles = new();
         public readonly List<AgentItemEvent> Items = new();
         public readonly List<HistoryMessageEvent> HistoryMessages = new();
+
+        /// <summary>Add an item and trim to <see cref="MaxRecords"/>.</summary>
+        public static void AddAndTrim<T>(List<T> list, T item)
+        {
+            list.Add(item);
+            if (list.Count > MaxRecords)
+                list.RemoveRange(0, list.Count - MaxRecords);
+        }
     }
 
     private SessionRecord GetOrCreate(string sessionKey)
@@ -51,7 +61,11 @@ public sealed class AgentActivityStore : IAgentActivityStore
 
     public SessionStateEvent? GetSessionState(string sessionKey)
     {
-        lock (_lock) return Get(sessionKey)?.State;
+        lock (_lock)
+        {
+            var rec = Get(sessionKey);
+            return rec is not null && rec.States.Count > 0 ? rec.States[^1] : null;
+        }
     }
 
     public IReadOnlyList<string> GetTrackedSessions()
@@ -66,8 +80,9 @@ public sealed class AgentActivityStore : IAgentActivityStore
             var list = new List<string>();
             foreach (var (key, rec) in _sessions)
             {
-                if (rec.State?.ParentSessionKey == parentSessionKey
-                    || rec.State?.SpawnedBy == parentSessionKey)
+                var st = rec.States.Count > 0 ? rec.States[^1] : null;
+                if (st?.ParentSessionKey == parentSessionKey
+                    || st?.SpawnedBy == parentSessionKey)
                 {
                     list.Add(key);
                 }
@@ -80,7 +95,8 @@ public sealed class AgentActivityStore : IAgentActivityStore
     {
         lock (_lock)
         {
-            var st = Get(sessionKey)?.State;
+            var rec = Get(sessionKey);
+            var st = rec is not null && rec.States.Count > 0 ? rec.States[^1] : null;
             return st?.Model;
         }
     }
@@ -145,9 +161,13 @@ public sealed class AgentActivityStore : IAgentActivityStore
             long? best = null;
             void Consider(long? val) { if (val is { } v && (best is null || v > best)) best = v; }
 
-            Consider(rec.State?.EndedAt);
-            Consider(rec.State?.UpdatedAt);
-            Consider(rec.State?.Ts);
+            if (rec.States.Count > 0)
+            {
+                var st = rec.States[^1];
+                Consider(st.EndedAt);
+                Consider(st.UpdatedAt);
+                Consider(st.Ts);
+            }
 
             if (rec.HistoryMessages.Count > 0)
                 Consider(rec.HistoryMessages[^1].Timestamp);
@@ -199,12 +219,14 @@ public sealed class AgentActivityStore : IAgentActivityStore
         Func<HistoryMessageEvent, TResult> onHistory,
         Func<ToolEvent, TResult> onTool,
         Func<AssistantMessageEvent, TResult> onAssistant,
-        Func<UserMessageEvent, TResult>? onUser = null)
+        Func<UserMessageEvent, TResult>? onUser = null,
+        Func<SessionStateEvent, TResult>? onState = null)
     {
         HistoryMessageEvent? hist;
         ToolEvent? tool;
         AssistantMessageEvent? msg = null;
         UserMessageEvent? user = null;
+        SessionStateEvent? state = null;
         lock (_lock)
         {
             var rec = Get(sessionKey);
@@ -213,6 +235,8 @@ public sealed class AgentActivityStore : IAgentActivityStore
             tool = rec.ToolCalls.Count > 0 ? rec.ToolCalls[^1] : null;
             if (onUser is not null && rec.UserMessages.Count > 0)
                 user = rec.UserMessages[^1];
+            if (onState is not null && rec.States.Count > 0)
+                state = rec.States[^1];
 
             // Walk back to skip assistant messages with no text content
             for (int i = rec.AssistantMessages.Count - 1; i >= 0; i--)
@@ -225,16 +249,18 @@ public sealed class AgentActivityStore : IAgentActivityStore
             }
         }
 
-        long histTs = hist?.Timestamp ?? long.MinValue;
-        long toolTs = tool?.Ts        ?? long.MinValue;
-        long msgTs  = msg?.Timestamp  ?? long.MinValue;
-        long userTs = user?.Timestamp ?? long.MinValue;
-        long best = Math.Max(Math.Max(histTs, toolTs), Math.Max(msgTs, userTs));
+        long histTs  = hist?.Timestamp  ?? long.MinValue;
+        long toolTs  = tool?.Ts         ?? long.MinValue;
+        long msgTs   = msg?.Timestamp   ?? long.MinValue;
+        long userTs  = user?.Timestamp  ?? long.MinValue;
+        long stateTs = state?.UpdatedAt ?? state?.Ts ?? long.MinValue;
+        long best = Math.Max(Math.Max(Math.Max(histTs, toolTs), Math.Max(msgTs, userTs)), stateTs);
         if (best == long.MinValue) return default;
 
-        if (best == histTs) return onHistory(hist!);
-        if (best == toolTs) return onTool(tool!);
-        if (best == userTs) return onUser!(user!);
+        if (best == histTs)  return onHistory(hist!);
+        if (best == toolTs)  return onTool(tool!);
+        if (best == userTs)  return onUser!(user!);
+        if (best == stateTs) return onState!(state!);
         return onAssistant(msg!);
     }
 
@@ -256,7 +282,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         lock (_lock)
         {
             var rec = GetOrCreate(e.SessionKey);
-            rec.State = e; // Replace wholesale
+            SessionRecord.AddAndTrim(rec.States, e);
         }
         Changed?.Invoke(e.SessionKey);
     }
@@ -268,7 +294,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         lock (_lock)
         {
             var rec = GetOrCreate(e.SessionKey);
-            rec.AssistantMessages.Add(e);
+            SessionRecord.AddAndTrim(rec.AssistantMessages, e);
         }
         Changed?.Invoke(e.SessionKey);
     }
@@ -280,7 +306,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         lock (_lock)
         {
             var rec = GetOrCreate(e.SessionKey);
-            rec.ToolCalls.Add(e);
+            SessionRecord.AddAndTrim(rec.ToolCalls, e);
         }
         Changed?.Invoke(e.SessionKey);
     }
@@ -292,7 +318,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         lock (_lock)
         {
             var rec = GetOrCreate(e.SessionKey);
-            rec.UserMessages.Add(e);
+            SessionRecord.AddAndTrim(rec.UserMessages, e);
         }
         Changed?.Invoke(e.SessionKey);
     }
@@ -304,7 +330,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         lock (_lock)
         {
             var rec = GetOrCreate(e.SessionKey);
-            rec.Lifecycles.Add(e);
+            SessionRecord.AddAndTrim(rec.Lifecycles, e);
         }
         Changed?.Invoke(e.SessionKey);
     }
@@ -316,7 +342,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         lock (_lock)
         {
             var rec = GetOrCreate(e.SessionKey);
-            rec.Items.Add(e);
+            SessionRecord.AddAndTrim(rec.Items, e);
         }
         // Items are noisy — don't fire Changed for every item
     }
@@ -328,7 +354,7 @@ public sealed class AgentActivityStore : IAgentActivityStore
         lock (_lock)
         {
             var rec = GetOrCreate(e.SessionKey);
-            rec.HistoryMessages.Add(e);
+            SessionRecord.AddAndTrim(rec.HistoryMessages, e);
         }
         Changed?.Invoke(e.SessionKey);
     }
@@ -348,9 +374,12 @@ public sealed class AgentActivityStore : IAgentActivityStore
         {
             if (_sessions.TryGetValue(sessionKey, out var rec))
             {
-                // Keep the record but clear operational state
-                rec.State = rec.State is { } st
-                    ? st with
+                // Keep one state event but clear operational fields
+                if (rec.States.Count > 0)
+                {
+                    var st = rec.States[^1];
+                    rec.States.Clear();
+                    rec.States.Add(st with
                     {
                         Status = null,
                         InputTokens = null,
@@ -362,8 +391,8 @@ public sealed class AgentActivityStore : IAgentActivityStore
                         EndedAt = null,
                         ChildSessions = Array.Empty<string>(),
                         AbortedLastRun = null,
-                    }
-                    : null;
+                    });
+                }
                 rec.AssistantMessages.Clear();
                 rec.ToolCalls.Clear();
                 rec.UserMessages.Clear();

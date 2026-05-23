@@ -286,9 +286,31 @@ public sealed class StatusService : IStatusService, IDisposable
             return;
         }
 
+        // Use SelectLatestActivity to get per-field values from the most recent
+        // event across all types (history, tool, assistant, user, state).
+        // If the most recent event type doesn't carry the field, the callback
+        // returns null and we fall back to the session state value.
+        var model = _agentTracker.SelectLatestActivity(
+            state.SessionKey,
+            h => h.Model,
+            _ => (string?)null,
+            m => m.Model,
+            onUser: _ => (string?)null,
+            onState: s => s.Model
+        ) ?? state.Model;
+
+        var thinkingDefault = _agentTracker.SelectLatestActivity(
+            state.SessionKey,
+            _ => (string?)null,
+            _ => (string?)null,
+            m => m.ThinkingDefault,
+            onUser: u => u.ThinkingDefault,
+            onState: s => s.ThinkingDefault
+        );
+
         _activeAgentPart.Update(state, _agentTracker);
-        _modelPart.Update(state.Model);
-        _thinkingLevelPart.Update(state.ThinkingDefault);
+        _modelPart.Update(model);
+        _thinkingLevelPart.Update(thinkingDefault);
         _contextPart.Update(state.ContextTokens,
             state.TotalTokens ?? state.InputTokens);
     }
