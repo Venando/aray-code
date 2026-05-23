@@ -50,6 +50,12 @@ public interface IAudioService : IDisposable
     void RecreateRecorder(AppConfig config, IColorConsole console);
 
     /// <summary>
+    /// Re-creates the visual feedback indicator after a config change.
+    /// Disposes the old indicator and creates a new one from the updated config.
+    /// </summary>
+    void RecreateVisualFeedback(AppConfig config);
+
+    /// <summary>
     /// Verifies the transcriber is functional by sending a short silence WAV
     /// through the pipeline. Throws if the transcriber fails.
     /// </summary>

@@ -17,7 +17,7 @@ public sealed class AudioService : IAudioService
     private ITranscriber _transcriber;
     /// <inheritdoc />
     public Action<TranscriptionPhase, string?>? TranscriptionStatusCallback { get; set; }
-    private readonly IVisualFeedback _visualFeedback;
+    private IVisualFeedback _visualFeedback;
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     
     private readonly string _hotkeyCombination;
@@ -254,6 +254,34 @@ public sealed class AudioService : IAudioService
         }
         old?.Dispose();
         console.LogOk("audio", $"Recorder updated: {config.SampleRate}Hz, {config.Channels}ch");
+    }
+
+    /// <summary>
+    /// Re-creates the visual feedback indicator after a config change.
+    /// Disposes the old indicator and creates a new one from the updated config.
+    /// If a recording is in progress, defers recreation — the new visual feedback
+    /// applies on the next recording cycle.
+    /// </summary>
+    public void RecreateVisualFeedback(AppConfig config)
+    {
+        bool recording;
+        lock (_recorderLock) { recording = _recorder.IsRecording; }
+
+        if (recording)
+        {
+            // Can't safely recreate the native window during an active recording;
+            // the new config applies on the next keypress.
+            return;
+        }
+
+        IVisualFeedback old;
+        lock (_transcriberLock)
+        {
+            old = _visualFeedback;
+            _visualFeedback = VisualFeedbackFactory.Create(config);
+        }
+        old?.Dispose();
+        _console.LogOk("visual", "Visual feedback updated with new configuration.");
     }
 
     /// <summary>
