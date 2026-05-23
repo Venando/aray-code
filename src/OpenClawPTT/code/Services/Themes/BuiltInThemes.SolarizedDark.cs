@@ -88,6 +88,7 @@ public static partial class BuiltInThemes
             FallbackWarning = "#b58900", FallbackFrom = "#dc322f", FallbackTo = "#859900",
             ModelFailed = "#dc322f", AgentBadge = "#839496 on #073642", IntroductionBorder = "#268bd2",
             PanelCap = "#586e75", Working = "#b58900",
+            ForwardedCommandStyle = "#268bd2 on #073642",
         },
         Panel = new PanelStyles
         {

@@ -65,7 +65,7 @@ public sealed class OpenClawForwardCommand : ICommand
                     ["key"] = sessionKey,
                     ["reason"] = reason
                 }, ct);
-                _console.PrintMarkupedUserMessage($"[blue on gray15]⚡ {Markup.Escape(displayCommand)} [/]");
+                _console.PrintMarkupedUserMessage($"[{ThemeProvider.Current.Tools.Messages.ForwardedCommandStyle}]⚡ {Markup.Escape(displayCommand)} [/]");
                 _console.PrintMarkup("");
             }
             catch (Exception ex)
@@ -86,7 +86,7 @@ public sealed class OpenClawForwardCommand : ICommand
         try
         {
             await _textSender.SendAsync(commandText, ct, printMessage: false);
-            _console.PrintMarkupedUserMessage($"[blue on gray15]⚡ {Markup.Escape(commandText)} [/]");
+            _console.PrintMarkupedUserMessage($"[{ThemeProvider.Current.Tools.Messages.ForwardedCommandStyle}]⚡ {Markup.Escape(commandText)} [/]");
             _console.PrintMarkup("");
         }
         catch (Exception ex)
