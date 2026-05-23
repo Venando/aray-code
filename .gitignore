@@ -19,7 +19,7 @@ publish/
 .zed/
 
 # Runtime data
-~/.openclaw-ptt/
+~/.aray-code/
 *.key
 *.pem
 

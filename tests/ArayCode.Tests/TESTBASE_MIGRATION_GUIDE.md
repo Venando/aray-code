@@ -68,7 +68,7 @@ public class MyGatewayTests : GatewayTestBase
 ## File Structure
 
 ```
-tests/OpenClawPTT.Tests/
+tests/ArayCode.Tests/
 ├── GatewayTestBase.cs              # Core implementation
 ├── Gateway/                        # Example refactored tests
 │   ├── GatewayClientTests_Refactored.cs
