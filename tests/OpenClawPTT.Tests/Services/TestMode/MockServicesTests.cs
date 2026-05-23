@@ -46,7 +46,7 @@ public class MockServicesTests
         var service = new MockGatewayService(TestScenarios.BasicChat, _mockConsole.Object);
         string? receivedReply = null;
         string? receivedFinal = null;
-        service.AgentReplyFull += reply => receivedReply = reply;
+        service.AgentReplyFull += (reply, _) => receivedReply = reply;
         service.AgentReplyFinal += reply => receivedFinal = reply;
 
         await service.SendTextAsync("Hello");

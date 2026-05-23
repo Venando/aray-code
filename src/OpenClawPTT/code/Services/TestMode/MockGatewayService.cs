@@ -24,7 +24,7 @@ public sealed class MockGatewayService : IGatewayService
     public event Action? Reconnecting;
     public event Action? ReconnectFailed;
 #pragma warning restore CS0067
-    public event Action<string>? AgentReplyFull;
+    public event Action<string, string?>? AgentReplyFull; // (text, stopReason)
     public event Action<string>? AgentReplyFinal;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;
@@ -106,7 +106,7 @@ public sealed class MockGatewayService : IGatewayService
         }
 
         AgentReplyDeltaEnd?.Invoke();
-        AgentReplyFull?.Invoke(response);
+        AgentReplyFull?.Invoke(response, null); // no stopReason in mock
         AgentReplyFinal?.Invoke(response);
     }
 

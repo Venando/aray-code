@@ -98,7 +98,7 @@ public class GatewayAudioQaTests
         var service = new GatewayService(cfg, CreateMockConsole(), coordinator);
 
         // Subscribe to all events — should not throw
-        service.AgentReplyFull += _ => { };
+        service.AgentReplyFull += (_, _) => { };
         service.AgentThinking += _ => { };
         service.AgentToolCall += (_, _) => { };
         service.AgentReplyDeltaStart += () => { };

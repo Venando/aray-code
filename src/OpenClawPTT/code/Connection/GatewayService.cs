@@ -29,7 +29,7 @@ public sealed class GatewayService : IGatewayService
     public event Action? Disconnected;
     public event Action? Reconnecting;
     public event Action? ReconnectFailed;
-    public event Action<string>? AgentReplyFull;
+    public event Action<string, string?>? AgentReplyFull; // (text, stopReason)
     public event Action<string>? AgentReplyFinal;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;
@@ -307,10 +307,10 @@ public sealed class GatewayService : IGatewayService
         // ── Full reply path (display mode: batched) ──
         if (useFull)
         {
-            events.AgentReplyFull += body =>
+            events.AgentReplyFull += (body, stopReason) =>
             {
-                _coordinator.OnAgentReplyFull(body);
-                AgentReplyFull?.Invoke(body);
+                _coordinator.OnAgentReplyFull(body, stopReason);
+                AgentReplyFull?.Invoke(body, stopReason);
             };
 
             events.AgentReplyFinal += text =>
