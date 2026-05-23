@@ -97,7 +97,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     public string? CurrentSuggestion => null;
     public bool ShowBottomSeparator => true;
 
-    public bool AllowUserField => !_isSelectionMode;
+    public bool AllowUserField => !_isSelectionMode || _lastCurrentInput.Length > 0;
 
 
     public IReadOnlyList<string> GetLines(string currentInput)
@@ -115,9 +115,14 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
             // Hide panel while user is typing
             if (_disposed || _lastCurrentInput.Length > 0)
             {
-                _cachedLineCount = 1;
-                _resultArray = _emptyLine;
-                return _emptyLine;
+                _lines.Clear();
+
+                for (int i = 0; i < _cachedLineCount; i++)
+                    _lines.Add("");
+
+                _resultArray = FillArray(_lines);
+
+                return _resultArray;
             }
             _lines.Clear();
 
@@ -213,6 +218,9 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     {
         lock (_sync)
         {
+            if (_lastCurrentInput.Length != 0)
+                return false;
+
             if (!_isSelectionMode)
             {
                 if (key.Key == ConsoleKey.DownArrow
@@ -256,7 +264,6 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
                     return true;
 
                 default:
-                    ExitSelectionMode();
                     return false;
             }
         }
