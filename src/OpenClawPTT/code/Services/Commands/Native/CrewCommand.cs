@@ -112,14 +112,14 @@ public sealed class CrewCommand : ICommand
             _host.AddMessage("");
         }
 
-        var previousDefault = _host.ReplaceDefaultPanel(new EmptyBottomPanel());
+        _host.SetDefaultPanel(new EmptyBottomPanel());
 
         var wizard = new AgentConfigWizard(_host, _agentSettingsPersistence);
         wizard.OnConfigured = agent =>
         {
             _ = _historyService.ActivateWithHistoryAsync(agent, _configService, ct);
         };
-        wizard.Completed += () => _host.RestoreDefaultPanel(previousDefault);
+        wizard.Completed += () => _host.ResetDefaultPanel();
         _ = wizard.RunAsync(matched);
         return Task.CompletedTask;
     }

@@ -10,9 +10,10 @@ namespace OpenClawPTT.Services;
 public sealed class StreamShellHost : IStreamShellHost, IDisposable
 {
     private readonly ConsoleAppHost _host;
-    // Tracks the current default panel so we can save/restore it.
-    // ConsoleAppHost itself doesn't expose GetDefaultPanel().
-    private StreamShell.IBottomPanel? _defaultPanel;
+    // Factory that can recreate the default panel from scratch.
+    // Needed because ConsoleAppHost.SetDefaultPanel() disposes the old panel,
+    // so we can't save/restore by reference — we must recreate.
+    private Func<StreamShell.IBottomPanel>? _defaultPanelFactory;
     // Tracks commands added by overload shortcuts so RemoveCommand can overwrite them.
     // ConsoleAppHost itself has no RemoveCommand — we replace with a no-op.
     private readonly HashSet<string> _trackedCommands = new();
@@ -126,25 +127,22 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
     }
     public void SetDefaultPanel(StreamShell.IBottomPanel panel)
     {
-        _defaultPanel = panel;
         _host.SetDefaultPanel(panel);
     }
 
-    public StreamShell.IBottomPanel? GetDefaultPanel() => _defaultPanel;
-
-    public StreamShell.IBottomPanel? ReplaceDefaultPanel(StreamShell.IBottomPanel panel)
+    public void SetDefaultPanelFactory(Func<StreamShell.IBottomPanel> factory)
     {
-        var previous = _defaultPanel;
-        _defaultPanel = panel;
-        _host.SetDefaultPanel(panel);
-        return previous;
+        _defaultPanelFactory = factory;
     }
 
-    public void RestoreDefaultPanel(StreamShell.IBottomPanel? panel)
+    public void ResetDefaultPanel()
     {
-        _defaultPanel = panel;
-        if (panel != null)
-            _host.SetDefaultPanel(panel);
+        if (_defaultPanelFactory != null)
+        {
+            var panel = _defaultPanelFactory();
+            if (panel != null)
+                _host.SetDefaultPanel(panel);
+        }
     }
 
     public void SetBottomPanel(StreamShell.IBottomPanel panel) => _host.SetBottomPanel(panel);
