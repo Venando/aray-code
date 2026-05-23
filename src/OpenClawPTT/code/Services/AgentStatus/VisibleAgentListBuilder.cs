@@ -16,7 +16,7 @@ public sealed class VisibleAgentListBuilder(IAgentActivityStore store)
 
         foreach (var sk in trackedSessions)
         {
-            if (sk.Contains("cron") || !sk.Contains("main"))
+            if (sk.Contains(":cron") || !sk.Contains(":main") || sk.Contains("main:dreaming-narrative"))
                 continue;
 
             var state = _store.GetSessionState(sk);
