@@ -1,3 +1,5 @@
+using OpenClawPTT.Services.Commands;
+
 namespace OpenClawPTT.Services;
 
 /// <summary>
@@ -76,6 +78,12 @@ public interface IStreamShellHost
     /// replaces it (which disposes the old panel).
     /// </summary>
     void SetDefaultPanelFactory(Func<StreamShell.IBottomPanel> factory);
+
+    /// <summary>
+    /// Stores a reference so panels recreated by <see cref="ResetDefaultPanel"/>
+    /// that implement <see cref="IHistoryServiceAware"/> receive the service.
+    /// </summary>
+    void SetPanelHistoryService(SessionHistoryService service);
 
     /// <summary>
     /// Recreates the default panel using the registered factory.

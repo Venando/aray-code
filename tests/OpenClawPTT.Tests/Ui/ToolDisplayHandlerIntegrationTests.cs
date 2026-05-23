@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Commands;
 using Xunit;
 
 namespace OpenClawPTT.Tests;
@@ -53,6 +54,7 @@ public class ToolDisplayHandlerIntegrationTests
         public void SetInputPrefix(string prefix) { }
         public void SetContinuationPrefix(string prefix) { }
         public void SetDefaultPanel(StreamShell.IBottomPanel panel) { }
+        public void SetPanelHistoryService(SessionHistoryService service) { }
         public void SetDefaultPanelFactory(Func<StreamShell.IBottomPanel> factory) { }
         public void ResetDefaultPanel() { }
         public void SetBottomPanel(StreamShell.IBottomPanel panel) { }
