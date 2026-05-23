@@ -11,8 +11,7 @@ namespace OpenClawPTT.ConfigWizard;
 
 /// <summary>
 /// Handles whisper model selection via PromptSelection.
-/// Unified flow for both Python openai-whisper (models cached in ~/.cache/whisper/)
-/// and C++ whisper.cpp (models stored as .bin files).
+/// Models stored as .bin files managed by <see cref="WhisperCppModelManager"/>.
 /// Shows available models as selectable, non-cached as downloadable, and allows removal.
 /// </summary>
 internal static class WhisperModelSelector
@@ -24,13 +23,11 @@ internal static class WhisperModelSelector
     /// </summary>
     public static async Task<string?> SelectModelAsync(
         IStreamShellHost host, WhisperCppModelManager modelManager,
-        bool isPython, string? currentModel, CancellationToken ct)
+        string? currentModel, CancellationToken ct)
     {
-        // Snapshot which models are already downloaded/cached once
+        // Snapshot which models are already downloaded once
         // to avoid redundant filesystem calls on every loop iteration.
-        var availableModels = isPython
-            ? GetPythonCachedModels()
-            : new HashSet<string>(modelManager.GetDownloadedModels(), StringComparer.Ordinal);
+        var availableModels = new HashSet<string>(modelManager.GetDownloadedModels(), StringComparer.Ordinal);
 
         string? result = null;
 
@@ -38,7 +35,7 @@ internal static class WhisperModelSelector
         {
             ct.ThrowIfCancellationRequested();
 
-            var variants = BuildVariants(availableModels, isPython, currentModel);
+            var variants = BuildVariants(availableModels, currentModel);
 
             variants.Add(new ConfigVariant("", ""));
             variants.Add(new ConfigVariant("[grey]Cancel[/]", CancelSentinel));
@@ -74,17 +71,13 @@ internal static class WhisperModelSelector
 
                 if (confirm is { Length: > 0 } && confirm[0] is ConfigVariant cv2 && cv2.Value == "yes")
                 {
-                    bool removed = isPython
-                        ? WhisperCppModelManager.DeletePythonModel(modelName)
-                        : modelManager.DeleteModel(modelName);
+                    bool removed = modelManager.DeleteModel(modelName);
 
                     if (removed)
                     {
                         host.AddMessage($"[green]  ✓ Removed {modelName}[/]");
                         // Re-snapshot since the set changed
-                        availableModels = isPython
-                            ? GetPythonCachedModels()
-                            : new HashSet<string>(modelManager.GetDownloadedModels(), StringComparer.Ordinal);
+                        availableModels = new HashSet<string>(modelManager.GetDownloadedModels(), StringComparer.Ordinal);
                     }
                 }
             }
@@ -99,10 +92,9 @@ internal static class WhisperModelSelector
     /// <summary>
     /// Builds the variant list from the available models snapshot.
     /// Three sections: downloaded (use), downloadable (download), remove.
-    /// Same structure for both Python and C++.
     /// </summary>
     private static List<IVariant> BuildVariants(
-        HashSet<string> availableModels, bool isPython, string? currentModel)
+        HashSet<string> availableModels, string? currentModel)
     {
         var allModels = WhisperCppModelManager.AvailableModels;
         // Pre-allocate capacity: 12 models × up to 3 sections + separators + cancel
@@ -160,26 +152,5 @@ internal static class WhisperModelSelector
         return variants;
     }
 
-    // ── Python cache snapshot ────────────────────────────────────────
 
-    /// <summary>
-    /// Reads the Python whisper cache directory once and returns all cached model names.
-    /// Replaces repeated IsPythonModelCached calls (each = File.Exists) with a single
-    /// directory scan.
-    /// </summary>
-    private static HashSet<string> GetPythonCachedModels()
-    {
-        var cacheDir = WhisperCppModelManager.GetPythonCacheDir();
-        if (!System.IO.Directory.Exists(cacheDir))
-            return new HashSet<string>(StringComparer.Ordinal);
-
-        var cached = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var file in System.IO.Directory.EnumerateFiles(cacheDir, "*.pt"))
-        {
-            var name = System.IO.Path.GetFileNameWithoutExtension(file);
-            if (name != null)
-                cached.Add(name);
-        }
-        return cached;
-    }
 }

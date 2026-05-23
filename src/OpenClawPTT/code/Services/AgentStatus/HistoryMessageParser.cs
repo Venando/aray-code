@@ -250,12 +250,12 @@ public static class HistoryMessageParser
 
                 if (prop.Value.ValueKind == JsonValueKind.Object)
                 {
-                    _console.Log("history", $"Unused object '{prop.Name}' in {label} (sk={Truncate(sessionKey, 20)})", LogLevel.Info);
+                    _console?.Log("history", $"Unused object '{prop.Name}' in {label} (sk={Truncate(sessionKey, 20)})", LogLevel.Info);
                     CheckElement(prop.Value, fullKey, label, sessionKey);
                 }
                 else
                 {
-                    _console.Log("history", $"Unused field '{fullKey}' in {label} (sk={Truncate(sessionKey, 20)})", LogLevel.Info);
+                    _console?.Log("history", $"Unused field '{fullKey}' in {label} (sk={Truncate(sessionKey, 20)})", LogLevel.Info);
                 }
             }
         }

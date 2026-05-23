@@ -167,7 +167,7 @@ public sealed class WhisperCppModelManager
         {
             var path = FindOnPath(name);
             if (path != null && !results.Any(r => r.Path == path))
-                results.Add(new WhisperBinaryInfo(path, IsPythonOpenAiWhisper(path) ? WhisperType.Python : WhisperType.Cpp));
+                results.Add(new WhisperBinaryInfo(path, WhisperType.Cpp));
         }
 
         // Check common locations
@@ -185,7 +185,7 @@ public sealed class WhisperCppModelManager
         foreach (var path in commonPaths)
         {
             if (File.Exists(path) && !results.Any(r => r.Path == path))
-                results.Add(new WhisperBinaryInfo(path, IsPythonOpenAiWhisper(path) ? WhisperType.Python : WhisperType.Cpp));
+                results.Add(new WhisperBinaryInfo(path, WhisperType.Cpp));
         }
 
         // Also check the configured binary path if set
@@ -658,7 +658,7 @@ public sealed class WhisperBinaryInfo
 {
     public string Path { get; }
     public WhisperType Type { get; }
-    public string DisplayType => Type == WhisperType.Python ? "openai-whisper (Python)" : "whisper.cpp (C++)";
+    public string DisplayType => "whisper.cpp (C++)";
 
     public WhisperBinaryInfo(string path, WhisperType type)
     {

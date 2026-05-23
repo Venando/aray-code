@@ -69,8 +69,8 @@ public class AppBootstrapperTests : IDisposable
             _fakeConfig.Object,
             _fakeConsole.Object,
             (MainAgentsPart?)null!,
-            (IConfigWizardOrchestrator?)null,
-            (AgentStatusBottomPanel?)null);
+            (IConfigWizardOrchestrator?)null!,
+            (AgentStatusBottomPanel?)null!);
         mock.CallBase = false;
         if (throws != null)
             mock.Setup(x => x.RunAsync(It.IsAny<CancellationToken>())).ThrowsAsync(throws);
