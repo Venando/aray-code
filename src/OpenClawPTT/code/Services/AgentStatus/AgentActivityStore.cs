@@ -216,52 +216,81 @@ public sealed class AgentActivityStore : IAgentActivityStore
     // TODO: If tool has "result" something something ignore it?
     public TResult? SelectLatestActivity<TResult>(
         string sessionKey,
-        Func<HistoryMessageEvent, TResult> onHistory,
-        Func<ToolEvent, TResult> onTool,
-        Func<AssistantMessageEvent, TResult> onAssistant,
+        Func<HistoryMessageEvent, TResult>? onHistory = null,
+        Func<ToolEvent, TResult>? onTool = null,
+        Func<AssistantMessageEvent, TResult>? onAssistant = null,
         Func<UserMessageEvent, TResult>? onUser = null,
         Func<SessionStateEvent, TResult>? onState = null)
     {
-        HistoryMessageEvent? hist;
-        ToolEvent? tool;
+        HistoryMessageEvent? hist = null;
+        ToolEvent? tool = null;
         AssistantMessageEvent? msg = null;
         UserMessageEvent? user = null;
         SessionStateEvent? state = null;
+
+        long? histTs = null, toolTs = null, msgTs = null, userTs = null, stateTs = null;
+
         lock (_lock)
         {
             var rec = Get(sessionKey);
             if (rec is null) return default;
-            hist = rec.HistoryMessages.Count > 0 ? rec.HistoryMessages[^1] : null;
-            tool = rec.ToolCalls.Count > 0 ? rec.ToolCalls[^1] : null;
-            if (onUser is not null && rec.UserMessages.Count > 0)
-                user = rec.UserMessages[^1];
-            if (onState is not null && rec.States.Count > 0)
-                state = rec.States[^1];
 
-            // Walk back to skip assistant messages with no text content
-            for (int i = rec.AssistantMessages.Count - 1; i >= 0; i--)
+            if (onHistory is not null && rec.HistoryMessages.Count > 0)
             {
-                if (!string.IsNullOrWhiteSpace(rec.AssistantMessages[i].ContentText))
+                hist = rec.HistoryMessages[^1];
+                histTs = hist.Timestamp;
+            }
+
+            if (onTool is not null && rec.ToolCalls.Count > 0)
+            {
+                tool = rec.ToolCalls[^1];
+                toolTs = tool.Ts;
+            }
+
+            if (onAssistant is not null)
+            {
+                // Walk back to skip assistant messages with no text content
+                for (int i = rec.AssistantMessages.Count - 1; i >= 0; i--)
                 {
-                    msg = rec.AssistantMessages[i];
-                    break;
+                    if (!string.IsNullOrWhiteSpace(rec.AssistantMessages[i].ContentText))
+                    {
+                        msg = rec.AssistantMessages[i];
+                        msgTs = msg.Timestamp;
+                        break;
+                    }
                 }
+            }
+
+            if (onUser is not null && rec.UserMessages.Count > 0)
+            {
+                user = rec.UserMessages[^1];
+                userTs = user.Timestamp;
+            }
+
+            if (onState is not null && rec.States.Count > 0)
+            {
+                state = rec.States[^1];
+                stateTs = state.UpdatedAt ?? state.Ts;
             }
         }
 
-        long histTs  = hist?.Timestamp  ?? long.MinValue;
-        long toolTs  = tool?.Ts         ?? long.MinValue;
-        long msgTs   = msg?.Timestamp   ?? long.MinValue;
-        long userTs  = user?.Timestamp  ?? long.MinValue;
-        long stateTs = state?.UpdatedAt ?? state?.Ts ?? long.MinValue;
-        long best = Math.Max(Math.Max(Math.Max(histTs, toolTs), Math.Max(msgTs, userTs)), stateTs);
-        if (best == long.MinValue) return default;
+        // Find the best timestamp among the event types we actually queried
+        long best = long.MinValue;
+        bool any = false;
 
-        if (best == histTs)  return onHistory(hist!);
-        if (best == toolTs)  return onTool(tool!);
-        if (best == userTs)  return onUser!(user!);
-        if (best == stateTs) return onState!(state!);
-        return onAssistant(msg!);
+        if (histTs  is { } ht) { best = Math.Max(best, ht); any = true; }
+        if (toolTs  is { } tt) { best = Math.Max(best, tt); any = true; }
+        if (msgTs   is { } mt) { best = Math.Max(best, mt); any = true; }
+        if (userTs  is { } ut) { best = Math.Max(best, ut); any = true; }
+        if (stateTs is { } st) { best = Math.Max(best, st); any = true; }
+
+        if (!any) return default;
+
+        if (histTs == best)  return onHistory!(hist!);
+        if (toolTs == best)  return onTool!(tool!);
+        if (userTs == best)  return onUser!(user!);
+        if (stateTs == best) return onState!(state!);
+        return onAssistant!(msg!);
     }
 
     public string GetStatusEmoji(string sessionKey) =>
