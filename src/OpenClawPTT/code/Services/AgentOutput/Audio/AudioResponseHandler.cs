@@ -13,6 +13,7 @@ public sealed class AudioResponseHandler : IDisposable
     private const string TtsModeSiso = "siso";
     private const string TtsModeAlwaysOn = "always-on";
     private const string TtsFallbackSkip = "skip";
+    private const string TtsStopReasonStop = "stop";
 
     private readonly AppConfig _config;
     private readonly ITextToSpeech? _ttsProvider;
@@ -49,11 +50,11 @@ public sealed class AudioResponseHandler : IDisposable
         _onSynthesisStatus = onSynthesisStatus;
     }
 
-    public async Task PlayTtsAsync(string text, CancellationToken ct = default)
+    public async Task PlayTtsAsync(string text, string? stopReason = null, CancellationToken ct = default)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(AudioResponseHandler));
 
-        if (!CanPlayTts(text, out var reason))
+        if (!CanPlayTts(text, out var reason, stopReason))
         {
             if (reason != null)
                 _console.PrintWarning(reason);
@@ -71,7 +72,7 @@ public sealed class AudioResponseHandler : IDisposable
     /// Validates conditions for TTS playback. Returns false with an optional warning message
     /// if playback should be skipped.
     /// </summary>
-    private bool CanPlayTts(string text, out string? warning)
+    private bool CanPlayTts(string text, out string? warning, string? stopReason = null)
     {
         warning = null;
 
@@ -90,6 +91,15 @@ public sealed class AudioResponseHandler : IDisposable
             return false;
         }
 
+        // ── StopReason filter: only read messages that completed naturally ─
+        // Must run before flag consumption in SISO mode to avoid eating the
+        // voice flag on non-final responses (toolUse, aborted, etc.).
+        if (stopReason != null && !string.Equals(stopReason, TtsStopReasonStop, StringComparison.OrdinalIgnoreCase))
+        {
+            // Only "stop" qualifies; skip "toolUse", "aborted", "error", etc.
+            return false;
+        }
+
         // ── TTS mode checks ──────────────────────────────────────────────
         if (string.Equals(_config.TtsOutputMode, TtsModeOff, StringComparison.OrdinalIgnoreCase))
             return false;
@@ -105,6 +115,7 @@ public sealed class AudioResponseHandler : IDisposable
                 return false;
 
             // Consume the flag — it applies to exactly one response (one-shot)
+            // Safe to consume now: stopReason check already passed
             _pttStateMachine.LastInputWasVoice = false;
             _pttStateMachine.LastTargetAgent = null;
         }

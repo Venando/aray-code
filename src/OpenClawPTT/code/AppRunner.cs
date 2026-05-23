@@ -244,7 +244,7 @@ public partial class AppRunner : IDisposable
         namingService.ConversationNameChanged += name => _statusService.SetConversationName(name);
 
         // Wire agent replies to naming service for adaptive conversation naming
-        gateway.AgentReplyFull += namingService.OnAgentReplyReceived;
+        gateway.AgentReplyFull += (body, _) => namingService.OnAgentReplyReceived(body);
         gateway.AgentReplyFinal += namingService.OnAgentReplyFinalReceived;
 
         var namingTextSender = new ConversationNamingTextMessageSender(textSender, namingService);
