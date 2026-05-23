@@ -94,6 +94,9 @@ public class StreamShellCapturingConsoleTests
         public void SetInputPrefix(string prefix) { }
         public void SetContinuationPrefix(string prefix) { }
         public void SetDefaultPanel(StreamShell.IBottomPanel panel) { }
+        public StreamShell.IBottomPanel? GetDefaultPanel() => null;
+        public StreamShell.IBottomPanel? ReplaceDefaultPanel(StreamShell.IBottomPanel panel) => null;
+        public void RestoreDefaultPanel(StreamShell.IBottomPanel? panel) { }
         public void SetBottomPanel(StreamShell.IBottomPanel panel) { }
         public void ResetBottomPanel() { }
         public event EventHandler<StreamShell.BottomPanelChangedEventArgs>? BottomPanelChanged { add { } remove { } }

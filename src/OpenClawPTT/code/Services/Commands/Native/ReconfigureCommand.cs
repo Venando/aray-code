@@ -32,8 +32,7 @@ public sealed class ReconfigureCommand : ICommand
             return;
         }
 
-        var emptyPanel = new EmptyBottomPanel();
-        _host.SetBottomPanel(emptyPanel);
+        var previousDefault = _host.ReplaceDefaultPanel(new EmptyBottomPanel());
 
         _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Starting reconfiguration wizard...[/]");
         try
@@ -47,7 +46,7 @@ public sealed class ReconfigureCommand : ICommand
         }
         finally
         {
-            _host.ResetBottomPanel();
+            _host.RestoreDefaultPanel(previousDefault);
         }
     }
 }

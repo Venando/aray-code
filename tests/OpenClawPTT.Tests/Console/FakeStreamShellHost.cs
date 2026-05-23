@@ -61,6 +61,9 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
     public void SetInputPrefix(string prefix) { /* no-op */ }
     public void SetContinuationPrefix(string prefix) { /* no-op */ }
     public void SetDefaultPanel(IBottomPanel panel) { /* no-op */ }
+    public IBottomPanel? GetDefaultPanel() => null;
+    public IBottomPanel? ReplaceDefaultPanel(IBottomPanel panel) => null;
+    public void RestoreDefaultPanel(IBottomPanel? panel) { /* no-op */ }
     public void SetBottomPanel(IBottomPanel panel) { /* no-op */ }
     public void ResetBottomPanel() { /* no-op */ }
 
