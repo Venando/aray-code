@@ -8,6 +8,40 @@ internal static class Program
 {
     private static async Task<int> Main(string[] args)
     {
+        try
+        {
+            return await RunAppAsync(args);
+        }
+        catch (Exception ex)
+        {
+            // Last-resort fallback: if StreamShell is dead or the exception
+            // happened outside the normal try/catch, write directly to the
+            // console so the user sees what went wrong before the window closes.
+            try
+            {
+                Console.OutputEncoding = System.Text.Encoding.UTF8;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine($"\n═══ Fatal error (app will close) ═══");
+                Console.Error.WriteLine($"{ex.GetType().Name}: {ex.Message}");
+                Console.Error.WriteLine($"{ex.StackTrace}");
+                if (ex.InnerException != null)
+                    Console.Error.WriteLine($"Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                Console.ResetColor();
+                Console.Error.WriteLine();
+                Console.Write("Press Enter to close...");
+                Console.ReadLine();
+            }
+            catch
+            {
+                // Even Console.WriteLine can fail (no terminal, redirected, etc.)
+                // Nothing more we can do — let the process exit.
+            }
+            return 1;
+        }
+    }
+
+    private static async Task<int> RunAppAsync(string[] args)
+    {
         // Parse command-line arguments for test mode
         var (testModeEnabled, testScenario) = ParseCommandLineArgs(args);
 
