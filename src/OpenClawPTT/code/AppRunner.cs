@@ -301,7 +301,7 @@ public partial class AppRunner : IDisposable
 
         // Store delegate references for config change handlers
         Action<ConfigChangedEventArgs> onGatewayConfigSaved = e => HandleGatewayConfigChanged(e, gateway);
-        Action<ConfigChangedEventArgs> onDisplayConfigSaved = HandleDisplayConfigChanged;
+        Action<ConfigChangedEventArgs> onDisplayConfigSaved = e => HandleDisplayConfigChanged(e, audioService);
         Action<ConfigChangedEventArgs> onConfigSaved = e => HandleSttConfigChanged(e, audioService);
         Action<ConfigChangedEventArgs> onTtsConfigSaved = e => HandleTtsConfigChanged(e, gateway);
 
