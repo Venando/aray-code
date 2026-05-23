@@ -48,7 +48,10 @@ public class AppRunnerTests
             IPttController pttController,
             ITextMessageSender textSender,
             IInputHandler inputHandler,
-            bool requireConfirmBeforeSend = false) => PttLoop.Object;
+            bool requireConfirmBeforeSend = false,
+            bool appendToInput = false,
+            StreamShell.IInputHandler? shellInputHandler = null,
+            IStreamShellHost? shellHost = null) => PttLoop.Object;
 
         public ITtsSummarizer CreateTtsSummarizer(IDirectLlmService? directLlm) => Mock.Of<ITtsSummarizer>();
         public IConversationNamingService CreateConversationNamingService(IDirectLlmService? directLlm, AppConfig cfg) => Mock.Of<IConversationNamingService>();

@@ -56,6 +56,7 @@ public sealed class AppConfig
     public int HistoryDisplayCount { get; set; } = 15;
     public string? LastActiveAgentId { get; set; }
     public bool RequireConfirmBeforeSend { get; set; } = false;
+    public bool AppendTranscriptionToInput { get; set; } = false;
 
     /// <summary>Theme JSON file name (relative to themes folder). Empty = use ThemeConfig defaults.</summary>
     public string ThemeFile { get; set; } = "";
@@ -190,6 +191,8 @@ public sealed class AppConfig
         ["LastActiveAgentId"] = "Last active agent ID to restore on reconnect or restart",
         ["HistoryDisplayCount"] = "Number of previous messages to show on connect",
         ["RequireConfirmBeforeSend"] = "Ask for confirmation before sending messages",
+        ["AppendTranscriptionToInput"] = "Append transcribed text to the input field instead of sending directly",
+
 
         ["TranscriptionPromptPrefix"] = "Prefix for STT transcription text sent to agent",
         ["GroqRetryCount"] = "STT retry attempts on failure",

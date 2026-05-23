@@ -40,7 +40,10 @@ public interface IServiceFactory
         IPttController pttController,
         ITextMessageSender textSender,
         IInputHandler inputHandler,
-        bool requireConfirmBeforeSend = false);
+        bool requireConfirmBeforeSend = false,
+        bool appendToInput = false,
+        StreamShell.IInputHandler? shellInputHandler = null,
+        IStreamShellHost? shellHost = null);
 
     ITtsService CreateTtsService(AppConfig cfg, IColorConsole console);
 

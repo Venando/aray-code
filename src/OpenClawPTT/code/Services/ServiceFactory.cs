@@ -111,10 +111,13 @@ public class ServiceFactory : IServiceFactory
         IPttController pttController,
         ITextMessageSender textSender,
         IInputHandler inputHandler,
-        bool requireConfirmBeforeSend = false)
+        bool requireConfirmBeforeSend = false,
+        bool appendToInput = false,
+        StreamShell.IInputHandler? shellInputHandler = null,
+        IStreamShellHost? shellHost = null)
     {
         return new AppLoop(stateMachine, audioService, textSender, inputHandler, pttController, _colorConsole,
-            requireConfirmBeforeSend);
+            requireConfirmBeforeSend, appendToInput, shellInputHandler, shellHost);
     }
 
     public ITtsService CreateTtsService(AppConfig cfg, IColorConsole console)

@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Spectre.Console;
+using StreamShell;
 
 namespace OpenClawPTT.Services;
 
@@ -9,6 +10,8 @@ namespace OpenClawPTT.Services;
 /// The main PTT event loop. Coordinates hotkey state machine, audio recording,
 /// transcription, and console input polling.
 /// Confirmation dialog extracted to its own method for SRP.
+/// Supports AppendTranscriptionToInput mode: transcribed text is appended to
+/// the StreamShell input field instead of being sent immediately.
 /// </summary>
 public sealed class AppLoop : IAppLoop
 {
@@ -19,6 +22,9 @@ public sealed class AppLoop : IAppLoop
     private readonly IPttController _pttController;
     private readonly IColorConsole _console;
     private readonly bool _requireConfirmBeforeSend;
+    private readonly bool _appendToInput;
+    private readonly StreamShell.IInputHandler? _shellInputHandler;
+    private readonly IStreamShellHost? _shellHost;
     private bool _disposed;
 
 
@@ -29,7 +35,10 @@ public sealed class AppLoop : IAppLoop
         IInputHandler inputHandler,
         IPttController pttController,
         IColorConsole console,
-        bool requireConfirmBeforeSend = false)
+        bool requireConfirmBeforeSend = false,
+        bool appendToInput = false,
+        StreamShell.IInputHandler? shellInputHandler = null,
+        IStreamShellHost? shellHost = null)
     {
         _pttStateMachine = stateMachine;
         _audioService = audioService;
@@ -38,6 +47,9 @@ public sealed class AppLoop : IAppLoop
         _pttController = pttController;
         _console = console;
         _requireConfirmBeforeSend = requireConfirmBeforeSend;
+        _appendToInput = appendToInput;
+        _shellInputHandler = shellInputHandler;
+        _shellHost = shellHost;
     }
 
     public AppLoopExitCode ExitCode { get; private set; } = AppLoopExitCode.Ok;
@@ -102,7 +114,15 @@ public sealed class AppLoop : IAppLoop
         var transcribed = await _audioService.StopAndTranscribeAsync(ct);
         if (transcribed != null)
         {
-            if (_requireConfirmBeforeSend)
+            if (_appendToInput)
+            {
+                // Append transcribed text to the existing input field
+                _audioService.DismissRecordingPanel();
+                AppendToInputField(transcribed);
+                _pttStateMachine.LastInputWasVoice = true;
+                _pttStateMachine.LastTargetAgent = AgentRegistry.ActiveAgentName;
+            }
+            else if (_requireConfirmBeforeSend)
             {
                 bool sent = await WaitForSendConfirmationAsync(ct);
                 if (sent)
@@ -122,6 +142,36 @@ public sealed class AppLoop : IAppLoop
             }
         }
         _pttStateMachine.OnProcessingCompleted();
+    }
+
+    /// <summary>
+    /// Appends transcribed text to the StreamShell input field, or prints a
+    /// fallback message if StreamShell is not available.
+    /// </summary>
+    private void AppendToInputField(string transcribed)
+    {
+        if (_shellInputHandler != null)
+        {
+            var current = _shellInputHandler.CurrentInput ?? "";
+            var combined = string.IsNullOrWhiteSpace(current)
+                ? transcribed
+                : current + " " + transcribed;
+            _shellInputHandler.SetInputFieldContent(combined);
+        }
+        else if (_shellHost != null)
+        {
+            // Fallback via host's InputHandler
+            var current = _shellHost.InputHandler.CurrentInput ?? "";
+            var combined = string.IsNullOrWhiteSpace(current)
+                ? transcribed
+                : current + " " + transcribed;
+            _shellHost.InputHandler.SetInputFieldContent(combined);
+        }
+        else
+        {
+            // No StreamShell available — send directly as fallback
+            _console.PrintInfo("Transcribed (fallback): " + Markup.Escape(transcribed));
+        }
     }
 
     /// <summary>
