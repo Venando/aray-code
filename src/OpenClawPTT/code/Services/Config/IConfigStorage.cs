@@ -101,9 +101,6 @@ public sealed class FileConfigStorage : IConfigStorage
 
             node ??= new JsonObject();
 
-            // Fresh defaults for comparison
-            var defaults = new AppConfig();
-
             // Reflect over all public instance properties
             var props = typeof(AppConfig).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
                 .Where(p => p.CanRead && p.GetMethod?.IsPublic == true);
@@ -111,22 +108,17 @@ public sealed class FileConfigStorage : IConfigStorage
             foreach (var prop in props)
             {
                 var currentValue = prop.GetValue(cfg);
-                var defaultValue = prop.GetValue(defaults);
 
-                // Compare via JSON serialization to handle enums, strings, etc. uniformly
-                var currentJson = JsonSerializer.SerializeToNode(currentValue, JsonOpts);
-                var defaultJson = JsonSerializer.SerializeToNode(defaultValue, JsonOpts);
-
-                if (JsonNode.DeepEquals(currentJson, defaultJson))
+                if (currentValue is null || (currentValue is string s && string.IsNullOrEmpty(s)))
                 {
-                    // Remove if present so defaults don't clutter the file
+                    // Remove null/empty configs from the file
                     if (node is JsonObject obj)
                         obj.Remove(prop.Name);
                 }
                 else
                 {
                     // Update or add the property
-                    node[prop.Name] = currentJson;
+                    node[prop.Name] = JsonSerializer.SerializeToNode(currentValue, JsonOpts);
                 }
             }
 
