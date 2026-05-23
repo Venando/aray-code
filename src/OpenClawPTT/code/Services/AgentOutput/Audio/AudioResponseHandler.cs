@@ -91,6 +91,15 @@ public sealed class AudioResponseHandler : IDisposable
             return false;
         }
 
+        // ── StopReason filter: only read messages that completed naturally ─
+        // Must run before flag consumption in SISO mode to avoid eating the
+        // voice flag on non-final responses (toolUse, aborted, etc.).
+        if (stopReason != null && !string.Equals(stopReason, TtsStopReasonStop, StringComparison.OrdinalIgnoreCase))
+        {
+            // Only "stop" qualifies; skip "toolUse", "aborted", "error", etc.
+            return false;
+        }
+
         // ── TTS mode checks ──────────────────────────────────────────────
         if (string.Equals(_config.TtsOutputMode, TtsModeOff, StringComparison.OrdinalIgnoreCase))
             return false;
@@ -106,15 +115,9 @@ public sealed class AudioResponseHandler : IDisposable
                 return false;
 
             // Consume the flag — it applies to exactly one response (one-shot)
+            // Safe to consume now: stopReason check already passed
             _pttStateMachine.LastInputWasVoice = false;
             _pttStateMachine.LastTargetAgent = null;
-        }
-
-        // ── StopReason filter: only read messages that completed naturally ─
-        if (stopReason != null && !string.Equals(stopReason, TtsStopReasonStop, StringComparison.OrdinalIgnoreCase))
-        {
-            // Only "stop" qualifies; skip "toolUse", "aborted", "error", etc.
-            return false;
         }
 
         // ── Suppress TTS during session history replay ───────────────────
