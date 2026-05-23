@@ -22,6 +22,7 @@ public sealed class AudioService : IAudioService
     
     private readonly string _hotkeyCombination;
     private readonly bool _holdToTalk;
+    private readonly bool _appendToInput;
     private readonly int _rightMarginIndent;
     private readonly int _transcriptionTimeoutSeconds;
     private readonly object _transcriberLock = new();
@@ -46,6 +47,7 @@ public sealed class AudioService : IAudioService
         LogSttProvider(config);
         _hotkeyCombination = config.HotkeyCombination;
         _holdToTalk = config.HoldToTalk;
+        _appendToInput = config.AppendTranscriptionToInput;
         _rightMarginIndent = config.RightMarginIndent;
         _transcriptionTimeoutSeconds = config.TranscriptionTimeoutSeconds;
     }
@@ -77,11 +79,18 @@ public sealed class AudioService : IAudioService
             ? (_agentSettingsPersistence.GetPersistedHotkey(activeAgentId) ?? _hotkeyCombination)
             : _hotkeyCombination;
 
-        // Show recording indicator in bottom panel (fancy animated)
+        // Show recording indicator in bottom panel (fancy animated, voice-reactive)
+        // Capture recorder ref under lock to avoid use-after-recreate
+        IAudioRecorder captureRecorder;
+        lock (_recorderLock) { captureRecorder = _recorder; }
         lock (_panelLock)
         {
             _recordingPanel?.Dispose();
-            _recordingPanel = new RecordingBottomPanel(effectiveHotkey, _holdToTalk);
+            _recordingPanel = new RecordingBottomPanel(
+                effectiveHotkey,
+                _holdToTalk,
+                appendToInput: _appendToInput,
+                getAudioLevel: () => captureRecorder.GetCurrentAudioLevel());
             _shellHost?.SetBottomPanel(_recordingPanel);
         }
 
