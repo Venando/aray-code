@@ -1,3 +1,4 @@
+using OpenClawPTT.Services.Commands;
 using OpenClawPTT.Services.Themes;
 using StreamShell;
 
@@ -14,6 +15,8 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
     // Needed because ConsoleAppHost.SetDefaultPanel() disposes the old panel,
     // so we can't save/restore by reference — we must recreate.
     private Func<StreamShell.IBottomPanel>? _defaultPanelFactory;
+    // Stored so ResetDefaultPanel can re-inject it into recreated panels.
+    private SessionHistoryService? _panelHistoryService;
     // Tracks commands added by overload shortcuts so RemoveCommand can overwrite them.
     // ConsoleAppHost itself has no RemoveCommand — we replace with a no-op.
     private readonly HashSet<string> _trackedCommands = new();
@@ -135,13 +138,22 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         _defaultPanelFactory = factory;
     }
 
+    public void SetPanelHistoryService(SessionHistoryService service)
+    {
+        _panelHistoryService = service;
+    }
+
     public void ResetDefaultPanel()
     {
         if (_defaultPanelFactory != null)
         {
             var panel = _defaultPanelFactory();
             if (panel != null)
+            {
+                if (panel is IHistoryServiceAware aware && _panelHistoryService != null)
+                    aware.SetHistoryService(_panelHistoryService);
                 _host.SetDefaultPanel(panel);
+            }
         }
     }
 

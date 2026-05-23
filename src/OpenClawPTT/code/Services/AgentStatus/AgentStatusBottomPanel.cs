@@ -17,7 +17,7 @@ namespace OpenClawPTT.Services;
 ///   Escape / Arrow Up
 ///     at first row       → exit selection mode, deselect everything
 /// </summary>
-public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
+public sealed class AgentStatusBottomPanel : IBottomPanel, IHistoryServiceAware, IDisposable
 {
     // ── Throttle ────────────────────────────────────────────────────────
     private const int ThrottleIntervalMs = 3000;
@@ -325,7 +325,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
         });
     }
 
-    internal void SetHistoryService(SessionHistoryService historyService)
+    public void SetHistoryService(SessionHistoryService historyService)
     {
         _historyService = historyService;
     }

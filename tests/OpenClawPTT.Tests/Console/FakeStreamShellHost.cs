@@ -1,4 +1,5 @@
 using OpenClawPTT.Services;
+using OpenClawPTT.Services.Commands;
 using StreamShell;
 
 namespace OpenClawPTT.Tests;
@@ -61,6 +62,7 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
     public void SetInputPrefix(string prefix) { /* no-op */ }
     public void SetContinuationPrefix(string prefix) { /* no-op */ }
     public void SetDefaultPanel(IBottomPanel panel) { /* no-op */ }
+    public void SetPanelHistoryService(SessionHistoryService service) { /* no-op */ }
     public void SetDefaultPanelFactory(Func<IBottomPanel> factory) { /* no-op */ }
     public void ResetDefaultPanel() { /* no-op */ }
     public void SetBottomPanel(IBottomPanel panel) { /* no-op */ }

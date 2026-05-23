@@ -60,9 +60,13 @@ public partial class AppRunner
         if (namingService != null)
             shellCommands.CommandExecuted += namingService.OnCommandExecuted;
 
-        // Wire history service into the bottom panel for full agent-switch behaviour
+        // Wire history service into the bottom panel for full agent-switch behaviour.
+        // Also store in StreamShellHost so recreated panels (after wizards) get it too.
         if (_bottomPanel is AgentStatusBottomPanel asp)
+        {
             asp.SetHistoryService(shellCommands.HistoryService);
+            _shellHost.SetPanelHistoryService(shellCommands.HistoryService);
+        }
 
         var snapshotCleaner = new SessionResetSnapshotCleaner(_factory.AgentActivityStore);
         shellCommands.CommandExecuted += snapshotCleaner.Handle;
