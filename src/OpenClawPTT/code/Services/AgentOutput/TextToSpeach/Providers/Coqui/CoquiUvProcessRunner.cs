@@ -122,6 +122,24 @@ internal sealed class CoquiUvProcessRunner : IDisposable
             string? readyLine = null;
             bool gotErrorBeforeReady = false;
 
+            // Read stderr concurrently during startup so we capture Python logs/tracebacks
+            var startupStderr = new List<string>();
+            using var stderrCts = CancellationTokenSource.CreateLinkedTokenSource(linked.Token);
+            var stderrTask = Task.Run(async () =>
+            {
+                var reader = _process.StandardError;
+                while (!stderrCts.Token.IsCancellationRequested)
+                {
+                    var line = await ReadLineAsync(reader, stderrCts.Token);
+                    if (line == null) break;
+                    startupStderr.Add(line);
+                    _console.Log("coqui_uv_tts", $"[stderr] {line}");
+                }
+            }, stderrCts.Token);
+
+            // Buffer for non-JSON stdout lines (e.g. TTS download progress)
+            var startupStdout = new List<string>();
+
             while (!linked.Token.IsCancellationRequested)
             {
                 readyLine = await ReadLineAsync(_process.StandardOutput, linked.Token);
@@ -138,13 +156,26 @@ internal sealed class CoquiUvProcessRunner : IDisposable
                         _process = null;
                         gotErrorBeforeReady = true;
                         _consecutiveRestarts++;
+
+                        // Build detailed error with stderr context
+                        var stderrContext = BuildStderrContext(startupStderr);
                         _console.PrintWarning(
-                            $"Coqui TTS (uv) startup failed: {errMsg}. " +
-                            $"Attempt {_consecutiveRestarts}/{MaxConsecutiveRestarts}.");
+                            $"Coqui TTS (uv) startup failed: {errMsg}.{stderrContext}" +
+                            $"  Attempt {_consecutiveRestarts}/{MaxConsecutiveRestarts}.");
                         break;
                     }
                 }
+                else
+                {
+                    // Non-JSON line — likely TTS library stdout (download progress, etc.)
+                    startupStdout.Add(readyLine);
+                    _console.Log("coqui_uv_tts", $"[startup] {readyLine}");
+                }
             }
+
+            // Cancel the startup stderr reader
+            stderrCts.Cancel();
+            try { await stderrTask; } catch (OperationCanceledException) { }
 
             if (readyLine != null && TryParseType(readyLine, out var rt) && rt == "ready" && _process != null)
             {
@@ -157,9 +188,20 @@ internal sealed class CoquiUvProcessRunner : IDisposable
             if (!gotErrorBeforeReady)
             {
                 _consecutiveRestarts++;
+
+                // Build detailed error with stderr and startup stdout context
+                var stderrContext = BuildStderrContext(startupStderr);
+                var stdoutContext = startupStdout.Count > 0
+                    ? $"\n  Stdout (last 3): {string.Join(" | ", startupStdout.TakeLast(3))}"
+                    : "";
+                var truncatedReadyLine = (readyLine ?? "(null)");
+                if (truncatedReadyLine.Length > 80)
+                    truncatedReadyLine = truncatedReadyLine[..80] + "...";
+
                 _console.PrintWarning(
-                    $"Coqui TTS (uv) failed to start (expected 'ready', got: {(readyLine ?? "(null)")[..Math.Min(readyLine?.Length ?? 4, 80)]}). " +
-                    $"Attempt {_consecutiveRestarts}/{MaxConsecutiveRestarts}.");
+                    $"Coqui TTS (uv) failed to start (expected 'ready', got: '{truncatedReadyLine}')." +
+                    $"{stderrContext}{stdoutContext}" +
+                    $"  Attempt {_consecutiveRestarts}/{MaxConsecutiveRestarts}.");
             }
         }
 
@@ -279,6 +321,28 @@ internal sealed class CoquiUvProcessRunner : IDisposable
             return doc.RootElement.TryGetProperty(field, out var v) ? v.GetString() : null;
         }
         catch { return null; }
+    }
+
+    // ── Diagnostic helpers ───────────────────────────────────────────
+
+    /// <summary>
+    /// Builds a human-readable snippet from stderr lines collected during startup.
+    /// Returns empty string if no stderr lines collected.
+    /// </summary>
+    private static string BuildStderrContext(List<string> stderrLines)
+    {
+        if (stderrLines.Count == 0) return "";
+
+        // Get last non-empty lines (most relevant = closest to error)
+        var relevant = stderrLines
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Reverse()
+            .Take(5)
+            .Reverse()
+            .ToList();
+
+        if (relevant.Count == 0) return "";
+        return $"\n  Stderr: {string.Join("\n  ", relevant)}";
     }
 
     // ── Cleanup ─────────────────────────────────────────────────────
