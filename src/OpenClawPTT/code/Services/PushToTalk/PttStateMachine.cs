@@ -68,6 +68,8 @@ public sealed class PttStateMachine : IPttStateMachine
         switch (_state)
         {
             case PttState.Idle:
+                // Reset voice-input tracking — a new recording supersedes any previous one
+                _lastInputWasVoice = false;
                 _state = PttState.Recording;
                 _startRecordingRequested = true;
                 _toggleStopRequested = false;

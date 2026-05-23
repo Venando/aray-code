@@ -54,6 +54,7 @@ public sealed class StreamShellInputHandler : IDisposable
     private string? _lastKnownLlmUrl;
     private string? _lastKnownLlmModel;
     private bool _disposed;
+    private readonly Action<string?>? _activeSessionChangedHandler;
 
     // Singleton list of all OpenClaw command names, ordered for determinism
     private static readonly string[] OpenClawCommandNames =
@@ -112,6 +113,14 @@ public sealed class StreamShellInputHandler : IDisposable
 
         _lastKnownLlmUrl = appConfig.DirectLlmUrl;
         _lastKnownLlmModel = appConfig.DirectLlmModelName;
+
+        // Clear voice-input tracking when the user switches agents
+        _activeSessionChangedHandler = _ =>
+        {
+            _pttStateMachine.LastInputWasVoice = false;
+            _pttStateMachine.LastTargetAgent = null;
+        };
+        AgentRegistry.ActiveSessionChanged += _activeSessionChangedHandler;
     }
 
     // ── Public registration API ───────────────────────────────────────────
@@ -367,6 +376,7 @@ public sealed class StreamShellInputHandler : IDisposable
 
         _host.UserInputSubmitted -= OnUserInput;
         _configService.ConfigSaved -= OnConfigSaved;
+        AgentRegistry.ActiveSessionChanged -= _activeSessionChangedHandler;
     }
 
     // ── User input handling ───────────────────────────────────────────────
@@ -393,9 +403,6 @@ public sealed class StreamShellInputHandler : IDisposable
             _host.AddMessage($"[red]  Unknown command: {commandName}[/]");
             return;
         }
-
-        _pttStateMachine.LastInputWasVoice = false;
-        _pttStateMachine.LastTargetAgent = null;
 
         string composedMessage = e.TextWithAttachmentsExpanded;
 
