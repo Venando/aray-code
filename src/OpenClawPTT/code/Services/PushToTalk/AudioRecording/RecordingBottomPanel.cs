@@ -34,7 +34,7 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
     public const int WaveformLineCount = 3;
 
     // ── Confirming state fixed lines (prefix + instruction) ──────────────
-    private const int ConfirmingFixedLines = 3; // prefix + ... + instruction
+    private const int ConfirmingFixedLines = 3; // prefix + wrapped text + instruction
 
     private readonly string _hotkeyCombination;
     private readonly bool _holdToTalk;
@@ -129,7 +129,7 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
 
                 return _state switch
                 {
-                    PanelState.Recording => 1 + WaveformLineCount + 1, // pulse/timer line + waveform lines + action line
+                    PanelState.Recording => 1 + WaveformLineCount, // pulse/timer/action line + waveform lines
                     PanelState.Transcribing => 1,
                     PanelState.Confirming => ConfirmingFixedLines + ComputeWrappedLineCount(),
                     PanelState.Discarded => 1,
@@ -201,24 +201,21 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
 
         var pulseChar = PulseChars[_animationFrame % PulseChars.Length];
 
-        // ── Line 0: pulse + timer ──────────────────────────────────────────
+        // ── Line 0: pulse + timer + action hint ────────────────────────────
         var elapsed = _stopwatch.Elapsed;
         var timerText = $"{elapsed.Minutes:D2}:{elapsed.Seconds:D2}.{elapsed.Milliseconds / 100:D1}";
-        var line0 = $"  [{recordingStyle}]{pulseChar} REC[/]   [{highlightStyle}]{timerText}[/]";
+        var action = _holdToTalk
+            ? $"release {Markup.Escape(_hotkeyCombination)} to stop"
+            : $"press {Markup.Escape(_hotkeyCombination)} again to stop";
+        var line0 = $"  [{recordingStyle}]{pulseChar} REC[/]   [{highlightStyle}]{timerText}[/]   [{mutedStyle}]{action}[/]";
 
         // ── Waveform: N multi-line bars reacting to voice ───────────────────
         var waveformLines = BuildMultiLineWaveform();
 
-        // ── Last line: action hint ──────────────────────────────────────────
-        var action = _holdToTalk
-            ? $"release {Markup.Escape(_hotkeyCombination)} to stop"
-            : $"press {Markup.Escape(_hotkeyCombination)} again to stop";
-
-        var lines = new string[1 + WaveformLineCount + 1];
+        var lines = new string[1 + WaveformLineCount];
         lines[0] = line0;
         for (int i = 0; i < WaveformLineCount; i++)
             lines[1 + i] = $"  {waveformLines[i]}";
-        lines[1 + WaveformLineCount] = $"  [{mutedStyle}]{action}[/]";
 
         return lines;
     }
@@ -232,7 +229,7 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
     /// </summary>
     private string[] BuildMultiLineWaveform()
     {
-        const int barCount = 12;
+        const int barCount = 24;
         var tools = ThemeProvider.Current.Tools;
         var activeStyle = tools.Messages.RecordingIndicator;
         var mutedStyle = tools.General.Muted;
@@ -251,9 +248,10 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
             }
             else
             {
-                level = raw;
+                // Apply sqrt curve to boost low-volume responsiveness
+                level = MathF.Sqrt(raw);
                 // Use active style when audio is present, muted when silent
-                style = raw > 0.02f ? activeStyle : mutedStyle;
+                style = raw > 0.005f ? activeStyle : mutedStyle;
             }
         }
         else
@@ -267,12 +265,12 @@ public sealed class RecordingBottomPanel : IBottomPanel, IDisposable
         for (int i = 0; i < barCount; i++)
         {
             // Base shape: a moving wave influenced by the audio level
-            double phase = (_animationFrame * 0.15) + (i * 0.5);
-            double wave = Math.Sin(phase) * 0.4 + 0.6; // 0.2–1.0
+            double phase = (_animationFrame * 0.12) + (i * 0.35);
+            double wave = Math.Sin(phase) * 0.35 + 0.65; // 0.3–1.0
             double perBarLevel = wave * level;
 
             // Add some pseudo-frequency variation so bars don't all move identically
-            double variation = Math.Sin((_animationFrame * 0.3) + (i * 1.2)) * 0.15 + 0.85;
+            double variation = Math.Sin((_animationFrame * 0.25) + (i * 1.1)) * 0.12 + 0.88;
             perBarLevel *= variation;
 
             bars[i] = (float)Math.Clamp(perBarLevel, 0.0, 1.0);
