@@ -137,6 +137,8 @@ public sealed class MockAudioService : IAudioService
 
     public void RecreateRecorder(AppConfig config, IColorConsole console) { /* no-op for test mode */ }
 
+    public void RecreateVisualFeedback(AppConfig config) { /* no-op for test mode */ }
+
     /// <summary>
     /// Verifies the transcriber (no-op in test mode).
     /// </summary>

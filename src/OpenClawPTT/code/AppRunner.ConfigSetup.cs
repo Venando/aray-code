@@ -60,7 +60,7 @@ public partial class AppRunner
     /// Handles display/UI configuration changes: updates the canonical config reference
     /// and reapplies display/UI config when relevant properties change.
     /// </summary>
-    private void HandleDisplayConfigChanged(ConfigChangedEventArgs e)
+    private void HandleDisplayConfigChanged(ConfigChangedEventArgs e, IAudioService audioService)
     {
         var displayProps = new[]
         {
@@ -96,7 +96,19 @@ public partial class AppRunner
         bool displayChanged = e.AnyChanged(displayProps);
         bool positionsChanged = e.AnyChanged(positionProps);
 
-        if (!displayChanged && !positionsChanged)
+        // Check for visual feedback property changes specifically
+        var visualFeedbackProps = new[]
+        {
+            nameof(AppConfig.VisualFeedbackEnabled),
+            nameof(AppConfig.VisualFeedbackPosition),
+            nameof(AppConfig.VisualFeedbackSize),
+            nameof(AppConfig.VisualFeedbackOpacity),
+            nameof(AppConfig.VisualFeedbackColor),
+            nameof(AppConfig.VisualFeedbackRimThickness),
+        };
+        bool visualFeedbackChanged = e.AnyChanged(visualFeedbackProps);
+
+        if (!displayChanged && !positionsChanged && !visualFeedbackChanged)
             return;
 
         // Update the canonical config reference so downstream code is fresh
@@ -107,6 +119,9 @@ public partial class AppRunner
 
         if (displayChanged)
             _console.ApplyConsoleConfig(e.NewConfig);
+
+        if (visualFeedbackChanged)
+            audioService.RecreateVisualFeedback(e.NewConfig);
     }
 
     /// <summary>
