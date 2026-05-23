@@ -1,6 +1,6 @@
-# OpenClaw Push-to-Talk Client
+# Aray Code
 
-Desktop PTT client for [OpenClaw](https://github.com/openclaw/openclaw) AI gateway. Voice-controlled agent interaction via microphone, with multi-agent session management.
+It's [OpenClaw](https://github.com/openclaw/openclaw) Node desktop CLI app, inspired by Claude Code, Kimi Code and other CLI apps.
 
 <img width="830" height="471" alt="image" src="https://github.com/user-attachments/assets/bd257035-bab4-4e83-959b-764ccc30417a" />
 
@@ -10,28 +10,10 @@ Desktop PTT client for [OpenClaw](https://github.com/openclaw/openclaw) AI gatew
 dotnet run
 ```
 
-First run prompts for gateway URL, Groq API key, audio settings, and hotkey.
-
-## Controls
-
-| Key | Action |
-|-----|--------|
-| **Hotkey** | Push-to-talk recording (global, configurable) |
-| **Esc** | Cancel recording / clear text input |
-| **/crew** | List agents and manage settings (hotkey, emoji) |
-| **/chat `<name>`** | Switch active agent |
-| **/quit** | Exit |
-
 ## Features
 
-- **Multi-agent**: Per-agent hotkeys and emoji via `agents.json`
-- **Per-agent settings**: `/crew hotkey <name> <combo>`, `/crew emoji <name> 🐱`
-- **Confirm before send**: Optional — review transcription before sending
-- **StreamShell UI**: Tab-completion, styled output, command palette
-- **Escape cancel**: Cancel recording without transcribing (no API cost)
-- **Persistent settings**: `~/.openclaw-ptt/config.json` + `agents.json`
-- **Cross-platform**: Windows, macOS, Linux
-
-## Tech Stack
-
-.NET 10, WebSocket, Groq Whisper (STT), Spectre.Console, StreamShell
+- **Multi-agent**: Per-agent hotkeys and other settings via `agents.json`
+- **Speach-to-Speach**: Cloud: Groq, OpenAI or Local: Whisper.cpp (automanaged)
+- **Text-to-Speach**: Cloud: OpenAI, Edge (not tested) or Local Coqui TTS, Supertonic 3 (automanaged), Piper (not tested)
+- **Text input**: Ctrl, Home, End, Shift, Arrows, (Ctrl +Z +X +C +A) <- All of this works in any combination like in normal text editor
+- **Cross-platform**: Windows (the only tested platform), macOS, Linux
