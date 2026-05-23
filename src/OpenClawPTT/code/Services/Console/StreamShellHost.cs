@@ -10,6 +10,10 @@ namespace OpenClawPTT.Services;
 public sealed class StreamShellHost : IStreamShellHost, IDisposable
 {
     private readonly ConsoleAppHost _host;
+    // Factory that can recreate the default panel from scratch.
+    // Needed because ConsoleAppHost.SetDefaultPanel() disposes the old panel,
+    // so we can't save/restore by reference — we must recreate.
+    private Func<StreamShell.IBottomPanel>? _defaultPanelFactory;
     // Tracks commands added by overload shortcuts so RemoveCommand can overwrite them.
     // ConsoleAppHost itself has no RemoveCommand — we replace with a no-op.
     private readonly HashSet<string> _trackedCommands = new();
@@ -121,7 +125,25 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
         _host.Settings.Palette.NormalIndent = p.NormalIndent;
         _host.Settings.Palette.NormalNameColor = p.NormalNameColor;
     }
-    public void SetDefaultPanel(StreamShell.IBottomPanel panel) => _host.SetDefaultPanel(panel);
+    public void SetDefaultPanel(StreamShell.IBottomPanel panel)
+    {
+        _host.SetDefaultPanel(panel);
+    }
+
+    public void SetDefaultPanelFactory(Func<StreamShell.IBottomPanel> factory)
+    {
+        _defaultPanelFactory = factory;
+    }
+
+    public void ResetDefaultPanel()
+    {
+        if (_defaultPanelFactory != null)
+        {
+            var panel = _defaultPanelFactory();
+            if (panel != null)
+                _host.SetDefaultPanel(panel);
+        }
+    }
 
     public void SetBottomPanel(StreamShell.IBottomPanel panel) => _host.SetBottomPanel(panel);
 
