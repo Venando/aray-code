@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>aray-code</AssemblyName>
+    <RootNamespace>ArayCode</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <InternalsVisibleTo>$(AssemblyName).Tests</InternalsVisibleTo>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="StreamShell" Version="2026.5.23" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+    <PackageReference Include="Wcwidth" Version="0.6.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="scripts\**\*.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="test-summary-sample.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="test-conversation-sample.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
