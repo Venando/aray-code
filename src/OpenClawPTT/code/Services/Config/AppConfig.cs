@@ -59,7 +59,7 @@ public sealed class AppConfig
     public bool AppendTranscriptionToInput { get; set; } = false;
 
     /// <summary>Theme JSON file name (relative to themes folder). Empty = use ThemeConfig defaults.</summary>
-    public string ThemeFile { get; set; } = "";
+    public string ThemeFile { get; set; } = "drakula";
 
     public string TranscriptionPromptPrefix { get; set; } = "";
     // AudioWrapPrompt and IsAudioEnabled removed — no longer needed
