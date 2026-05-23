@@ -98,7 +98,11 @@ public sealed class GatewayClient : IGatewayClient
         ThrowIfDisposed();
         if (_lifecycle == null || !_lifecycle.IsConnected)
             throw new InvalidOperationException("Not connected. Call ConnectAsync first.");
-        var sessionKey = AgentRegistry.ActiveSessionKey ?? "main";
+
+        var sessionKey = AgentRegistry.ActiveSessionKey;
+        if (sessionKey == null)
+            throw new InvalidOperationException("Cannot send message: no active agent session. Use /chat <agent> to select one.");
+
         var chatParams = new Dictionary<string, object?>
         {
             ["sessionKey"] = sessionKey,
@@ -132,14 +136,16 @@ public sealed class GatewayClient : IGatewayClient
         if (_lifecycle == null || !_lifecycle.IsConnected)
             throw new InvalidOperationException("Not connected. Call ConnectAsync first.");
 
+        var sessionKey = AgentRegistry.ActiveSessionKey;
+        if (sessionKey == null)
+            throw new InvalidOperationException("Cannot send audio: no active agent session.");
+
         var tempPath = Path.Combine(Path.GetTempPath(),
             $"voice_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}.wav");
 
         try
         {
             await File.WriteAllBytesAsync(tempPath, wavBytes, ct);
-
-            var sessionKey = AgentRegistry.ActiveSessionKey ?? "main";
 
             var chatParams = new Dictionary<string, object?>
             {
