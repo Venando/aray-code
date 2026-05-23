@@ -18,6 +18,16 @@ public sealed class TextMessageSender : ITextMessageSender
 
     public async Task SendAsync(string text, CancellationToken ct, bool printMessage)
     {
+        // Block sending when no agent is active (e.g. during /crew config wizard
+        // which calls AgentRegistry.Deactivate()). The agent feed is already
+        // filtered by IsMessageForActiveSession, but outgoing messages need a
+        // guard too — PTT input in AppLoop doesn't check WizardState.IsActive.
+        if (!AgentRegistry.IsActiveAgentAvailable)
+        {
+            _console.PrintWarning("No active agent. Use /chat <agent> to select one.");
+            return;
+        }
+
         try
         {
             if (printMessage)
