@@ -255,11 +255,26 @@ public sealed class ModularConfigurationWizard
     private static string GetTtsStatus(AppConfig config)
     {
         var provider = config.TtsProvider.ToString();
-        var voice = string.IsNullOrWhiteSpace(config.TtsVoice) ? "(default)" : config.TtsVoice;
         var mode = config.TtsOutputMode ?? "siso";
-        var model = config.CoquiModelName;
-        var modelPart = !string.IsNullOrEmpty(model) ? $"model: {model}, " : "";
-        return $"{provider} ({modelPart}voice: {voice}, mode: {mode})";
+
+        switch (config.TtsProvider)
+        {
+            case TtsProviderType.Supertonic:
+                var supertonicVoice = config.TtsSupertonicVoice ?? "M1";
+                var supertonicLang = config.TtsSupertonicLang ?? "en";
+                var supertonicQuality = config.TtsSupertonicQuality ?? "8";
+                var supertonicSpeed = config.TtsSupertonicSpeed ?? "1.05";
+                return $"{provider} (voice: {supertonicVoice}, lang: {supertonicLang}, quality: {supertonicQuality}, speed: {supertonicSpeed}, mode: {mode})";
+
+            case TtsProviderType.CoquiUv:
+                var model = config.CoquiModelName ?? "tts_models/multilingual/mxtts/vits";
+                var coquiVoice = string.IsNullOrWhiteSpace(config.TtsVoice) ? "(default)" : config.TtsVoice;
+                return $"{provider} (model: {model}, voice: {coquiVoice}, mode: {mode})";
+
+            default:
+                var voice = string.IsNullOrWhiteSpace(config.TtsVoice) ? "(default)" : config.TtsVoice;
+                return $"{provider} (voice: {voice}, mode: {mode})";
+        }
     }
 
     private static string GetDirectLlmStatus(AppConfig config)

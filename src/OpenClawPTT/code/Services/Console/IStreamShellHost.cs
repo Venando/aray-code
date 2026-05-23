@@ -70,6 +70,19 @@ public interface IStreamShellHost
     /// <summary>Sets the default bottom panel (shown when no command is active).</summary>
     void SetDefaultPanel(StreamShell.IBottomPanel panel);
 
+    /// <summary>
+    /// Registers a factory that can recreate the default panel from scratch.
+    /// Used by <see cref="ResetDefaultPanel"/> to restore after <see cref="SetDefaultPanel"/>
+    /// replaces it (which disposes the old panel).
+    /// </summary>
+    void SetDefaultPanelFactory(Func<StreamShell.IBottomPanel> factory);
+
+    /// <summary>
+    /// Recreates the default panel using the registered factory.
+    /// Safe after <see cref="SetDefaultPanel"/> disposed the previous one.
+    /// </summary>
+    void ResetDefaultPanel();
+
     /// <summary>Sets a temporary bottom panel (overrides the default until ResetBottomPanel is called).</summary>
     void SetBottomPanel(StreamShell.IBottomPanel panel);
 

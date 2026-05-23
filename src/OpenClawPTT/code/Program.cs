@@ -39,10 +39,14 @@ internal static class Program
         var appConfig = configService.Load() ?? new AppConfig();
 
         // Set up the agent status bottom panel
+        // Register a factory so the panel can be recreated (e.g. after wizards replace it)
         StreamShell.IBottomPanel appStatusPanel = appConfig.UseAgentStatusPanel
             ? new AgentStatusBottomPanel(activityStore, configService)
             : new AppStatusBottomPanel(mainAgentsPart, appConfig.BottomPanelLineCount);
         shellHost.SetDefaultPanel(appStatusPanel);
+        shellHost.SetDefaultPanelFactory(() => appConfig.UseAgentStatusPanel
+            ? new AgentStatusBottomPanel(activityStore, configService)
+            : new AppStatusBottomPanel(mainAgentsPart, appConfig.BottomPanelLineCount));
 
         var bootstrapper = new AppBootstrapper(configService, wizard, factory, shellHost, colorConsole,
             mainAgentsPart: mainAgentsPart, testModeEnabled: testModeEnabled,
