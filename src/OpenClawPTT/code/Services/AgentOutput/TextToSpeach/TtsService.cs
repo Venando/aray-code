@@ -112,6 +112,16 @@ public sealed class TtsService : ITtsService
     }
 
     /// <summary>Creates the appropriate TTS provider from configuration.</summary>
+    /// <summary>Parses an integer from a string config value, returning null on failure.</summary>
+    private static int? ParseInt32(string? value) =>
+        int.TryParse(value, System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out var i) ? i : null;
+
+    /// <summary>Parses a double from a string config value, returning null on failure.</summary>
+    private static double? ParseDouble(string? value) =>
+        double.TryParse(value, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+
     private static ITextToSpeech? CreateProvider(AppConfig config, IColorConsole console)
     {
         return config.TtsProvider switch
@@ -139,8 +149,8 @@ public sealed class TtsService : ITtsService
                 config.CustomDataDir ?? config.DataDir,
                 defaultVoice: config.TtsSupertonicVoice ?? "M1",
                 defaultLang: config.TtsSupertonicLang ?? "en",
-                defaultQuality: config.TtsSupertonicQuality ?? 8,
-                defaultSpeed: config.TtsSupertonicSpeed ?? 1.05),
+                defaultQuality: ParseInt32(config.TtsSupertonicQuality) ?? 8,
+                defaultSpeed: ParseDouble(config.TtsSupertonicSpeed) ?? 1.05),
 
             TtsProviderType.Edge => config.TtsSubscriptionKey != null
                 ? new Providers.EdgeTtsProvider(config.TtsSubscriptionKey, config.TtsRegion ?? "eastus")

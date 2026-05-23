@@ -124,8 +124,8 @@ public sealed class AppConfig
     // Supertonic 3 TTS settings
     public string? TtsSupertonicVoice { get; set; }    // Voice: M1-M5, F1-F5 (default: M1)
     public string? TtsSupertonicLang { get; set; }      // Language code (default: "en")
-    public int? TtsSupertonicQuality { get; set; }      // Steps 5-12 (default: 8, higher = better)
-    public double? TtsSupertonicSpeed { get; set; }     // Speed 0.7-2.0 (default: 1.05)
+    public string? TtsSupertonicQuality { get; set; }   // Steps 5-12 (default: "8")
+    public string? TtsSupertonicSpeed { get; set; }     // Speed 0.7-2.0 (default: "1.05")
 
     // eSpeak NG path for Coqui TTS (platform-specific default)
     public string? EspeakNgPath { get; set; }

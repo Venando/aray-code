@@ -233,7 +233,7 @@ public sealed class TtsConfigSection : ConfigSectionBase
         config.PiperPath ??= "piper";
         config.TtsSupertonicVoice ??= "M1";
         config.TtsSupertonicLang ??= "en";
-        config.TtsSupertonicQuality ??= 8;
-        config.TtsSupertonicSpeed ??= 1.05;
+        config.TtsSupertonicQuality ??= "8";
+        config.TtsSupertonicSpeed ??= "1.05";
     }
 }
