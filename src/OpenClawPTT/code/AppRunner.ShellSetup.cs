@@ -82,7 +82,10 @@ public partial class AppRunner
 
         var pttLoop = _factory.CreatePttLoop(
             pttStateMachine, audioService, pttController, textSender, inputHandler,
-            requireConfirmBeforeSend: _cfg.RequireConfirmBeforeSend);
+            requireConfirmBeforeSend: _cfg.RequireConfirmBeforeSend,
+            appendToInput: _cfg.AppendTranscriptionToInput,
+            shellInputHandler: _shellHost.InputHandler,
+            shellHost: _shellHost);
 
         return (agentHotkeyService, shellCommands, snapshotCleaner, pttLoop);
     }

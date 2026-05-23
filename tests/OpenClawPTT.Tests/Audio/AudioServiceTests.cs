@@ -273,6 +273,8 @@ sealed class MockAudioRecorder : IAudioRecorder
         return StopRecordingResult;
     }
 
+    public float GetCurrentAudioLevel() => IsRecording ? 0.5f : -1f;
+
     public void Dispose() { }
 }
 

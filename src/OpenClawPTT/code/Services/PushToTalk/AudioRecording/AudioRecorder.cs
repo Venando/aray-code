@@ -5,6 +5,7 @@ namespace OpenClawPTT;
 /// <summary>
 /// Records microphone audio into WAV (16 kHz mono 16-bit by default).
 /// Uses NAudio on Windows.  Falls back to `sox rec` on macOS/Linux.
+/// Provides audio level monitoring for voice-reactive visualizations.
 /// </summary>
 public sealed class AudioRecorder : IAudioRecorder
 {
@@ -24,7 +25,20 @@ public sealed class AudioRecorder : IAudioRecorder
 
     private bool _recording;
 
+    // Audio level monitoring
+    private readonly object _levelLock = new();
+    private float _currentLevel; // 0.0–1.0 normalized RMS (NAudio), or -1 for CLI
+    private int _levelUnavailableFlag; // 0 = available, 1 = unavailable
+
     public bool IsRecording => _recording;
+
+    public float GetCurrentAudioLevel()
+    {
+        if (_levelUnavailableFlag == 1)
+            return -1f;
+        lock (_levelLock)
+            return _currentLevel;
+    }
 
     public AudioRecorder(int sampleRate = 16_000, int channels = 1, int bits = 16, int maxSeconds = 120)
     {
@@ -39,6 +53,11 @@ public sealed class AudioRecorder : IAudioRecorder
     public void StartRecording()
     {
         if (_recording) return;
+
+        // Reset audio level state
+        lock (_levelLock)
+            _currentLevel = 0f;
+        Interlocked.Exchange(ref _levelUnavailableFlag, 0);
 
         if (OperatingSystem.IsWindows())
             StartNAudio();
@@ -57,12 +76,30 @@ public sealed class AudioRecorder : IAudioRecorder
         _waveIn = new WaveInEvent
         {
             WaveFormat = fmt,
-            BufferMilliseconds = 100
+            BufferMilliseconds = 50
         };
         _waveIn.DataAvailable += (_, e) =>
         {
             if (_writer == null) return;
             _writer.Write(e.Buffer, 0, e.BytesRecorded);
+
+            // Compute RMS audio level from the buffer (16-bit signed PCM)
+            if (_bits == 16 && e.BytesRecorded >= 2)
+            {
+                float sumSquares = 0f;
+                int sampleCount = e.BytesRecorded / 2;
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    short sample = (short)(e.Buffer[i * 2] | (e.Buffer[i * 2 + 1] << 8));
+                    sumSquares += sample * sample;
+                }
+                float rms = MathF.Sqrt(sumSquares / sampleCount);
+                // Normalize: 16-bit max amplitude = 32768, RMS for full-range sine ~23170
+                // Normalize to 0–1 with a reasonable ceiling
+                float level = Math.Min(rms / 10000f, 1f);
+                lock (_levelLock)
+                    _currentLevel = level;
+            }
 
             // enforce max duration
             if (_writer.TotalTime.TotalSeconds >= _maxSeconds)
@@ -75,6 +112,9 @@ public sealed class AudioRecorder : IAudioRecorder
 
     private void StartCli()
     {
+        // Audio level monitoring not available for CLI backends
+        Interlocked.Exchange(ref _levelUnavailableFlag, 1);
+
         _tmpFile = Path.Combine(Path.GetTempPath(), $"oc_ptt_{Guid.NewGuid():N}.wav");
 
         // sox rec: works on macOS (brew install sox) and Linux (apt install sox)
