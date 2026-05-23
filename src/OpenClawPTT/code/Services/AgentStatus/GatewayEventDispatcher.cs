@@ -307,6 +307,14 @@ public static class GatewayEventDispatcher
             }
         }
 
+        // ── Session-level fields (flat-copied from nested session object) ──
+        string? thinkingDefault = null;
+        if (p.TryGetProperty("session", out var sessionEl) && sessionEl.ValueKind == JsonValueKind.Object)
+        {
+            tracker.MarkNested("session");
+            thinkingDefault = tracker.Fetch(sessionEl, "thinkingDefault");
+        }
+
         var result = new AssistantMessageEvent
         {
             SessionKey = sessionKey,
@@ -324,6 +332,7 @@ public static class GatewayEventDispatcher
             CacheRead = cacheRead,
             CacheWrite = cacheWrite,
             CostTotal = costTotal,
+            ThinkingDefault = thinkingDefault,
             ContentText = contentText,
             ContentBlocks = contentBlocks,
         };
@@ -363,6 +372,14 @@ public static class GatewayEventDispatcher
             }
         }
 
+        // ── Session-level fields (flat-copied from nested session object) ──
+        string? thinkingDefault = null;
+        if (p.TryGetProperty("session", out var sessionEl) && sessionEl.ValueKind == JsonValueKind.Object)
+        {
+            tracker.MarkNested("session");
+            thinkingDefault = tracker.Fetch(sessionEl, "thinkingDefault");
+        }
+
         var result = new UserMessageEvent
         {
             SessionKey = sessionKey,
@@ -370,6 +387,7 @@ public static class GatewayEventDispatcher
             MessageSeq = tracker.FetchInt(p, "messageSeq"),
             Timestamp = tracker.FetchLong(msg, "timestamp"),
             ContentText = contentText,
+            ThinkingDefault = thinkingDefault,
         };
 
         tracker.ReportUnused("session.message(user)", sessionKey);

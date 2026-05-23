@@ -83,7 +83,7 @@ public sealed class AppConfig
     // Status bar positions for each status part
     public DisplayPosition ActiveAgentPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
     public DisplayPosition ModelPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
-    public DisplayPosition ThinkingLevelPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
+    public DisplayPosition ThinkingLevelPosition { get; set; } = DisplayPosition.None;
     public DisplayPosition ContextPosition { get; set; } = DisplayPosition.TopSeparatorLeft;
     public DisplayPosition ConversationNamePosition { get; set; } = DisplayPosition.None;
     public DisplayPosition ConnectionStatusPosition { get; set; } = DisplayPosition.TopSeparatorRight;

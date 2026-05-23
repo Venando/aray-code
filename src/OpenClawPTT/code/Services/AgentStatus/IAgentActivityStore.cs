@@ -57,10 +57,11 @@ public interface IAgentActivityStore
     /// </summary>
     TResult? SelectLatestActivity<TResult>(
         string sessionKey,
-        Func<HistoryMessageEvent, TResult> onHistory,
-        Func<ToolEvent, TResult> onTool,
-        Func<AssistantMessageEvent, TResult> onAssistant,
-        Func<UserMessageEvent, TResult>? onUser = null);
+        Func<HistoryMessageEvent, TResult>? onHistory = null,
+        Func<ToolEvent, TResult>? onTool = null,
+        Func<AssistantMessageEvent, TResult>? onAssistant = null,
+        Func<UserMessageEvent, TResult>? onUser = null,
+        Func<SessionStateEvent, TResult>? onState = null);
 
     // ── Derived display ───────────────────────────────────────────────────
 

@@ -121,6 +121,9 @@ public sealed record AssistantMessageEvent
     public long? CacheWrite { get; init; }
     public decimal? CostTotal { get; init; }       // usage.cost.total
 
+    // From the (optionally flattened) session object inside the payload
+    public string? ThinkingDefault { get; init; }
+
     // Content blocks from message.content[] array
     public string? ContentText { get; init; }       // first text block (convenience)
     public IReadOnlyList<ContentBlock> ContentBlocks { get; init; } = Array.Empty<ContentBlock>();
@@ -149,6 +152,9 @@ public sealed record UserMessageEvent
     public int? MessageSeq { get; init; }
     public long? Timestamp { get; init; }
     public string? ContentText { get; init; }      // first text block if present
+
+    // From the (optionally flattened) session object inside the payload
+    public string? ThinkingDefault { get; init; }
 }
 
 
