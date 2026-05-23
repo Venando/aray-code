@@ -17,6 +17,8 @@ public class UserMessageHandler : IEventHandler<UserMessageEvent>
     // The gateway may send the same user message twice: once as raw text and
     // once as a rich content array (with a messageId). We keep a short window
     // (5 s) of seen messageIds and printed content hashes.
+    // Content keys are normalised (trimmed, whitespace-collapsed, Unicode NFC)
+    // to match gateway-echoed messages that differ in minor formatting.
     private readonly HashSet<string> _seenMessageIds = new();
     private readonly Dictionary<string, DateTimeOffset> _printedContent = new();
     private readonly TimeSpan _dedupWindow = TimeSpan.FromSeconds(5);
@@ -38,6 +40,8 @@ public class UserMessageHandler : IEventHandler<UserMessageEvent>
         if (_tracker.WasRecentlySent(evt.ContentText))
             return;
 
+        var normalizedKey = GetNormalizedContent(evt.ContentText);
+
         lock (_dedupLock)
         {
             CleanupPrintedWindow();
@@ -50,7 +54,7 @@ public class UserMessageHandler : IEventHandler<UserMessageEvent>
 
                 // If we already printed the same content anonymously (no MessageId)
                 // within the window, skip this canonical version.
-                if (_printedContent.TryGetValue(evt.ContentText, out var ts)
+                if (_printedContent.TryGetValue(normalizedKey, out var ts)
                     && DateTimeOffset.UtcNow - ts <= _dedupWindow)
                 {
                     _seenMessageIds.Add(evt.MessageId);
@@ -62,15 +66,26 @@ public class UserMessageHandler : IEventHandler<UserMessageEvent>
             else
             {
                 // No MessageId — deduplicate by content within the window.
-                if (_printedContent.TryGetValue(evt.ContentText, out var ts)
+                if (_printedContent.TryGetValue(normalizedKey, out var ts)
                     && DateTimeOffset.UtcNow - ts <= _dedupWindow)
                     return;
             }
 
-            _printedContent[evt.ContentText] = DateTimeOffset.UtcNow;
+            _printedContent[normalizedKey] = DateTimeOffset.UtcNow;
         }
 
         _console.PrintUserMessage(evt.ContentText);
+    }
+
+    /// <summary>
+    /// Normalises message content using <see cref="RecentMessageTracker.Normalise"/>
+    /// so that gateway-echoed messages that differ in whitespace or Unicode
+    /// normalisation still match.
+    /// </summary>
+    private static string GetNormalizedContent(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        return RecentMessageTracker.Normalise(text);
     }
 
     private void CleanupPrintedWindow()
