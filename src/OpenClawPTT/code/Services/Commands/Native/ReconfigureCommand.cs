@@ -32,7 +32,7 @@ public sealed class ReconfigureCommand : ICommand
             return;
         }
 
-        _host.SetDefaultPanel(new EmptyBottomPanel());
+        _host.SetBottomPanel(new EmptyBottomPanel());
 
         _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Starting reconfiguration wizard...[/]");
         try
@@ -46,7 +46,7 @@ public sealed class ReconfigureCommand : ICommand
         }
         finally
         {
-            _host.ResetDefaultPanel();
+            _host.ResetBottomPanel();
         }
     }
 }
