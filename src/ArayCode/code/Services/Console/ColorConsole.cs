@@ -71,9 +71,9 @@ public sealed class ColorConsole : IColorConsole
     public void PrintBanner()
     {
         ShellMsg("");
-        ShellMsg($"[{T.Messages.BannerBorder}]  ╔═══════════════════════════════════════╗[/]");
-        ShellMsg($"[{T.Messages.BannerBorder}]  ║    {AppEmoji}  OpenClaw Push-to-Talk  v1.0    ║[/]");
-        ShellMsg($"[{T.Messages.BannerBorder}]  ╚═══════════════════════════════════════╝[/]");
+        ShellMsg($"[{T.Messages.BannerBorder}]  ╔═════════════════════════╗[/]");
+        ShellMsg($"[{T.Messages.BannerBorder}]  ║    {AppEmoji}  Aray Code        ║[/]");
+        ShellMsg($"[{T.Messages.BannerBorder}]  ╚═════════════════════════╝[/]");
         ShellMsg("");
     }
 
