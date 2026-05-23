@@ -103,6 +103,10 @@ public sealed class AudioResponseHandler : IDisposable
             if (!string.IsNullOrEmpty(_pttStateMachine.LastTargetAgent) &&
                 !string.Equals(_pttStateMachine.LastTargetAgent, AgentRegistry.ActiveAgentName, StringComparison.OrdinalIgnoreCase))
                 return false;
+
+            // Consume the flag — it applies to exactly one response (one-shot)
+            _pttStateMachine.LastInputWasVoice = false;
+            _pttStateMachine.LastTargetAgent = null;
         }
 
         // ── Suppress TTS during session history replay ───────────────────
