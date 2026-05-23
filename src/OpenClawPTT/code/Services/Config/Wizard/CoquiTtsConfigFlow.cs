@@ -431,7 +431,7 @@ public sealed class CoquiTtsConfigFlow
                 continue;
 
             var isActive = info.Name == currentModel;
-            var activeMarker = isActive ? " [{ThemeProvider.Current.Tools.Messages.Highlight}][[active]][/]" : "";
+            var activeMarker = isActive ? $" [{ThemeProvider.Current.Tools.Messages.Highlight}][[active]][/]" : "";
             var sizeText = !string.IsNullOrEmpty(info.FormattedSize)
                 ? $"  [{ThemeProvider.Current.Tools.General.Muted}]— {info.FormattedSize}[/]"
                 : "";
@@ -479,7 +479,7 @@ public sealed class CoquiTtsConfigFlow
             return;
 
         variants.Add(new ConfigDecoration(""));
-        variants.Add(new ConfigDecoration("[bold {ThemeProvider.Current.Tools.Messages.Error}]── Remove ──[/]"));
+        variants.Add(new ConfigDecoration($"[bold {ThemeProvider.Current.Tools.Messages.Error}]── Remove ──[/]"));
         foreach (var info in allModels)
         {
             if (!cachedModels.Contains(info.Name))
