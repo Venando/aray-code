@@ -32,8 +32,9 @@ public sealed class AppConfig
     /// <summary>Controls diagnostic log output verbosity. Default = Error (only errors shown).</summary>
     public LogLevel DebugLevel { get; set; } = LogLevel.Error;
     public string GroqApiKey { get; set; } = "";
-    public bool RealTimeReplyOutput => ReplyDisplayMode is ReplyDisplayMode.Delta or ReplyDisplayMode.Both;
-    public ReplyDisplayMode ReplyDisplayMode { get; set; } = ReplyDisplayMode.Both;
+    /// <summary>Real-time reply output is always disabled — only Full mode is supported.</summary>
+    public bool RealTimeReplyOutput => false;
+    public ReplyDisplayMode ReplyDisplayMode { get; set; } = ReplyDisplayMode.Full;
 
     // STT Provider configuration
     public const string ProviderGroq = "groq";
@@ -61,7 +62,7 @@ public sealed class AppConfig
     /// <summary>Theme JSON file name (relative to themes folder). Empty = use ThemeConfig defaults.</summary>
     public string ThemeFile { get; set; } = "drakula";
 
-    public string TranscriptionPromptPrefix { get; set; } = "";
+
     // AudioWrapPrompt and IsAudioEnabled removed — no longer needed
     public int GroqRetryCount { get; set; } = 2;
     public int GroqRetryDelayMs { get; set; } = 1000;
@@ -182,7 +183,7 @@ public sealed class AppConfig
         ["DebugLevel"] = "Log verbosity: None, Error, Info, Debug, Verbose",
         ["GroqApiKey"] = "Groq STT API key",
         ["RealTimeReplyOutput"] = "Show agent replies in real-time during recording",
-        ["ReplyDisplayMode"] = "Where to show replies: Console, Audio, Both",
+
         ["SttProvider"] = "STT provider: groq, openai, whisper-cpp, faster-whisper",
         ["OpenAiApiKey"] = "OpenAI API key (for STT or Direct LLM)",
         ["OpenAiModel"] = "OpenAI model name for STT",
@@ -200,7 +201,7 @@ public sealed class AppConfig
         ["AppendTranscriptionToInput"] = "Append transcribed text to the input field instead of sending directly",
 
 
-        ["TranscriptionPromptPrefix"] = "Prefix for STT transcription text sent to agent",
+
         ["GroqRetryCount"] = "STT retry attempts on failure",
         ["GroqRetryDelayMs"] = "Delay between STT retries in ms",
         ["GroqRetryBackoffFactor"] = "Backoff multiplier for STT retry delay",

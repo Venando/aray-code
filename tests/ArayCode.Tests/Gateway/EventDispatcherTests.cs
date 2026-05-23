@@ -233,7 +233,7 @@ public class EventDispatcherTests
             CustomDataDir = Path.GetTempPath(),
             GatewayUrl = "wss://127.0.0.1:9999/test",
             AuthToken = "test-token",
-            ReplyDisplayMode = ReplyDisplayMode.Delta
+            ReplyDisplayMode = ReplyDisplayMode.Full
         };
 
         var startFired = false;

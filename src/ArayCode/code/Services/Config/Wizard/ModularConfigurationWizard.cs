@@ -292,8 +292,7 @@ public sealed class ModularConfigurationWizard
             ? "(not set)"
             : config.HotkeyCombination;
         var hold = config.HoldToTalk ? "hold" : "toggle";
-        var displayMode = config.ReplyDisplayMode.ToString();
-        return $"{hotkey} | {hold} | {displayMode}";
+        return $"{hotkey} | {hold}";
     }
 
     private static string GetVisualFeedbackStatus(AppConfig config)
