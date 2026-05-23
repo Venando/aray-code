@@ -14,16 +14,20 @@ public static class TranscriberFactory
     {
         return (string.IsNullOrEmpty(config.SttProvider) ? AppConfig.ProviderGroq : config.SttProvider).ToLowerInvariant() switch
         {
-            AppConfig.ProviderGroq => new GroqTranscriberAdapter(
-                config.GroqApiKey,
-                config.GroqModel!,  // null-safe: constructors handle null internally
-                config.GroqRetryCount,
-                config.GroqRetryDelayMs,
-                config.GroqRetryBackoffFactor),
+            AppConfig.ProviderGroq => string.IsNullOrWhiteSpace(config.GroqApiKey)
+                ? throw new InvalidOperationException("Groq API key is not configured. Run /reconfigure to set it up, or switch to a local STT provider (whisper-cpp, faster-whisper).")
+                : new GroqTranscriberAdapter(
+                    config.GroqApiKey,
+                    config.GroqModel!,  // null-safe: constructors handle null internally
+                    config.GroqRetryCount,
+                    config.GroqRetryDelayMs,
+                    config.GroqRetryBackoffFactor),
 
-            AppConfig.ProviderOpenAi => new OpenAiTranscriberAdapter(
-                config.OpenAiApiKey ?? throw new InvalidOperationException("OpenAI API key is required for OpenAI STT provider"),
-                config.OpenAiModel!),  // null-safe: constructors handle null internally
+            AppConfig.ProviderOpenAi => string.IsNullOrWhiteSpace(config.OpenAiApiKey)
+                ? throw new InvalidOperationException("OpenAI API key is not configured. Run /reconfigure to set it up, or switch to a local STT provider (whisper-cpp, faster-whisper).")
+                : new OpenAiTranscriberAdapter(
+                    config.OpenAiApiKey,
+                    config.OpenAiModel!),  // null-safe: constructors handle null internally
 
             AppConfig.ProviderWhisperCpp => CreateWhisperCpp(config, colorConsole.GetStreamShellHost()
                 ?? throw new InvalidOperationException("Cannot initialize whisper-cpp STT: terminal integration unavailable.")),

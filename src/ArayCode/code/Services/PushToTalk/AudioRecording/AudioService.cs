@@ -14,7 +14,12 @@ public sealed class AudioService : IAudioService
     private readonly IColorConsole _console;
     private readonly IStreamShellHost? _shellHost;
     private IAudioRecorder _recorder;
-    private ITranscriber _transcriber;
+    /// <summary>
+    /// The active transcriber, or null when STT is not configured
+    /// (e.g. first boot before wizard, or broken API key).
+    /// All call sites must null-check before calling TranscribeAsync.
+    /// </summary>
+    private ITranscriber? _transcriber;
     /// <inheritdoc />
     public Action<TranscriptionPhase, string?>? TranscriptionStatusCallback { get; set; }
     private IVisualFeedback _visualFeedback;
@@ -42,7 +47,7 @@ public sealed class AudioService : IAudioService
         _agentSettingsPersistence = agentSettingsPersistence ?? throw new ArgumentNullException(nameof(agentSettingsPersistence));
         _shellHost = shellHost;
         _recorder = recorder ?? new AudioRecorder(config.SampleRate, config.Channels, config.BitsPerSample, config.MaxRecordSeconds);
-        _transcriber = TranscriberFactory.Create(config, console);
+        _transcriber = CreateTranscriberSafely(config, console);
         _visualFeedback = VisualFeedbackFactory.Create(config);
         LogSttProvider(config);
         _hotkeyCombination = config.HotkeyCombination;
@@ -144,8 +149,16 @@ public sealed class AudioService : IAudioService
         try
         {
             // Capture transcriber under lock to prevent use-after-dispose (C3)
-            ITranscriber transcriber;
+            ITranscriber? transcriber;
             lock (_transcriberLock) { transcriber = _transcriber; }
+
+            if (transcriber == null)
+            {
+                _console.PrintWarning("STT is not configured. Run /reconfigure to set it up.");
+                TranscriptionStatusCallback?.Invoke(TranscriptionPhase.Failed, "STT not configured");
+                DismissRecordingPanel();
+                return null;
+            }
 
             // Wrap the caller's ct with a transcription timeout
             using var timeoutCts = new CancellationTokenSource(
@@ -220,15 +233,16 @@ public sealed class AudioService : IAudioService
     /// </summary>
     public void RecreateTranscriber(AppConfig config, IColorConsole console)
     {
-        ITranscriber old;
+        ITranscriber? old;
         lock (_transcriberLock)
         {
             old = _transcriber;
-            _transcriber = TranscriberFactory.Create(config, console);
+            _transcriber = CreateTranscriberSafely(config, console);
         }
         // Dispose OUTSIDE the lock to avoid deadlocks
         old?.Dispose();
-        LogSttProvider(config, recreated: true);
+        if (_transcriber != null)
+            LogSttProvider(config, recreated: true);
     }
 
     /// <summary>
@@ -295,8 +309,14 @@ public sealed class AudioService : IAudioService
         // fast enough to not block startup, complex enough to exercise the full pipeline.
         var silenceBytes = CreateSilenceWav(16000, 1, 16, 0.25f);
 
-        ITranscriber transcriber;
+        ITranscriber? transcriber;
         lock (_transcriberLock) { transcriber = _transcriber; }
+
+        if (transcriber == null)
+        {
+            console.Log("stt", "Transcriber not available — skipping verification.");
+            return;
+        }
 
         // Transcribe silence — expected to return quickly (empty result for silence).
         // If the provider is unreachable or the binary/model is broken, this throws.
@@ -341,6 +361,25 @@ public sealed class AudioService : IAudioService
         return ms.ToArray();
     }
 
+    /// <summary>
+    /// Creates a transcriber, catching configuration errors so the app stays alive
+    /// even when the STT provider is misconfigured (missing API key, etc.).
+    /// Returns null when creation fails — STT will be unavailable until /reconfigure.
+    /// </summary>
+    private static ITranscriber? CreateTranscriberSafely(AppConfig config, IColorConsole console)
+    {
+        try
+        {
+            return TranscriberFactory.Create(config, console);
+        }
+        catch (Exception ex)
+        {
+            console.PrintWarning($"STT unavailable — {ex.Message}");
+            console.PrintInfo("  Use /reconfigure to set up STT, or switch to a local provider (whisper-cpp, faster-whisper).");
+            return null;
+        }
+    }
+
     private void LogSttProvider(AppConfig config, bool recreated = false)
     {
         // Display the effective model name — no fallback values here.
@@ -371,7 +410,7 @@ public sealed class AudioService : IAudioService
         }
         lock (_transcriberLock)
         {
-            _transcriber.Dispose();
+            _transcriber?.Dispose();
             _visualFeedback.Dispose();
         }
         recorderToDispose?.Dispose();
