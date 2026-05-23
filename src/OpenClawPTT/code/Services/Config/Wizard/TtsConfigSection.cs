@@ -156,14 +156,17 @@ public sealed class TtsConfigSection : ConfigSectionBase
     {
         var result = new ConfigSectionResult();
         bool changed = false;
-
-        var setupTts = await PromptSelectionHelper.PromptSkipOrProceedAsync(host,
-            "Setup Text-To-Speech?", allowCancel: true, cancellationToken: ct);
-        if (!setupTts.HasValue || !setupTts.Value)
+        
+        if (isInitialSetup)
         {
-            host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped TTS setup.[/]");
-            result.IsChanged = false;
-            return result;
+            var setupTts = await PromptSelectionHelper.PromptSkipOrProceedAsync(host,
+                "Setup Text-To-Speech?", allowCancel: true, cancellationToken: ct);
+            if (!setupTts.HasValue || !setupTts.Value)
+            {
+                host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped TTS setup.[/]");
+                result.IsChanged = false;
+                return result;
+            }
         }
 
         ConfigSelectionHelper.PrintSubSection(host, "proceeding");
