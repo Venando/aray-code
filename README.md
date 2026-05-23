@@ -13,7 +13,7 @@ dotnet run
 ## Features
 
 - **Multi-agent**: Per-agent hotkeys and other settings via `agents.json`
-- **Speach-to-Speach**: Cloud: Groq, OpenAI or Local: Whisper.cpp (automanaged)
+- **Speach-to-Text**: Cloud: Groq, OpenAI or Local: Whisper.cpp (automanaged)
 - **Text-to-Speach**: Cloud: OpenAI, Edge (not tested) or Local Coqui TTS, Supertonic 3 (automanaged), Piper (not tested)
 - **Text input**: Ctrl, Home, End, Shift, Arrows, (Ctrl +Z +X +C +A) <- All of this works in any combination like in normal text editor
 - **Cross-platform**: Windows (the only tested platform), macOS, Linux
