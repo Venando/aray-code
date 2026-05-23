@@ -97,7 +97,7 @@ public sealed class AgentStatusBottomPanel : IBottomPanel, IDisposable
     public string? CurrentSuggestion => null;
     public bool ShowBottomSeparator => true;
 
-    public bool AllowUserField => !_isSelectionMode || _lastCurrentInput.Length > 0;
+    public bool AllowUserField => true;
 
 
     public IReadOnlyList<string> GetLines(string currentInput)
