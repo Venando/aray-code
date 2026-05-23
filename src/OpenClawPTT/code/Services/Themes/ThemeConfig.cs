@@ -159,6 +159,12 @@ public sealed class MessageStyles
     public string IntroductionBorder { get; set; } = "deepskyblue3";
     public string PanelCap { get; set; } = "white";
     public string Working { get; set; } = "orange1";
+
+    /// <summary>
+    /// Style for forwarded OpenClaw slash commands when displayed in the console,
+    /// e.g. the "[blue on gray15]" wrapping "⚡ /reset".
+    /// </summary>
+    public string ForwardedCommandStyle { get; set; } = "blue on gray15";
 }
 
 public sealed class PanelStyles
