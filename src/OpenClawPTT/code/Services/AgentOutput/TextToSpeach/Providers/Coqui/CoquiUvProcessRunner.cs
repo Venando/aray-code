@@ -300,6 +300,12 @@ internal sealed class CoquiUvProcessRunner : IDisposable
     internal static bool TryParseType(string line, out string type)
     {
         type = "";
+
+        // Fast pre-check: non-JSON lines (TTS download progress, etc.) 
+        // would throw JsonReaderException. Skip them entirely.
+        if (string.IsNullOrEmpty(line) || line[0] != '{')
+            return false;
+
         try
         {
             using var doc = JsonDocument.Parse(line);
@@ -309,7 +315,11 @@ internal sealed class CoquiUvProcessRunner : IDisposable
                 return true;
             }
         }
-        catch { }
+        catch
+        {
+            // Shouldn't reach here with the '{' pre-check,
+            // but keep the catch for malformed JSON.
+        }
         return false;
     }
 

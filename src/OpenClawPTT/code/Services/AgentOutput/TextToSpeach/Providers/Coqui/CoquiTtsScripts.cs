@@ -118,15 +118,14 @@ def load_model():
     else:
         tts = _load(use_cuda=False)
 
-    # Fix for TTS 0.22.0 compat — some model configs are missing fields
-    # that TTS accesses during synthesis (AttributeError: 'use_phonemes')
+    # Fix for TTS 0.22.0 compat — coqpit configs use __getitem__ / __dict__
+    # access. Some downloaded model configs are missing fields that TTS
+    # accesses during synthesis (KeyError: 'use_phonemes').
     if tts.config is not None:
+        # 'use_phonemes' — missing in some vocoder model configs
+        tts.config.__dict__.setdefault("use_phonemes", False)
         # 'languages' — needed for multi-lingual model compat
-        if not hasattr(tts.config, "languages"):
-            object.__setattr__(tts.config, "languages", [])
-        # 'use_phonemes' — missing in some downloaded model configs
-        if not hasattr(tts.config, "use_phonemes"):
-            object.__setattr__(tts.config, "use_phonemes", False)
+        tts.config.__dict__.setdefault("languages", [])
     if tts.config is not None and not hasattr(tts, "is_multi_lingual"):
         object.__setattr__(tts, "is_multi_lingual", False)
 
