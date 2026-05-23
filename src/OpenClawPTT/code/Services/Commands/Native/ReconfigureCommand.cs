@@ -32,6 +32,9 @@ public sealed class ReconfigureCommand : ICommand
             return;
         }
 
+        var emptyPanel = new EmptyBottomPanel();
+        _host.SetBottomPanel(emptyPanel);
+
         _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Starting reconfiguration wizard...[/]");
         try
         {
@@ -41,6 +44,10 @@ public sealed class ReconfigureCommand : ICommand
         catch (OperationCanceledException)
         {
             _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Reconfiguration cancelled.[/]");
+        }
+        finally
+        {
+            _host.ResetBottomPanel();
         }
     }
 }
