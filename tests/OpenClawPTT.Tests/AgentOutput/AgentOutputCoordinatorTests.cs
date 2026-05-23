@@ -51,7 +51,7 @@ public class AgentOutputCoordinatorTests
 
         coordinator.AttachToService(serviceMock.Object);
 
-        serviceMock.VerifyAdd(x => x.AgentReplyFull += It.IsAny<Action<string>>(), Times.Once);
+        serviceMock.VerifyAdd(x => x.AgentReplyFull += It.IsAny<Action<string, string?>>(), Times.Once);
         serviceMock.VerifyAdd(x => x.AgentThinking += It.IsAny<Action<string>>(), Times.Once);
         serviceMock.VerifyAdd(x => x.AgentToolCall += It.IsAny<Action<string, string>>(), Times.Once);
         serviceMock.VerifyAdd(x => x.AgentReplyDeltaStart += It.IsAny<Action>(), Times.Once);
@@ -69,7 +69,7 @@ public class AgentOutputCoordinatorTests
         coordinator.AttachToService(serviceMock.Object);
         coordinator.DetachFromService(serviceMock.Object);
 
-        serviceMock.VerifyRemove(x => x.AgentReplyFull -= It.IsAny<Action<string>>(), Times.Once);
+        serviceMock.VerifyRemove(x => x.AgentReplyFull -= It.IsAny<Action<string, string?>>(), Times.Once);
         serviceMock.VerifyRemove(x => x.AgentThinking -= It.IsAny<Action<string>>(), Times.Once);
         serviceMock.VerifyRemove(x => x.AgentToolCall -= It.IsAny<Action<string, string>>(), Times.Once);
         serviceMock.VerifyRemove(x => x.AgentReplyDeltaStart -= It.IsAny<Action>(), Times.Once);

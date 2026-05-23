@@ -201,7 +201,7 @@ internal sealed class TestableGatewayService : IGatewayService
     public event Action? Disconnected { add => _disconnected += value; remove => _disconnected -= value; }
     public event Action? Reconnecting { add => _reconnecting += value; remove => _reconnecting -= value; }
     public event Action? ReconnectFailed { add => _reconnectFailed += value; remove => _reconnectFailed -= value; }
-    public event Action<string>? AgentReplyFull;
+    public event Action<string, string?>? AgentReplyFull; // (text, stopReason)
     public event Action<string>? AgentReplyFinal;
     public event Action? AgentReplyDeltaStart;
     public event Action<string>? AgentReplyDelta;
@@ -217,7 +217,7 @@ internal sealed class TestableGatewayService : IGatewayService
 
     public void DisplayAssistantReply(string body)
     {
-        AgentReplyFull?.Invoke(body);
+        AgentReplyFull?.Invoke(body, null);
     }
 
     public void DisplayHistoryEntry(ChatHistoryEntry entry)
@@ -254,7 +254,7 @@ internal sealed class TestableGatewayService : IGatewayService
 
         if (useFull)
         {
-            es.AgentReplyFull += body => AgentReplyFull?.Invoke(body);
+            es.AgentReplyFull += (body, stopReason) => AgentReplyFull?.Invoke(body, stopReason);
             es.AgentReplyFinal += text => AgentReplyFinal?.Invoke(text);
         }
     }

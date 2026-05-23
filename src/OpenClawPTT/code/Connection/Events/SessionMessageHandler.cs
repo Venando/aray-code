@@ -85,10 +85,14 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
         if (!messageEl.TryGetProperty("role", out var roleEl)) return;
         if (roleEl.GetString() != "assistant") return;
 
+        // Extract stopReason for all non-error messages (used to gate TTS reading)
+        var stopReasonStr = messageEl.TryGetProperty("stopReason", out var stopReasonEl)
+            ? stopReasonEl.GetString() : null;
+
         // Check for error messages (stopReason=error, content may be empty)
         // When stopReason=error, the message carries the provider that FAILED,
         // not a fallback. Fallback detection is handled after successful responses.
-        if (messageEl.TryGetProperty("stopReason", out var stopReason) && stopReason.GetString() == "error")
+        if (string.Equals(stopReasonStr, "error", StringComparison.OrdinalIgnoreCase))
         {
             HandleErrorMessage(messageEl, sessionKey, agentId);
             return;
@@ -133,7 +137,7 @@ public class SessionMessageHandler : IEventHandler<SessionMessageEvent>
                         startFired = true;
                     }
 
-                    _events.RaiseAgentReplyFull(text);
+                    _events.RaiseAgentReplyFull(text, stopReasonStr);
                 }
             }
             else if (type == "audio" && block.TryGetProperty("audio", out var audioEl))

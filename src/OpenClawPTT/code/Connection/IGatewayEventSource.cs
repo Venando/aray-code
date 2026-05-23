@@ -6,7 +6,7 @@ namespace OpenClawPTT;
 public interface IGatewayEventSource
 {
     event Action<string, JsonElement>? EventReceived;
-    event Action<string>? AgentReplyFull;
+    event Action<string, string?>? AgentReplyFull; // (text, stopReason)
     event Action<string>? AgentReplyDelta;
     event Action<string>? AgentReplyFinal;
     event Action? AgentReplyDeltaStart;
@@ -21,7 +21,7 @@ public interface IGatewayEventSource
     void RaiseAgentToolCall(string toolName, string arguments);
     void RaiseAgentReplyDeltaStart();
     void RaiseAgentReplyDeltaEnd();
-    void RaiseAgentReplyFull(string text);
+    void RaiseAgentReplyFull(string text, string? stopReason = null);
     void RaiseAgentReplyFinal(string text);
     void RaiseAgentReplyDelta(string chunk);
     void RaiseEventReceived(string eventName, JsonElement payload);

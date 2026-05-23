@@ -12,6 +12,7 @@ public sealed class AgentOutputCoordinator : IDisposable
     private readonly ThinkingDisplayHandler _thinkingDisplay;
     private readonly object _audioLock = new();
     private AudioResponseHandler? _audioHandler;
+    private string? _lastStopReason;
     private bool _disposed;
 
     public AgentOutputCoordinator(
@@ -49,8 +50,9 @@ public sealed class AgentOutputCoordinator : IDisposable
     }
 
     /// <summary>Public entry points — GatewayService calls these directly.</summary>
-    public void OnAgentReplyFull(string body)
+    public void OnAgentReplyFull(string body, string? stopReason = null)
     {
+        _lastStopReason = stopReason;
         _replyCoordinator.OnFullReply(body);
         AudioResponseHandler? handler;
         lock (_audioLock)
@@ -58,7 +60,7 @@ public sealed class AgentOutputCoordinator : IDisposable
             handler = _audioHandler;
         }
         if (handler != null && !string.IsNullOrWhiteSpace(body))
-            _ = handler.PlayTtsAsync(body);
+            _ = handler.PlayTtsAsync(body, stopReason);
     }
 
     public void OnAgentThinking(string thinking)
@@ -80,7 +82,7 @@ public sealed class AgentOutputCoordinator : IDisposable
             handler = _audioHandler;
         }
         if (handler != null && !string.IsNullOrWhiteSpace(_replyCoordinator.AccumulatedText))
-            _ = handler.PlayTtsAsync(_replyCoordinator.AccumulatedText);
+            _ = handler.PlayTtsAsync(_replyCoordinator.AccumulatedText, _lastStopReason);
     }
 
     /// <summary>

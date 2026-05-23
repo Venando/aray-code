@@ -22,7 +22,7 @@ public interface IGatewayUIEvents
     /// <summary>Fires when the reconnection loop exhausts all retries without success.</summary>
     event Action? ReconnectFailed;
 
-    event Action<string>? AgentReplyFull;
+    event Action<string, string?>? AgentReplyFull; // (text, stopReason)
     event Action<string>? AgentReplyFinal;
     event Action? AgentReplyDeltaStart;
     event Action<string>? AgentReplyDelta;
