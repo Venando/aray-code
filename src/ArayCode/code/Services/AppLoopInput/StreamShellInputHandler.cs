@@ -177,17 +177,19 @@ public sealed class StreamShellInputHandler : IDisposable
             RegisterGatewayCommands();
             _gatewayCommandsRegistered = true;
 
-            // Fetch session history now that gateway-dependent commands are available
-            var sessionKey = AgentRegistry.ActiveSessionKey;
-            if (sessionKey != null)
-                _ = TryFetchHistoryAsync(sessionKey);
-
-            // Bootstrap AgentActivityStore for all other agents (limit=3, no display)
-            foreach (var agent in AgentRegistry.Agents)
+            // First-connection: prompt to configure agents if no settings exist.
+            // Must check BEFORE fetching history to avoid printing history during the wizard.
+            if (!_agentSettingsPersistence.HasAnyPersistedSettings && AgentRegistry.Agents.Count > 0 && !FirstConnectionWizard.IsActive)
             {
-                if (agent.SessionKey != sessionKey)
-                    _ = BootstrapAgentHistoryAsync(agent.SessionKey);
+                _host.SetDefaultPanel(new Services.EmptyBottomPanel());
+                var firstConnectionWizard = new FirstConnectionWizard(_host, _agentSettingsPersistence,
+                    onCompleted: () => _ = FetchAndBootstrapHistoryAsync());
+                firstConnectionWizard.Run();
+                return;
             }
+
+            // Fetch session history now that gateway-dependent commands are available
+            _ = FetchAndBootstrapHistoryAsync();
         }
         else if (!connected && _gatewayCommandsRegistered)
         {
@@ -321,6 +323,26 @@ public sealed class StreamShellInputHandler : IDisposable
     }
 
     // ── Session history fetch (fire-and-forget with error handling) ───────
+
+    /// <summary>
+    /// Fetches session history for the active agent and bootstraps activity
+    /// stores for all other agents. Shared between the normal gateway-connect
+    /// path and the first-connection wizard completion path (DRY).
+    /// </summary>
+    private async Task FetchAndBootstrapHistoryAsync()
+    {
+        var sessionKey = AgentRegistry.ActiveSessionKey;
+        if (sessionKey != null)
+            _ = TryFetchHistoryAsync(sessionKey);
+
+        foreach (var agent in AgentRegistry.Agents)
+        {
+            if (agent.SessionKey != sessionKey)
+                _ = BootstrapAgentHistoryAsync(agent.SessionKey);
+        }
+
+        await Task.CompletedTask;
+    }
 
     private async Task TryFetchHistoryAsync(string sessionKey)
     {
