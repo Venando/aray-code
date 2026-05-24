@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ArayCode.Services;
+using ArayCode.Services.Themes;
 using StreamShell;
 
 namespace ArayCode.ConfigWizard;
@@ -42,6 +43,14 @@ public sealed class InputDisplayConfigSection : ConfigSectionBase
         IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
     {
         var result = new ConfigSectionResult();
+
+        // Skip during initial setup if STT is disabled — PTT/config items are irrelevant
+        if (isInitialSetup && string.IsNullOrEmpty(config.SttProvider))
+        {
+            host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped {Name} — STT is disabled.[/]");
+            return result;
+        }
+
         bool changed = false;
 
         // ── Universal config items ──

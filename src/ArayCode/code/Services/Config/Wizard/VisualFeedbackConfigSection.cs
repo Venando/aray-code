@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ArayCode.Services;
+using ArayCode.Services.Themes;
 using StreamShell;
 
 namespace ArayCode.ConfigWizard;
@@ -71,6 +72,14 @@ public sealed class VisualFeedbackConfigSection : ConfigSectionBase
         IStreamShellHost host, AppConfig config, bool isInitialSetup, CancellationToken ct)
     {
         var result = new ConfigSectionResult();
+
+        // Skip during initial setup if STT is disabled — visual feedback is for recording
+        if (isInitialSetup && string.IsNullOrEmpty(config.SttProvider))
+        {
+            host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped {Name} — STT is disabled.[/]");
+            return result;
+        }
+
         bool changed = false;
 
         // ── Enabled ──
