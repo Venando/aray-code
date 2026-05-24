@@ -103,12 +103,17 @@ public sealed class AppStatusBottomPanel : IBottomPanel
         var sttColor = _getStatus(ServiceKind.Stt);
         var llmColor = _getStatus(ServiceKind.DirectLlm);
 
+        bool ttsDisabled = _config.TtsProvider == TTS.TtsProviderType.Disabled;
+        bool sttDisabled = string.IsNullOrEmpty(_config.SttProvider);
+        bool llmDisabled = string.IsNullOrWhiteSpace(_config.DirectLlmUrl)
+                        || string.IsNullOrWhiteSpace(_config.DirectLlmModelName);
+
         return new[]
         {
-            MakeLine("GW:",  gwColor, FormatGateway()),
-            MakeLine("TTS:", ttsColor, FormatTts()),
-            MakeLine("STT:", sttColor, FormatStt()),
-            MakeLine("LLM:", llmColor, FormatLlm()),
+            MakeLine("GW:",  gwColor, FormatGateway(), isDisabled: false),
+            MakeLine("TTS:", ttsColor, FormatTts(), ttsDisabled),
+            MakeLine("STT:", sttColor, FormatStt(), sttDisabled),
+            MakeLine("LLM:", llmColor, FormatLlm(), llmDisabled),
             "",
             $"  [{ThemeProvider.Current.Tools.General.Muted}]Press Escape to dismiss[/]"
         };
@@ -141,14 +146,20 @@ public sealed class AppStatusBottomPanel : IBottomPanel
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private static string MakeLine(string label, StatusColor? color, string detail)
+    private static string MakeLine(string label, StatusColor? color, string detail, bool isDisabled)
     {
+        var muted = ThemeProvider.Current.Tools.General.Muted;
+        var emphasis = ThemeProvider.Current.Tools.Messages.Emphasis;
+
+        if (isDisabled)
+            return $"  [{muted}]\u25CF[/] [{emphasis}]{label}[/] [{muted}]Disabled[/] [{muted}]\u2192 {detail}[/]";
+
         var dotColor = color switch
         {
             StatusColor.Green  => ThemeProvider.Current.Tools.Messages.Success,
             StatusColor.Yellow => ThemeProvider.Current.Tools.Messages.Warning,
             StatusColor.Red    => ThemeProvider.Current.Tools.Messages.Error,
-            _ => ThemeProvider.Current.Tools.General.Muted,
+            _ => muted,
         };
         var statusWord = color switch
         {
@@ -157,7 +168,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel
             StatusColor.Red    => "Error",
             _ => "Unknown",
         };
-        return $"  [{dotColor}]\u25CF[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{label}[/] [{dotColor}]{statusWord}[/] [{ThemeProvider.Current.Tools.General.Muted}]\u2192 {detail}[/]";
+        return $"  [{dotColor}]\u25CF[/] [{emphasis}]{label}[/] [{dotColor}]{statusWord}[/] [{muted}]\u2192 {detail}[/]";
     }
 
     private string FormatGateway()
