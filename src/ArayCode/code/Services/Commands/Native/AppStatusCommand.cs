@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ArayCode.Services.Themes;
+using ArayCode.TTS;
 using StreamShell;
 
 namespace ArayCode.Services.Commands;
@@ -168,6 +169,8 @@ public sealed class AppStatusBottomPanel : IBottomPanel
 
     private string FormatTts()
     {
+        if (_config.TtsProvider == TTS.TtsProviderType.Disabled)
+            return "(disabled)";
         var provider = _config.TtsProvider.ToString();
         var mode = _config.TtsOutputMode ?? "off";
         return $"{provider} | Output: {mode}";
@@ -176,6 +179,8 @@ public sealed class AppStatusBottomPanel : IBottomPanel
     private string FormatStt()
     {
         var provider = _config.SttProvider ?? "built-in (gateway)";
+        if (provider == "built-in (gateway)")
+            return "(disabled)";
         var model = _config.FasterWhisperModel ?? _config.WhisperCppModel ?? "default";
         return $"{provider} | Model: {model}";
     }
@@ -185,7 +190,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel
         var configured = !string.IsNullOrWhiteSpace(_config.DirectLlmUrl)
                       && !string.IsNullOrWhiteSpace(_config.DirectLlmModelName);
         if (!configured)
-            return "(not configured)";
+            return "(disabled)";
         return $"{_config.DirectLlmUrl} | Model: {_config.DirectLlmModelName}";
     }
 }

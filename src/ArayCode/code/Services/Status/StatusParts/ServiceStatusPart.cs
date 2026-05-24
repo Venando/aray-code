@@ -15,6 +15,7 @@ public sealed class ServiceStatusPart : StatusPartBase
     private readonly string _label;
     private StatusColor _color = StatusColor.Yellow;
     private int _frameIndex;
+    private bool _hidden;
 
     /// <summary>
     /// Creates a service status part with a label prefix (e.g. "GW:", "TTS:", "STT:").
@@ -40,6 +41,19 @@ public sealed class ServiceStatusPart : StatusPartBase
     /// <summary>Whether this part is currently in the yellow (transitional) state.</summary>
     internal bool IsYellow => _color == StatusColor.Yellow;
 
+    /// <summary>
+    /// Hides or shows this part. When hidden, <see cref="BuildText"/> returns empty
+    /// and the part does not appear in the separator.
+    /// </summary>
+    public void SetHidden(bool hidden)
+    {
+        if (_hidden != hidden)
+        {
+            _hidden = hidden;
+            MarkDirty();
+        }
+    }
+
     /// <summary>Updates the status color. Marks dirty on actual change.</summary>
     public void SetStatus(StatusColor color)
     {
@@ -53,6 +67,10 @@ public sealed class ServiceStatusPart : StatusPartBase
 
     protected override void BuildText()
     {
+        // When hidden, return empty text — nothing rendered in separator
+        if (_hidden)
+            return;
+
         // Leading space before label (e.g. " GW:●") — ensures gap after separator fill
         Builder.Append(' ');
         // Label prefix (e.g. "GW:", "TTS:", "STT:")

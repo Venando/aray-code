@@ -39,4 +39,10 @@ public interface IStatusService
     /// Gets the current status color of a service component, or null if not tracked.
     /// </summary>
     StatusColor? GetServiceStatus(ServiceKind kind);
+
+    /// <summary>
+    /// Hides or shows a service status part from the separator bar.
+    /// Hidden parts return empty text and do not appear in the separator.
+    /// </summary>
+    void SetServiceHidden(ServiceKind kind, bool hidden);
 }

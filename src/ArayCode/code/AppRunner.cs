@@ -84,6 +84,9 @@ public partial class AppRunner : IDisposable
         // Apply configured debug level to console
         _console.LogLevel = _cfg.DebugLevel;
 
+        // Hide disabled services from the status separator
+        HideDisabledServices(_cfg);
+
         // Create shared state machine and summarizer early so they can be wired into GatewayService
         var pttStateMachine = new PttStateMachine();
         using var directLlmService = _factory.CreateDirectLlmService(_cfg);
@@ -226,6 +229,22 @@ public partial class AppRunner : IDisposable
     }
 
     /// <summary>
+    /// Hides service status parts from the separator for services that are disabled
+    /// in the loaded configuration (STT provider is null, Direct LLM not configured, etc.).
+    /// TTS is handled separately by <see cref="InitializeTtsProviderAsync"/> since it's async.
+    /// </summary>
+    private void HideDisabledServices(AppConfig cfg)
+    {
+        if (string.IsNullOrEmpty(cfg.SttProvider))
+            _statusService.SetServiceHidden(ServiceKind.Stt, true);
+
+        bool llmConfigured = !string.IsNullOrWhiteSpace(cfg.DirectLlmUrl)
+                          && !string.IsNullOrWhiteSpace(cfg.DirectLlmModelName);
+        if (!llmConfigured)
+            _statusService.SetServiceHidden(ServiceKind.DirectLlm, true);
+    }
+
+    /// <summary>
     /// Wires up the conversation naming pipeline when <see cref="AppConfig.ConversationNamePosition"/>
     /// is not <see cref="DisplayPosition.None"/>. Otherwise returns the raw text sender and null naming service.
     /// </summary>
@@ -278,26 +297,32 @@ public partial class AppRunner : IDisposable
         };
 
         // AudioService constructor succeeded — but the transcriber hasn't been
-        // verified yet. Set Yellow and verify on a background thread so the
-        // animated transitioning state is visible during verification.
-        _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Yellow);
-        _ = Task.Run(async () =>
+        // verified yet. When STT is disabled, skip verification entirely.
+        if (string.IsNullOrEmpty(_cfg.SttProvider))
         {
-            try
+            _console.Log("stt", "STT is disabled — skipping transcriber verification.");
+        }
+        else
+        {
+            _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Yellow);
+            _ = Task.Run(async () =>
             {
-                await audioService.VerifyTranscriberAsync(_cfg, _console, ct);
-                _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
-            }
-            catch (OperationCanceledException)
-            {
-                // App shutting down — verification cancelled, leave status as-is
-            }
-            catch (Exception ex)
-            {
-                _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Red);
-                _console.LogError("stt", $"STT verification failed: {ex.Message}");
-            }
-        });
+                try
+                {
+                    await audioService.VerifyTranscriberAsync(_cfg, _console, ct);
+                    _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Green);
+                }
+                catch (OperationCanceledException)
+                {
+                    // App shutting down — verification cancelled, leave status as-is
+                }
+                catch (Exception ex)
+                {
+                    _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Red);
+                    _console.LogError("stt", $"STT verification failed: {ex.Message}");
+                }
+            });
+        }
 
         // Store delegate references for config change handlers
         Action<ConfigChangedEventArgs> onGatewayConfigSaved = e => HandleGatewayConfigChanged(e, gateway);

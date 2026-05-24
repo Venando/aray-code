@@ -20,6 +20,7 @@ public sealed class TtsConfigSection : ConfigSectionBase
 
     private static readonly (string Name, string Value)[] TtsProviderOptions =
     [
+        ("Disabled", "Disabled"),
         ("OpenAI", "OpenAI"),
         ("Edge", "Edge"),
         ("Coqui TTS (uv)", "CoquiUv"),
@@ -163,8 +164,9 @@ public sealed class TtsConfigSection : ConfigSectionBase
                 "Setup Text-To-Speech?", allowCancel: true, cancellationToken: ct);
             if (!setupTts.HasValue || !setupTts.Value)
             {
-                host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped TTS setup.[/]");
-                result.IsChanged = false;
+                host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped TTS setup — TTS disabled.[/]");
+                config.TtsProvider = TtsProviderType.Disabled;
+                result.IsChanged = true;
                 return result;
             }
         }

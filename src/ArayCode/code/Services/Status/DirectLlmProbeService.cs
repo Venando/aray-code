@@ -90,7 +90,7 @@ public sealed class DirectLlmProbeService : IDisposable
     {
         if (!service.IsConfigured)
         {
-            _statusService.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Yellow);
+            _statusService.SetServiceHidden(ServiceKind.DirectLlm, true);
             return;
         }
 
@@ -159,6 +159,8 @@ public sealed class DirectLlmProbeService : IDisposable
     private void StartHealthCheck()
     {
         StopHealthCheck();
+        if (_currentService == null || !_currentService.IsConfigured)
+            return;
         _healthCheckTimer = new Timer(
             callback: _ => HealthCheckCallback(),
             state: null,

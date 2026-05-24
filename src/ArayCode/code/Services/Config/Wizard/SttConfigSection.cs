@@ -19,11 +19,15 @@ public sealed class SttConfigSection : ConfigSectionBase
 
     private static readonly (string Name, string Value)[] ProviderOptions =
     {
+        ("Disabled", SttDisabledSentinel),
         ("Groq (cloud)", TagGroq),
         ("OpenAI (cloud)", TagOpenAi),
         ("whisper.cpp — C++ binary, manual install", TagWhisperCpp),
         ("faster-whisper — Python via uv, auto-managed", TagFasterWhisper),
     };
+
+    /// <summary>Sentinel value that means STT is explicitly disabled.</summary>
+    public const string SttDisabledSentinel = "disabled";
 
     public SttConfigSection()
     {
@@ -83,8 +87,9 @@ public sealed class SttConfigSection : ConfigSectionBase
                 "Setup Speech-To-Text?", allowCancel: true, cancellationToken: ct);
             if (!setupStt.HasValue || !setupStt.Value)
             {
-                host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped STT setup.[/]");
-                result.IsChanged = false;
+                host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  Skipped STT setup — STT disabled.[/]");
+                config.SttProvider = null;
+                result.IsChanged = true;
                 return result;
             }
         }
@@ -108,7 +113,7 @@ public sealed class SttConfigSection : ConfigSectionBase
 
         if (provider != config.SttProvider)
         {
-            config.SttProvider = provider;
+            config.SttProvider = provider == SttDisabledSentinel ? null : provider;
             changed = true;
         }
         else if (!isInitialSetup)
@@ -116,6 +121,14 @@ public sealed class SttConfigSection : ConfigSectionBase
             // During reconfigure, user explicitly chose same provider — mark changed
             // to ensure config is saved (items may have been reviewed/re-entered)
             changed = true;
+        }
+
+        // Selecting "Disabled" exits immediately — no provider-specific items to configure
+        if (provider == SttDisabledSentinel)
+        {
+            host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  STT disabled.[/]");
+            result.IsChanged = changed;
+            return result;
         }
 
         // ── Seed provider-specific defaults ──

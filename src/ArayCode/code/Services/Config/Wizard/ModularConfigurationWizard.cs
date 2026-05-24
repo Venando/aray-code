@@ -238,7 +238,9 @@ public sealed class ModularConfigurationWizard
 
     private static string GetSttStatus(AppConfig config)
     {
-        var provider = config.SttProvider ?? "(not set)";
+        var provider = config.SttProvider ?? "disabled";
+        if (provider == "disabled" || string.IsNullOrEmpty(provider))
+            return "(disabled)";
         var model = provider switch
         {
             "groq" => config.GroqModel ?? "whisper-large-v3-turbo",
@@ -255,6 +257,8 @@ public sealed class ModularConfigurationWizard
     private static string GetTtsStatus(AppConfig config)
     {
         var provider = config.TtsProvider.ToString();
+        if (config.TtsProvider == TTS.TtsProviderType.Disabled)
+            return "(disabled)";
         var mode = config.TtsOutputMode ?? "siso";
 
         switch (config.TtsProvider)
@@ -282,7 +286,7 @@ public sealed class ModularConfigurationWizard
         var configured = !string.IsNullOrWhiteSpace(config.DirectLlmUrl)
                       && !string.IsNullOrWhiteSpace(config.DirectLlmModelName);
         if (!configured)
-            return "(not configured)";
+            return "(disabled)";
         return $"{config.DirectLlmModelName} @ {config.DirectLlmUrl}";
     }
 
