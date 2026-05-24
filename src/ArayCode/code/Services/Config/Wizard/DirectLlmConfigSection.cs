@@ -61,8 +61,10 @@ public sealed class DirectLlmConfigSection : ConfigSectionBase
                 "Setup Direct LLM? (for /llm command and TTS summarization)", allowCancel: true, cancellationToken: ct);
             if (!setupDirectLlm.HasValue || !setupDirectLlm.Value)
             {
-                host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]  Skipped Direct LLM setup.[/]");
-                result.IsChanged = false;
+                host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]  Skipped Direct LLM setup — Direct LLM disabled.[/]");
+                config.DirectLlmUrl = null;
+                config.DirectLlmModelName = null;
+                result.IsChanged = true;
                 return result;
             }
         }

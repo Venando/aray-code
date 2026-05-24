@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ArayCode.Services.Themes;
+using ArayCode.TTS;
 using StreamShell;
 
 namespace ArayCode.Services.Commands;
@@ -15,7 +16,7 @@ public sealed class AppStatusCommand : ICommand
 {
     private readonly IStreamShellHost _host;
     private readonly IStatusService _statusService;
-    private readonly AppConfig _config;
+    private readonly Func<AppConfig> _getConfig;
 
     public string Name => "appstatus";
     public string Description => "Show detailed app status (GW/TTS/STT/LLM)";
@@ -26,18 +27,18 @@ public sealed class AppStatusCommand : ICommand
     public AppStatusCommand(
         IStreamShellHost host,
         IStatusService statusService,
-        AppConfig config)
+        Func<AppConfig> getConfig)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _statusService = statusService ?? throw new ArgumentNullException(nameof(statusService));
-        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _getConfig = getConfig ?? throw new ArgumentNullException(nameof(getConfig));
     }
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
     {
         StatusColor? Fetch(ServiceKind kind) => _statusService.GetServiceStatus(kind);
 
-        using var panel = new AppStatusBottomPanel(_config, Fetch);
+        using var panel = new AppStatusBottomPanel(_getConfig(), Fetch);
         _host.SetBottomPanel(panel);
 
         try
@@ -102,12 +103,17 @@ public sealed class AppStatusBottomPanel : IBottomPanel
         var sttColor = _getStatus(ServiceKind.Stt);
         var llmColor = _getStatus(ServiceKind.DirectLlm);
 
+        bool ttsDisabled = _config.TtsProvider == TTS.TtsProviderType.Disabled;
+        bool sttDisabled = string.IsNullOrEmpty(_config.SttProvider);
+        bool llmDisabled = string.IsNullOrWhiteSpace(_config.DirectLlmUrl)
+                        || string.IsNullOrWhiteSpace(_config.DirectLlmModelName);
+
         return new[]
         {
-            MakeLine("GW:",  gwColor, FormatGateway()),
-            MakeLine("TTS:", ttsColor, FormatTts()),
-            MakeLine("STT:", sttColor, FormatStt()),
-            MakeLine("LLM:", llmColor, FormatLlm()),
+            MakeLine("GW:",  gwColor, FormatGateway(), isDisabled: false),
+            MakeLine("TTS:", ttsColor, FormatTts(), ttsDisabled),
+            MakeLine("STT:", sttColor, FormatStt(), sttDisabled),
+            MakeLine("LLM:", llmColor, FormatLlm(), llmDisabled),
             "",
             $"  [{ThemeProvider.Current.Tools.General.Muted}]Press Escape to dismiss[/]"
         };
@@ -140,14 +146,20 @@ public sealed class AppStatusBottomPanel : IBottomPanel
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private static string MakeLine(string label, StatusColor? color, string detail)
+    private static string MakeLine(string label, StatusColor? color, string detail, bool isDisabled)
     {
+        var muted = ThemeProvider.Current.Tools.General.Muted;
+        var emphasis = ThemeProvider.Current.Tools.Messages.Emphasis;
+
+        if (isDisabled)
+            return $"  [{muted}]\u25CF[/] [{emphasis}]{label}[/] [{muted}]Disabled[/] [{muted}]\u2192 {detail}[/]";
+
         var dotColor = color switch
         {
             StatusColor.Green  => ThemeProvider.Current.Tools.Messages.Success,
             StatusColor.Yellow => ThemeProvider.Current.Tools.Messages.Warning,
             StatusColor.Red    => ThemeProvider.Current.Tools.Messages.Error,
-            _ => ThemeProvider.Current.Tools.General.Muted,
+            _ => muted,
         };
         var statusWord = color switch
         {
@@ -156,7 +168,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel
             StatusColor.Red    => "Error",
             _ => "Unknown",
         };
-        return $"  [{dotColor}]\u25CF[/] [{ThemeProvider.Current.Tools.Messages.Emphasis}]{label}[/] [{dotColor}]{statusWord}[/] [{ThemeProvider.Current.Tools.General.Muted}]\u2192 {detail}[/]";
+        return $"  [{dotColor}]\u25CF[/] [{emphasis}]{label}[/] [{dotColor}]{statusWord}[/] [{muted}]\u2192 {detail}[/]";
     }
 
     private string FormatGateway()
@@ -168,6 +180,8 @@ public sealed class AppStatusBottomPanel : IBottomPanel
 
     private string FormatTts()
     {
+        if (_config.TtsProvider == TTS.TtsProviderType.Disabled)
+            return "(disabled)";
         var provider = _config.TtsProvider.ToString();
         var mode = _config.TtsOutputMode ?? "off";
         return $"{provider} | Output: {mode}";
@@ -176,6 +190,8 @@ public sealed class AppStatusBottomPanel : IBottomPanel
     private string FormatStt()
     {
         var provider = _config.SttProvider ?? "built-in (gateway)";
+        if (provider == "built-in (gateway)")
+            return "(disabled)";
         var model = _config.FasterWhisperModel ?? _config.WhisperCppModel ?? "default";
         return $"{provider} | Model: {model}";
     }
@@ -185,7 +201,7 @@ public sealed class AppStatusBottomPanel : IBottomPanel
         var configured = !string.IsNullOrWhiteSpace(_config.DirectLlmUrl)
                       && !string.IsNullOrWhiteSpace(_config.DirectLlmModelName);
         if (!configured)
-            return "(not configured)";
+            return "(disabled)";
         return $"{_config.DirectLlmUrl} | Model: {_config.DirectLlmModelName}";
     }
 }

@@ -12,9 +12,17 @@ public partial class AppRunner
     /// <summary>
     /// Initializes the TTS provider on a background thread.
     /// Updates status via <see cref="_statusService"/> as init progresses.
+    /// When TTS is disabled, hides the status part and returns null silently.
     /// </summary>
     private async Task<ITextToSpeech?> InitializeTtsProviderAsync(AppConfig cfg, CancellationToken ct)
     {
+        if (cfg.TtsProvider == TTS.TtsProviderType.Disabled)
+        {
+            _statusService.SetServiceHidden(ServiceKind.Tts, true);
+            _console.Log("tts", "TTS is disabled.");
+            return null;
+        }
+
         try
         {
             _statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Yellow);

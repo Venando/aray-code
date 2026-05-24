@@ -127,6 +127,7 @@ public partial class AppRunner
     /// <summary>
     /// Handles STT/audio configuration changes: recreates the transcriber and recorder
     /// when STT provider or audio-recording properties change.
+    /// When STT is disabled, hides the status part and skips reinitialization.
     /// </summary>
     private void HandleSttConfigChanged(ConfigChangedEventArgs e, IAudioService audioService)
     {
@@ -149,6 +150,16 @@ public partial class AppRunner
         if (!e.AnyChanged(sttProps))
             return;
 
+        _cfg = e.NewConfig;
+
+        if (string.IsNullOrEmpty(e.NewConfig.SttProvider))
+        {
+            _statusService.SetServiceHidden(ServiceKind.Stt, true);
+            _console.PrintInfo("STT disabled — status hidden.");
+            return;
+        }
+
+        _statusService.SetServiceHidden(ServiceKind.Stt, false);
         _statusService.SetServiceStatus(ServiceKind.Stt, StatusColor.Yellow);
         _console.PrintInfo("STT configuration changed — reinitializing...");
 
@@ -176,6 +187,7 @@ public partial class AppRunner
     /// <summary>
     /// Handles TTS configuration changes: recreates the TTS provider and audio
     /// handler when TTS-related properties change via /reconfigure.
+    /// When TTS is disabled, hides the status part and skips reinitialization.
     /// </summary>
     private void HandleTtsConfigChanged(ConfigChangedEventArgs e, IGatewayService gateway)
     {
@@ -203,7 +215,17 @@ public partial class AppRunner
         if (!e.AnyChanged(ttsProps))
             return;
 
-        _statusService.SetServiceStatus(ServiceKind.Tts, StatusColor.Yellow);
+        _cfg = e.NewConfig;
+
+        if (e.NewConfig.TtsProvider == TTS.TtsProviderType.Disabled)
+        {
+            _statusService.SetServiceHidden(ServiceKind.Tts, true);
+            _console.PrintInfo("TTS disabled — status hidden.");
+            return;
+        }
+
+        // Show TTS status part if it was previously hidden
+        _statusService.SetServiceHidden(ServiceKind.Tts, false);
         _console.PrintInfo("TTS configuration changed — reinitializing...");
 
         // Run on background thread so the Yellow status is visible to the

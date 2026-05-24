@@ -148,6 +148,13 @@ public sealed class StatusService : IStatusService, IDisposable
         }
     }
 
+    /// <inheritdoc />
+    public void SetServiceHidden(ServiceKind kind, bool hidden)
+    {
+        if (_serviceParts.TryGetValue(kind, out var part))
+            Mutate(() => part.SetHidden(hidden));
+    }
+
     public void SetAgentActivityStore(IAgentActivityStore tracker)
     {
         Mutate(() =>

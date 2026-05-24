@@ -9,6 +9,7 @@ namespace ArayCode.TTS;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum TtsProviderType
 {
+    Disabled,
     OpenAI,
     Edge,
     // Coqui + Python removed — use CoquiUv
@@ -45,6 +46,12 @@ public sealed class TtsService : ITtsService
     public TtsService(AppConfig config, IColorConsole console)
     {
         ProviderType = config.TtsProvider;
+
+        if (ProviderType == TtsProviderType.Disabled)
+        {
+            _provider = null;
+            return;
+        }
 
         _provider = CreateProvider(config, console);
 
