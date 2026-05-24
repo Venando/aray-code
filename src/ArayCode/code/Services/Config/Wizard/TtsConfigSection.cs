@@ -179,6 +179,14 @@ public sealed class TtsConfigSection : ConfigSectionBase
         result.Settings.Add(new ConfigSectionResult.SettingRecord(
             _configItems[IndexProvider].Title, _configItems[IndexProvider].GetDisplayValue(config)));
 
+        // Early exit if user selected Disabled — no further items to configure
+        if (config.TtsProvider == TtsProviderType.Disabled)
+        {
+            host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  TTS disabled.[/]");
+            result.IsChanged = changed;
+            return result;
+        }
+
         ConfigSelectionHelper.PrintSubSection(host, config.TtsProvider.ToString());
 
         // ── Coqui TTS (uv): delegate to model download/choose flow ──
