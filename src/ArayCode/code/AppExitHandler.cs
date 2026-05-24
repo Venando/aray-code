@@ -5,6 +5,10 @@ namespace ArayCode;
 /// <summary>
 /// Maps exceptions to process exit codes and orchestrates the shutdown user experience
 /// (error messages, key-press waits).
+/// 
+/// Resilience: when StreamShell is unreachable (already stopped, disposed, or crashed),
+/// falls back to raw <see cref="Console"/> output so the user always sees the error
+/// before the terminal window closes.
 /// </summary>
 public sealed class AppExitHandler : IDisposable
 {
@@ -15,6 +19,7 @@ public sealed class AppExitHandler : IDisposable
     public const int ExitError = 1;
 
     private readonly IColorConsole _console;
+    private bool _streamShellDead;
 
     public AppExitHandler(IColorConsole console)
     {
@@ -26,22 +31,41 @@ public sealed class AppExitHandler : IDisposable
     /// </summary>
     public int HandleExit(Exception? ex)
     {
+        try
+        {
+            return HandleExitInternal(ex);
+        }
+        catch
+        {
+            // If even the error handler itself throws (e.g. StreamShell disposed
+            // while we're writing to it), fall back to raw console.
+            _streamShellDead = true;
+            return HandleExitInternal(ex);
+        }
+    }
+
+    private int HandleExitInternal(Exception? ex)
+    {
         switch (ex)
         {
             case OperationCanceledException:
                 return ExitCancelled;
 
             case GatewayException gex:
-                _console.PrintGatewayError(gex.Message, gex.DetailCode, gex.RecommendedStep);
-                TryReadKey();
+                PrintError($"Gateway error: {gex.Message}");
+                if (gex.DetailCode != null)
+                    PrintError($"  Detail: {gex.DetailCode}");
+                if (gex.RecommendedStep != null)
+                    PrintError($"  Recommendation: {gex.RecommendedStep}");
+                WaitForUser();
                 return ExitError;
 
             case Exception ex2:
-                _console.PrintError($"Fatal: {ex2.Message}. Press any button");
-#if DEBUG
-                Console.Error.WriteLine(ex2.StackTrace);
-#endif
-                TryReadKey();
+                PrintError($"Fatal: {ex2.Message}");
+                PrintError(ex2.StackTrace ?? "(no stack trace)");
+                if (ex2.InnerException != null)
+                    PrintError($"Inner: {ex2.InnerException.GetType().Name}: {ex2.InnerException.Message}");
+                WaitForUser();
                 return ExitError;
 
             default:
@@ -49,14 +73,53 @@ public sealed class AppExitHandler : IDisposable
         }
     }
 
-    private static void TryReadKey()
+    private void PrintError(string message)
+    {
+        if (_streamShellDead)
+        {
+            FallbackConsoleWrite(message);
+            return;
+        }
+
+        try
+        {
+            _console.PrintError(message);
+        }
+        catch
+        {
+            _streamShellDead = true;
+            FallbackConsoleWrite(message);
+        }
+    }
+
+    private static void FallbackConsoleWrite(string message)
     {
         try
         {
-            if (Console.KeyAvailable)
-                Console.ReadKey(intercept: true);
+            Console.Error.WriteLine(message);
         }
-        catch (InvalidOperationException) { /* no console or stdin redirected */ }
+        catch
+        {
+            // Last resort — nothing we can do.
+        }
+    }
+
+    /// <summary>
+    /// Waits for the user to acknowledge the error before the terminal closes.
+    /// Uses a blocking <see cref="Console.ReadLine"/> — we want the window to stay
+    /// open until the user presses Enter.
+    /// </summary>
+    private static void WaitForUser()
+    {
+        try
+        {
+            Console.Write("Press Enter to close...");
+            Console.ReadLine();
+        }
+        catch (InvalidOperationException)
+        {
+            // No console or stdin redirected — can't wait, just exit.
+        }
     }
 
     public void Dispose() { }

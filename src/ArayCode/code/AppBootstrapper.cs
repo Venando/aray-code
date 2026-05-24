@@ -53,18 +53,38 @@ public sealed class AppBootstrapper : IDisposable
 
         Exception? ex = null;
         int runnerExitCode = 0;
+        Task? shellTask = null;
 
         try
         {
-            // Start StreamShell UI (non-blocking)
-            var shellTask = _shellHost.Run(_cts.Token);
+            // Start StreamShell UI (non-blocking).
+            // If this throws synchronously (e.g. terminal init failure), we catch
+            // it below and show the error via the console fallback path.
+            shellTask = _shellHost.Run(_cts.Token);
 
-            // When StreamShell exits unexpectedly (e.g. Ctrl+D), cancel the app's
-            // CTS so the runner loop also stops — killing both, not just StreamShell.
+            // When StreamShell exits unexpectedly (e.g. Ctrl+D, internal crash),
+            // cancel the app's CTS so the runner loop also stops.
             // When the app shuts down normally (/quit), _cts is already cancelled
             // so this continuation is a no-op.
-            _ = shellTask.ContinueWith(_ =>
+            //
+            // We also observe the shell task's exception so it doesn't fire
+            // TaskScheduler.UnobservedTaskException later.
+            _ = shellTask.ContinueWith(t =>
             {
+                if (t.IsFaulted)
+                {
+                    // StreamShell itself crashed — log to stderr so the user
+                    // sees it even if the shell host is dead.
+                    try
+                    {
+                        var shellEx = t.Exception?.InnerException ?? t.Exception;
+                        Console.Error.WriteLine($"\n═══ StreamShell crashed ═══");
+                        Console.Error.WriteLine($"{shellEx?.GetType().Name}: {shellEx?.Message}");
+                        Console.Error.WriteLine(shellEx?.StackTrace ?? "(no stack trace)");
+                    }
+                    catch { /* last resort */ }
+                }
+
                 if (_cts is { IsCancellationRequested: false })
                 {
                     try { _cts.Cancel(); } catch (ObjectDisposedException) { }
@@ -87,6 +107,22 @@ public sealed class AppBootstrapper : IDisposable
         catch (Exception caught)
         {
             ex = caught;
+        }
+        finally
+        {
+            // Always cancel the token source to stop StreamShell and any
+            // background work, even if we're exiting via an exception.
+            if (_cts is { IsCancellationRequested: false })
+            {
+                try { _cts.Cancel(); } catch (ObjectDisposedException) { }
+            }
+
+            // Give StreamShell a brief moment to flush and shut down cleanly.
+            if (shellTask is { IsCompleted: false })
+            {
+                try { await Task.WhenAny(shellTask, Task.Delay(2000)); }
+                catch { /* best effort */ }
+            }
         }
 
         if (runnerExitCode != 0)
