@@ -177,6 +177,17 @@ public sealed class StreamShellInputHandler : IDisposable
             RegisterGatewayCommands();
             _gatewayCommandsRegistered = true;
 
+            // First-connection: prompt to configure agents if no settings exist.
+            // Must check BEFORE fetching history to avoid printing history during the wizard.
+            if (!_agentSettingsPersistence.HasAnyPersistedSettings && AgentRegistry.Agents.Count > 0 && !FirstConnectionWizard.IsActive)
+            {
+                _host.SetDefaultPanel(new Services.EmptyBottomPanel());
+                var firstConnectionWizard = new FirstConnectionWizard(_host, _agentSettingsPersistence);
+                firstConnectionWizard.Run();
+                // Wizard handles activation and panel restore on completion — skip history fetch now.
+                return;
+            }
+
             // Fetch session history now that gateway-dependent commands are available
             var sessionKey = AgentRegistry.ActiveSessionKey;
             if (sessionKey != null)
@@ -187,13 +198,6 @@ public sealed class StreamShellInputHandler : IDisposable
             {
                 if (agent.SessionKey != sessionKey)
                     _ = BootstrapAgentHistoryAsync(agent.SessionKey);
-            }
-
-            // First-connection: prompt to configure agents if no settings exist
-            if (!_agentSettingsPersistence.HasAnyPersistedSettings && AgentRegistry.Agents.Count > 0 && !FirstConnectionWizard.IsActive)
-            {
-                var firstConnectionWizard = new FirstConnectionWizard(_host, _agentSettingsPersistence);
-                firstConnectionWizard.Run();
             }
         }
         else if (!connected && _gatewayCommandsRegistered)

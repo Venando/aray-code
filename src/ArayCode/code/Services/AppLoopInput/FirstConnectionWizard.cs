@@ -43,6 +43,7 @@ public sealed class FirstConnectionWizard
         WizardState.Enter();
         AgentRegistry.Deactivate();
         _pendingAgents = new Queue<AgentInfo>(agents);
+        _host.SetDefaultPanel(new Services.EmptyBottomPanel());
 
         _host.AddMessage("");
         _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  ╔══════════════════════════════════════════╗[/]");
@@ -79,6 +80,7 @@ public sealed class FirstConnectionWizard
 
     private void ActivateDefault()
     {
+        _host.ResetDefaultPanel();
         var defaultAgent = AgentRegistry.GetDefaultAgent();
         if (defaultAgent != null)
         {
