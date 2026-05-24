@@ -21,14 +21,17 @@ public sealed class FirstConnectionWizard
     private readonly IStreamShellHost _host;
     private readonly IAgentSettingsPersistence _persistence;
     private readonly Action<AgentInfo>? _onAgentConfigured;
+    private readonly Action? _onCompleted;
     private Queue<AgentInfo> _pendingAgents = new();
     private AgentInfo? _currentAgent;
 
-    public FirstConnectionWizard(IStreamShellHost host, IAgentSettingsPersistence persistence, Action<AgentInfo>? onAgentConfigured = null)
+    public FirstConnectionWizard(IStreamShellHost host, IAgentSettingsPersistence persistence,
+        Action<AgentInfo>? onAgentConfigured = null, Action? onCompleted = null)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
         _onAgentConfigured = onAgentConfigured;
+        _onCompleted = onCompleted;
     }
 
     public void Run()
@@ -88,6 +91,7 @@ public sealed class FirstConnectionWizard
             _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Active agent: {Markup.Escape(defaultAgent.Name)} — use /chat <name> or hotkey to switch, /crew config to edit[/]");
             _onAgentConfigured?.Invoke(defaultAgent);
         }
+        _onCompleted?.Invoke();
     }
 
     private void ProcessNextAgent()
