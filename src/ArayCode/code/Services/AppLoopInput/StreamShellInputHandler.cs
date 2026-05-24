@@ -147,7 +147,7 @@ public sealed class StreamShellInputHandler : IDisposable
         _registry.Register(reconnectCmd);
 
         _registry.Register(new AppConfigCommand(_host, _appConfig, _configService));
-        _registry.Register(new AppStatusCommand(_host, _statusService, _appConfig));
+        _registry.Register(new AppStatusCommand(_host, _statusService, () => _appConfig));
         _registry.Register(new ThemeCommand(_host, _themeService, _configService, _historyService, _appConfig));
 
         // ── Wire input handling ────────────────────────────────────────────

@@ -16,7 +16,7 @@ public sealed class AppStatusCommand : ICommand
 {
     private readonly IStreamShellHost _host;
     private readonly IStatusService _statusService;
-    private readonly AppConfig _config;
+    private readonly Func<AppConfig> _getConfig;
 
     public string Name => "appstatus";
     public string Description => "Show detailed app status (GW/TTS/STT/LLM)";
@@ -27,18 +27,18 @@ public sealed class AppStatusCommand : ICommand
     public AppStatusCommand(
         IStreamShellHost host,
         IStatusService statusService,
-        AppConfig config)
+        Func<AppConfig> getConfig)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _statusService = statusService ?? throw new ArgumentNullException(nameof(statusService));
-        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _getConfig = getConfig ?? throw new ArgumentNullException(nameof(getConfig));
     }
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
     {
         StatusColor? Fetch(ServiceKind kind) => _statusService.GetServiceStatus(kind);
 
-        using var panel = new AppStatusBottomPanel(_config, Fetch);
+        using var panel = new AppStatusBottomPanel(_getConfig(), Fetch);
         _host.SetBottomPanel(panel);
 
         try
