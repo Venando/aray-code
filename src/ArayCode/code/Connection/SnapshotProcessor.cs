@@ -47,20 +47,30 @@ public sealed class SnapshotProcessor : ISnapshotProcessor
                     _logger.Log("gateway", "Snapshot agent missing 'agentId' — skipping malformed entry.", LogLevel.Info);
                     continue;
                 }
+
+                string name;
+
                 if (!agent.TryGetProperty("name", out var nameEl))
                 {
-                    _logger.Log("gateway", $"Snapshot agent '{agentIdEl.GetString()}' missing 'name' — skipping malformed entry.", LogLevel.Info);
-                    continue;
+                    name = "Unnamed";
                 }
+                else
+                {
+                    name = nameEl.GetString() ?? "";
+                }
+
+                bool isDefault = false;
+                
                 if (!agent.TryGetProperty("isDefault", out var isDefaultEl))
                 {
-                    _logger.Log("gateway", $"Snapshot agent '{agentIdEl.GetString()}' missing 'isDefault' — skipping malformed entry.", LogLevel.Info);
-                    continue;
+                    _logger.Log("gateway", $"Snapshot agent '{agentIdEl.GetString()}' missing 'isDefault'", LogLevel.Info);
+                }
+                else
+                {
+                    isDefault = isDefaultEl.GetBoolean();
                 }
 
                 string agentId = agentIdEl.GetString() ?? "";
-                string name = nameEl.GetString() ?? "";
-                bool isDefault = isDefaultEl.GetBoolean();
                 string sessionKey = $"agent:{agentId}:main";
 
                 agentList.Add(new AgentInfo
