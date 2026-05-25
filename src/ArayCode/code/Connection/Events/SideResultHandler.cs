@@ -41,10 +41,7 @@ public class SideResultHandler : IEventHandler<SideResultEvent>
         _console.PrintMarkup($"[dim]╭─[/] [steelblue1_1]{MarkupEscape(kind)}[/] [dim]side query[/]");
 
         // ── Question ────────────────────────────────────────────
-        // For 'btw' side results the question is the user's own command,
-        // which was already printed locally by OpenClawForwardCommand
-        // (⚡ /btw <question>). Skip re-displaying it to avoid double-printing.
-        if (!string.IsNullOrEmpty(question) && kind != "btw")
+        if (!string.IsNullOrEmpty(question))
         {
             string prefix = "[dim]│[/] [grey]Q:[/] ";
             int maxLineWidth = consoleWidth - 8 - rightMargin; // "│ Q: " = 6 + 2 padding
