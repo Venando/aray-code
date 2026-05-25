@@ -24,6 +24,8 @@ public partial class AppRunner
         if (!e.AnyChanged(gwProps))
             return;
 
+        _cfg = e.NewConfig;
+
         _statusService.SetServiceStatus(ServiceKind.Gateway, StatusColor.Yellow);
         _console.PrintInfo("Gateway configuration changed — reconnecting...");
         try
