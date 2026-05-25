@@ -235,19 +235,26 @@ internal sealed class LinuxEvdevHotkeyHook : IGlobalHotkeyHook
 
         // Check all configured hotkeys
         int matchedIndex = FindMatchingHotkeyIndex(code);
-        if (matchedIndex >= 0)
+        if (value == VALUE_DOWN && matchedIndex >= 0 && _activeHotkeyIndex < 0)
         {
-            if (value == VALUE_DOWN && _activeHotkeyIndex < 0)
+            _activeHotkeyIndex = matchedIndex;
+            int capturedIndex = matchedIndex;
+            ThreadPool.QueueUserWorkItem(_ =>
             {
-                _activeHotkeyIndex = matchedIndex;
-                int capturedIndex = matchedIndex;
-                ThreadPool.QueueUserWorkItem(_ =>
-                {
-                    HotkeyPressed?.Invoke();
-                    HotkeyIndexPressed?.Invoke(capturedIndex);
-                });
-            }
-            else if (value == VALUE_UP && _activeHotkeyIndex >= 0)
+                HotkeyPressed?.Invoke();
+                HotkeyIndexPressed?.Invoke(capturedIndex);
+            });
+        }
+        else if (value == VALUE_UP && _activeHotkeyIndex >= 0)
+        {
+            // Fire release when the active hotkey's key goes up.
+            // Use the saved index rather than re-matching — modifiers may
+            // already be released (user lifted Alt before D), causing
+            // FindMatchingHotkeyIndex to miss and _activeHotkeyIndex to stick.
+            var activeHotkey = _activeHotkeyIndex < _hotkeys.Count
+                ? _hotkeys[_activeHotkeyIndex]
+                : null;
+            if (activeHotkey != null && HotkeyMapping.GetPlatformKeyCode(activeHotkey.Key) == code)
             {
                 int capturedIndex = _activeHotkeyIndex;
                 _activeHotkeyIndex = -1;

@@ -130,21 +130,28 @@ internal sealed class WindowsHotkeyHook : IGlobalHotkeyHook
 
             // Check all configured hotkeys
             int matchedIndex = FindMatchingHotkeyIndex((int)info.vkCode);
-            if (matchedIndex >= 0)
+            if (isDown && matchedIndex >= 0 && _activeHotkeyIndex < 0)
             {
-                if (isDown && _activeHotkeyIndex < 0)
+                _activeHotkeyIndex = matchedIndex;
+                int capturedIndex = matchedIndex;
+                ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    _activeHotkeyIndex = matchedIndex;
-                    int capturedIndex = matchedIndex;
-                    ThreadPool.QueueUserWorkItem(_ =>
-                    {
-                        HotkeyPressed?.Invoke();
-                        HotkeyIndexPressed?.Invoke(capturedIndex);
-                    });
-                    // Block the keystroke so it doesn't reach the console/StreamShell
-                    return new IntPtr(1);
-                }
-                else if (isUp && _activeHotkeyIndex >= 0)
+                    HotkeyPressed?.Invoke();
+                    HotkeyIndexPressed?.Invoke(capturedIndex);
+                });
+                // Block the keystroke so it doesn't reach the console/StreamShell
+                return new IntPtr(1);
+            }
+            else if (isUp && _activeHotkeyIndex >= 0)
+            {
+                // Fire release when the active hotkey's key goes up.
+                // Use the saved index rather than re-matching — modifiers may
+                // already be released, causing FindMatchingHotkeyIndex to miss
+                // and _activeHotkeyIndex to stick.
+                var activeHotkey = _activeHotkeyIndex < _hotkeyConfigs.Count
+                    ? _hotkeyConfigs[_activeHotkeyIndex]
+                    : null;
+                if (activeHotkey != null && activeHotkey.KeyCode == (int)info.vkCode)
                 {
                     int capturedIndex = _activeHotkeyIndex;
                     _activeHotkeyIndex = -1;
