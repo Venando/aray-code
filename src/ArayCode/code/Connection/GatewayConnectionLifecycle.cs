@@ -259,7 +259,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
                 ["version"] = _cfg.ClientVersion,
                 ["platform"] = platform,
                 ["mode"] = mode,
-                ["deviceFamily"] = deviceFamily
+                ["deviceFamily"] = deviceFamily,
+                ["displayName"] = "ArayCode"
             },
             ["role"] = "operator",
             ["scopes"] = scopes,
