@@ -299,7 +299,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         }
         else
         {
-            _console.Log("gateway", "Protocol version field missing in hello-ok", LogLevel.Warning);
+            _console.Log("gateway", "Protocol version field missing in hello-ok", LogLevel.Info);
         }
     }
 
@@ -311,7 +311,11 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         var lines = $"--- SERVER HELLO PAYLOAD ---\n{extraPretty}\n----------------------------".Split('\n');
         foreach (var line in lines) _console.Log("ws", line, LogLevel.Verbose);
 
+        ReadServerInfo(hello);
+        VerifyFeatures(hello);
+        ReadPolicy(hello);
         PersistDeviceTokenIfIssued(hello);
+        PersistDeviceTokensArrayIfIssued(hello);
 
         // Save last active agent before snapshot resets agents
         var previousAgentId = AgentRegistry.ActiveAgentId;
@@ -329,13 +333,128 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         }
     }
 
+    private void ReadServerInfo(JsonElement hello)
+    {
+        if (hello.TryGetProperty("server", out var server))
+        {
+            var version = server.TryGetProperty("version", out var v) ? v.GetString() : null;
+            var connId = server.TryGetProperty("connId", out var c) ? c.GetString() : null;
+            if (version != null)
+                _console.Log("gateway", $"Gateway version: {version}", LogLevel.Info);
+            if (connId != null)
+                _console.Log("gateway", $"Connection ID: {connId}", LogLevel.Verbose);
+        }
+    }
+
+    private void VerifyFeatures(JsonElement hello)
+    {
+        if (!hello.TryGetProperty("features", out var features))
+        {
+            _console.Log("gateway", "Features block missing in hello-ok", LogLevel.Info);
+            return;
+        }
+
+        var requiredMethods = new[] { "connect", "sessions.subscribe", "chat.send" };
+        var requiredEvents = new[] { "agent", "chat", "chat.side_result" };
+
+        var methods = features.TryGetProperty("methods", out var m) && m.ValueKind == JsonValueKind.Array
+            ? m.EnumerateArray().Select(x => x.GetString()).OfType<string>().ToHashSet()
+            : new HashSet<string>();
+
+        var events = features.TryGetProperty("events", out var e) && e.ValueKind == JsonValueKind.Array
+            ? e.EnumerateArray().Select(x => x.GetString()).OfType<string>().ToHashSet()
+            : new HashSet<string>();
+
+        foreach (var method in requiredMethods)
+        {
+            if (!methods.Contains(method))
+                _console.Log("gateway", $"WARNING: Gateway does not advertise required method '{method}'", LogLevel.Info);
+        }
+
+        foreach (var evt in requiredEvents)
+        {
+            if (!events.Contains(evt))
+                _console.Log("gateway", $"WARNING: Gateway does not advertise required event '{evt}'", LogLevel.Info);
+        }
+
+        _console.Log("gateway", $"Gateway methods: {string.Join(", ", methods)}", LogLevel.Verbose);
+        _console.Log("gateway", $"Gateway events: {string.Join(", ", events)}", LogLevel.Verbose);
+    }
+
+    private void ReadPolicy(JsonElement hello)
+    {
+        if (!hello.TryGetProperty("policy", out var policy))
+        {
+            _console.Log("gateway", "Policy block missing in hello-ok", LogLevel.Info);
+            return;
+        }
+
+        if (policy.TryGetProperty("tickIntervalMs", out var tickEl) && tickEl.TryGetInt32(out var tickMs))
+        {
+            var interval = TimeSpan.FromMilliseconds(tickMs);
+            _ws.Options.KeepAliveInterval = interval;
+            _console.Log("gateway", $"Keepalive interval set to {interval.TotalSeconds}s (from gateway policy)", LogLevel.Info);
+        }
+
+        if (policy.TryGetProperty("maxPayload", out var maxPayloadEl) && maxPayloadEl.TryGetInt32(out var maxPayload))
+        {
+            _console.Log("gateway", $"Max payload: {maxPayload / 1024 / 1024} MiB", LogLevel.Verbose);
+        }
+
+        if (policy.TryGetProperty("maxBufferedBytes", out var maxBufEl) && maxBufEl.TryGetInt32(out var maxBuf))
+        {
+            _console.Log("gateway", $"Max buffered bytes: {maxBuf / 1024 / 1024} MiB", LogLevel.Verbose);
+        }
+    }
+
+    private void PersistDeviceTokensArrayIfIssued(JsonElement hello)
+    {
+        if (!hello.TryGetProperty("auth", out var authEl))
+            return;
+
+        // Support the bootstrap/QR flow where auth.deviceTokens is an array
+        if (authEl.TryGetProperty("deviceTokens", out var tokensEl) && tokensEl.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var tokenObj in tokensEl.EnumerateArray())
+            {
+                if (tokenObj.TryGetProperty("role", out var roleEl)
+                    && "operator".Equals(roleEl.GetString(), StringComparison.OrdinalIgnoreCase)
+                    && tokenObj.TryGetProperty("deviceToken", out var dtEl))
+                {
+                    var token = dtEl.GetString();
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        _cfg.DeviceToken = token;
+                        new ConfigurationService().Save(_cfg);
+                        _console.Log("gateway", "Persisted operator device token from bootstrap flow.", LogLevel.Info);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     private void PersistDeviceTokenIfIssued(JsonElement hello)
     {
-        if (hello.TryGetProperty("auth", out var authEl)
-            && authEl.TryGetProperty("deviceToken", out var dtEl))
+        if (hello.TryGetProperty("auth", out var authEl))
         {
-            _cfg.DeviceToken = dtEl.GetString();
-            new ConfigurationService().Save(_cfg);
+            // Verify granted scopes match requested
+            var requestedScopes = new[] { "operator.read", "operator.write", "operator.approvals", "operator.admin" };
+            if (authEl.TryGetProperty("scopes", out var scopesEl) && scopesEl.ValueKind == JsonValueKind.Array)
+            {
+                var granted = scopesEl.EnumerateArray().Select(s => s.GetString()).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach (var scope in requestedScopes)
+                {
+                    if (!granted.Contains(scope))
+                        _console.Log("gateway", $"WARNING: Scope '{scope}' was not granted by gateway", LogLevel.Info);
+                }
+            }
+
+            if (authEl.TryGetProperty("deviceToken", out var dtEl))
+            {
+                _cfg.DeviceToken = dtEl.GetString();
+                new ConfigurationService().Save(_cfg);
+            }
         }
     }
 
