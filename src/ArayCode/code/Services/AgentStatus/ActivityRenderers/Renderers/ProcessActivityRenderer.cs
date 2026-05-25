@@ -14,7 +14,7 @@ internal sealed class ProcessActivityRenderer : IAgentActivityRenderer
             
             if (args.TryGetProperty("sessionId", out var sessionIdProp))
             {
-                return $"Process {action}: {AgentActivityRendererHelpers.Truncate(sessionIdProp.GetString() ?? "", 30)}";
+                return $"Process {action}: {sessionIdProp.GetString() ?? ""}";
             }
 
             return $"Process {action}";

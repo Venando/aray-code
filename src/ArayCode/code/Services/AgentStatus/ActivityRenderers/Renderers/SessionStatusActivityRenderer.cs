@@ -10,7 +10,7 @@ internal sealed class SessionStatusActivityRenderer : IAgentActivityRenderer
     {
         var key = AgentActivityRendererHelpers.GetString(args, "sessionKey");
         return key is not null
-            ? $"Checking status of {AgentActivityRendererHelpers.Truncate(key, 30)}"
+            ? $"Checking status of {key}"
             : "Checking session status";
     }
 }
