@@ -267,7 +267,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
                 ["platform"] = platform,
                 ["mode"] = mode,
                 ["deviceFamily"] = deviceFamily,
-                ["displayName"] = "ArayCode",
+                ["displayName"] = "ArayCode (CLI app)",
                 ["instanceId"] = instanceId
             },
             ["role"] = "operator",
