@@ -347,6 +347,14 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
             if (connId != null)
                 _console.Log("gateway", $"Connection ID: {connId}", LogLevel.Verbose);
         }
+
+        if (hello.TryGetProperty("pluginSurfaceUrls", out var surfaces))
+        {
+            foreach (var prop in surfaces.EnumerateObject())
+            {
+                _console.Log("gateway", $"Plugin surface '{prop.Name}': {prop.Value.GetString()}", LogLevel.Verbose);
+            }
+        }
     }
 
     private void VerifyFeatures(JsonElement hello)
