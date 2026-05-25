@@ -35,20 +35,6 @@ public sealed class TextMessageSender : ITextMessageSender
                 _console.PrintUserMessage(text);
             }
             _tracker.TrackSent(text);
-
-            // Some gateway commands (e.g. /btw) are stored as bare text
-            // without the slash prefix. Track the stripped version too so
-            // the gateway echo-back is caught by UserMessageHandler dedup.
-            if (text.Length > 1 && text[0] == '/' && text.Contains(' '))
-            {
-                var firstSpace = text.IndexOf(' ');
-                if (firstSpace > 0)
-                {
-                    var bare = text.Substring(firstSpace + 1).Trim();
-                    if (bare.Length > 0)
-                        _tracker.TrackSent(bare);
-                }
-            }
             await _gateway.SendTextAsync(text, ct);
         }
         catch (GatewayException gex)

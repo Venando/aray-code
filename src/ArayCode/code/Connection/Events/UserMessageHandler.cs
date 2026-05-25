@@ -35,6 +35,9 @@ public class UserMessageHandler : IEventHandler<UserMessageEvent>
         if (string.IsNullOrWhiteSpace(evt.ContentText))
             return;
 
+        if (evt.ContentText.StartsWith("/btw"))
+            return;
+            
         // If we sent this message locally, it was already printed by
         // TextMessageSender — skip to avoid double-printing.
         if (_tracker.WasRecentlySent(evt.ContentText))
