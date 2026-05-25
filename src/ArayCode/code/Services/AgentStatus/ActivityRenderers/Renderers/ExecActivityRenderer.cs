@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArayCode.Formatting;
 
 namespace ArayCode.Services;
 
@@ -11,13 +12,23 @@ internal sealed class ExecActivityRenderer : IAgentActivityRenderer
         var cmd = AgentActivityRendererHelpers.GetString(args, "command");
         if (cmd is null) return "Running command";
 
-        // For multi-line scripts, show compact preview
+        // For multi-line scripts, show compact preview with protected line-count suffix
         var lines = cmd.Split('\n');
         if (lines.Length > 3)
         {
             var firstLine = lines[0].Trim();
-            return "Running " + AgentActivityRendererHelpers.Truncate(firstLine, 50) +
-                   $" (+{lines.Length - 1} lines)";
+            var prefix = "Running ";
+            var suffix = $" (+{lines.Length - 1} lines)";
+            var freeSpace = ConsoleMetrics.GetWindowWidth() - AgentStatusLineRenderer.AllMargins;
+            var availableForLine = Math.Max(0, freeSpace - CharacterWidth.GetDisplayWidth(prefix) - CharacterWidth.GetDisplayWidth(suffix));
+
+            var lineWidth = CharacterWidth.GetDisplayWidth(firstLine);
+            if (lineWidth > availableForLine && availableForLine > 3)
+            {
+                firstLine = AgentStatusLineRenderer.TruncateByDisplayWidth(firstLine, availableForLine - 1) + "…";
+            }
+
+            return prefix + firstLine + suffix;
         }
 
         // Try to parse with TerminalCommandParser for better display
@@ -36,7 +47,7 @@ internal sealed class ExecActivityRenderer : IAgentActivityRenderer
         }
 
         var firstLineDirect = cmd.Split('\n')[0].Trim();
-        return "Running " + AgentActivityRendererHelpers.Truncate(firstLineDirect, 60);
+        return "Running " + firstLineDirect;
     }
 
     private static string BuildArgSummary(CommandMetadata meta)

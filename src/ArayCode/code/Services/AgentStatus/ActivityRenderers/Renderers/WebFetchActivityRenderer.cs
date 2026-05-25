@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArayCode.Formatting;
 
 namespace ArayCode.Services;
 
@@ -15,14 +16,23 @@ internal sealed class WebFetchActivityRenderer : IAgentActivityRenderer
 
         var freeSpace = ConsoleMetrics.GetWindowWidth() - AgentStatusLineRenderer.AllMargins;
 
+        string? maxCharsInfo = null;
         if (args.TryGetProperty("maxChars", out var maxCharsProp))
         {
-            return $"Fetching {display} (max {maxCharsProp.GetInt32()} chars)";
+            maxCharsInfo = $" (max {maxCharsProp.GetInt32()} chars)";
         }
-        else
+
+        var prefix = "Fetching ";
+        var prefixWidth = CharacterWidth.GetDisplayWidth(prefix);
+        var suffixWidth = maxCharsInfo is not null ? CharacterWidth.GetDisplayWidth(maxCharsInfo) : 0;
+        var availableForUrl = Math.Max(0, freeSpace - prefixWidth - suffixWidth);
+
+        var urlWidth = CharacterWidth.GetDisplayWidth(display);
+        if (urlWidth > availableForUrl && availableForUrl > 3)
         {
-            display = $"Fetching {display}";
-            return $"Fetching {display}";   
+            display = AgentStatusLineRenderer.TruncateByDisplayWidth(display, availableForUrl - 1) + "…";
         }
+
+        return prefix + display + (maxCharsInfo ?? "");
     }
 }
