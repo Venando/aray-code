@@ -21,6 +21,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
     private IClientWebSocket _ws = null!;
     private Task? _recvTask;
+    private TimeSpan? _negotiatedKeepAliveInterval;
 
     private readonly CancellationTokenSource _disposeCts = new CancellationTokenSource();
 
@@ -125,7 +126,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         var linkedCt = _connectionCts.Token;
         try
         {
-            _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+            _ws.Options.KeepAliveInterval = _negotiatedKeepAliveInterval ?? TimeSpan.FromSeconds(30);
 
             // Set Origin header to satisfy gateway WebSocket handshake validation
             // (required after OpenClaw security hardening for CSWSH protection).
@@ -403,8 +404,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         if (policy.TryGetProperty("tickIntervalMs", out var tickEl) && tickEl.TryGetInt32(out var tickMs))
         {
             var interval = TimeSpan.FromMilliseconds(tickMs);
-            _ws.Options.KeepAliveInterval = interval;
-            _console.Log("gateway", $"Keepalive interval set to {interval.TotalSeconds}s (from gateway policy)", LogLevel.Info);
+            _negotiatedKeepAliveInterval = interval;
+            _console.Log("gateway", $"Keepalive interval negotiated: {interval.TotalSeconds}s (will apply on next connection)", LogLevel.Info);
         }
 
         if (policy.TryGetProperty("maxPayload", out var maxPayloadEl) && maxPayloadEl.TryGetInt32(out var maxPayload))
