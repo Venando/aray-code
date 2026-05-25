@@ -10,7 +10,7 @@ public sealed class HistoryCommand : ICommand
     private readonly IGatewayService _gatewayService;
     private readonly IColorConsole _console;
     private readonly IPttStateMachine _pttStateMachine;
-    private readonly AppConfig _appConfig;
+    private readonly Func<AppConfig> _getAppConfig;
 
     public string Name => "history";
     public string Description => "[[N]] Load N session history entries";
@@ -23,13 +23,13 @@ public sealed class HistoryCommand : ICommand
         IGatewayService gatewayService,
         IColorConsole console,
         IPttStateMachine pttStateMachine,
-        AppConfig appConfig)
+        Func<AppConfig> getAppConfig)
     {
         _host = host;
         _gatewayService = gatewayService;
         _console = console;
         _pttStateMachine = pttStateMachine;
-        _appConfig = appConfig;
+        _getAppConfig = getAppConfig;
     }
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)
@@ -41,7 +41,7 @@ public sealed class HistoryCommand : ICommand
             return;
         }
 
-        int limit = _appConfig.HistoryDisplayCount;
+        int limit = _getAppConfig().HistoryDisplayCount;
         if (args.Length > 0 && int.TryParse(args[0], out var requested))
             limit = Math.Clamp(requested, 1, 200);
 

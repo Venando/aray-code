@@ -12,13 +12,17 @@ internal sealed class WebFetchActivityRenderer : IAgentActivityRenderer
         if (url is null) return "Fetching URL";
 
         var display = url.Replace("https://", "").Replace("http://", "");
-        display = AgentActivityRendererHelpers.Truncate(display, 50);
+
+        var freeSpace = ConsoleMetrics.GetWindowWidth() - AgentStatusLineRenderer.AllMargins;
 
         if (args.TryGetProperty("maxChars", out var maxCharsProp))
         {
             return $"Fetching {display} (max {maxCharsProp.GetInt32()} chars)";
         }
-
-        return $"Fetching {display}";
+        else
+        {
+            display = $"Fetching {display}";
+            return $"Fetching {display}";   
+        }
     }
 }

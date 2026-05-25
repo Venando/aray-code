@@ -9,7 +9,7 @@ public sealed class CrewCommand : ICommand
 {
     private readonly IStreamShellHost _host;
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
-    private readonly AppConfig _appConfig;
+    private readonly Func<AppConfig> _getAppConfig;
     private readonly SessionHistoryService _historyService;
     private readonly IConfigurationService _configService;
 
@@ -22,13 +22,13 @@ public sealed class CrewCommand : ICommand
     public CrewCommand(
         IStreamShellHost host,
         IAgentSettingsPersistence agentSettingsPersistence,
-        AppConfig appConfig,
+        Func<AppConfig> getAppConfig,
         SessionHistoryService historyService,
         IConfigurationService configService)
     {
         _host = host;
         _agentSettingsPersistence = agentSettingsPersistence;
-        _appConfig = appConfig;
+        _getAppConfig = getAppConfig;
         _historyService = historyService;
         _configService = configService;
     }
@@ -52,7 +52,7 @@ public sealed class CrewCommand : ICommand
             return Task.CompletedTask;
         }
 
-        var globalHotkey = _appConfig.HotkeyCombination;
+        var globalHotkey = _getAppConfig().HotkeyCombination;
         var allSettings = _agentSettingsPersistence.AllAgentSettings;
 
         _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  Available agents:[/]");

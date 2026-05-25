@@ -11,7 +11,6 @@ public sealed class ChatCommand : ICommand
     private readonly IStreamShellHost _host;
     private readonly IConfigurationService _configService;
     private readonly SessionHistoryService _historyService;
-    private readonly AppConfig _appConfig;
 
     public string Name => "chat";
     public string Description => "<name|id> Switch active agent by name or ID";
@@ -22,13 +21,11 @@ public sealed class ChatCommand : ICommand
     public ChatCommand(
         IStreamShellHost host,
         IConfigurationService configService,
-        SessionHistoryService historyService,
-        AppConfig appConfig)
+        SessionHistoryService historyService)
     {
         _host = host;
         _configService = configService;
         _historyService = historyService;
-        _appConfig = appConfig;
     }
 
     public async Task ExecuteAsync(string[] args, Dictionary<string, string> namedArgs, CancellationToken ct = default)

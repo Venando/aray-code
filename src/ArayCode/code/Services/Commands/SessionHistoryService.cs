@@ -14,7 +14,7 @@ public sealed class SessionHistoryService
     private readonly IGatewayService _gatewayService;
     private readonly IColorConsole _console;
     private readonly IPttStateMachine _pttStateMachine;
-    private readonly AppConfig _appConfig;
+    private AppConfig _appConfig;
 
     public SessionHistoryService(
         IStreamShellHost host,
@@ -27,6 +27,11 @@ public sealed class SessionHistoryService
         _gatewayService = gatewayService;
         _console = console;
         _pttStateMachine = pttStateMachine;
+        _appConfig = appConfig;
+    }
+
+    public void UpdateConfig(AppConfig appConfig)
+    {
         _appConfig = appConfig;
     }
 

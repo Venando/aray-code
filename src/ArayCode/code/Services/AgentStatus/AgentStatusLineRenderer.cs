@@ -16,6 +16,7 @@ public static class AgentStatusLineRenderer
     public const int TimeColWidth = 4;   // "12m", "1h", etc.
     public const int GapAfterName = 2;
     public const int GapBeforeTime = 2;
+    public const int AllMargins = NameColWidth + TimeColWidth + GapAfterName + GapBeforeTime;
 
     public const int MaxNameDisplayLength = 10;
 
