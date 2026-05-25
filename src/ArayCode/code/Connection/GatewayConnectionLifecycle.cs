@@ -238,6 +238,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
         var sigPayload = _deviceIdentity.BuildV3Payload(platform, deviceFamily, clientId, mode, "operator", scopes, signedAt, authToken, nonce);
 
+        var instanceId = Guid.NewGuid().ToString("N")[..16];
+
         var redactedPayload = string.IsNullOrEmpty(authToken)
             ? sigPayload
             : sigPayload.Replace(authToken, "***REDACTED***");
@@ -260,7 +262,8 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
                 ["platform"] = platform,
                 ["mode"] = mode,
                 ["deviceFamily"] = deviceFamily,
-                ["displayName"] = "ArayCode"
+                ["displayName"] = "ArayCode",
+                ["instanceId"] = instanceId
             },
             ["role"] = "operator",
             ["scopes"] = scopes,
