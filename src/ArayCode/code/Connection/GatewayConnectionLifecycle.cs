@@ -289,6 +289,18 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
 
         if (hello.TryGetProperty("error", out var err))
             throw new Exception($"Server returned hello-ok with error: {err}");
+
+        if (hello.TryGetProperty("protocol", out var protoEl)
+            && protoEl.TryGetInt32(out var protocol))
+        {
+            if (protocol < 3 || protocol > 4)
+                throw new Exception($"Unsupported protocol version negotiated: {protocol} (expected 3-4)");
+            _console.Log("gateway", $"Protocol version negotiated: {protocol}", LogLevel.Verbose);
+        }
+        else
+        {
+            _console.Log("gateway", "Protocol version field missing in hello-ok", LogLevel.Warning);
+        }
     }
 
     private void ProcessHelloPayload(JsonElement hello)
