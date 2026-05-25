@@ -22,6 +22,7 @@ public sealed class FakeInputHandler : IInputHandler
     public int RightMargin { get; set; } = 80;
     public int PrefixMargin { get; set; } = 2;
     public int WrappingRightMargin { get; set; } = 4;
+    public bool ClipboardAvailable { get; set; }
     public bool WordWrap { get; set; } = true;
     public bool QuitRequested { get; set; }
     public List<Attachment> Attachments => _attachments;
