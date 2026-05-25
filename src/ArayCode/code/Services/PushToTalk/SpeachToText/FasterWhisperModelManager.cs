@@ -209,7 +209,7 @@ public sealed class FasterWhisperModelManager
                     if (line == null) break;
                     stderrLines.Add(line);
                     if (!string.IsNullOrWhiteSpace(line))
-                        _host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]      [stderr] {line}[/]");
+                        _host.AddMessage($"[{ThemeProvider.Current.Tools.General.Muted}]      [[stderr]] {line}[/]");
                     if (line.Contains("%", StringComparison.Ordinal) || line.Contains("Download", StringComparison.OrdinalIgnoreCase))
                         progressCallback?.Invoke(modelName, "Downloading...", null, null, false);
                 }
