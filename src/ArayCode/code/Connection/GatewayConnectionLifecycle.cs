@@ -126,6 +126,14 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         try
         {
             _ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+
+            // Set Origin header to satisfy gateway WebSocket handshake validation
+            // (required after OpenClaw security hardening for CSWSH protection).
+            // Browser clients send Origin automatically; .NET ClientWebSocket does not.
+            var origin = _cfg.GatewayUrl
+                .Replace("ws://", "http://", StringComparison.OrdinalIgnoreCase)
+                .Replace("wss://", "https://", StringComparison.OrdinalIgnoreCase);
+            _ws.Options.SetRequestHeader("Origin", origin);
             _gatewayMessager = new GatewayMessager(_ws, _events, _cfg, ct2 => _ = HandleDisconnectionAsync(ct2), console: _console, jobRunner: _jobRunner, activityStore: _activityStore, tracker: _tracker);
 
             await ConnectWebSocketAsync(linkedCt).ConfigureAwait(false);
