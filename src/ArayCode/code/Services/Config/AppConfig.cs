@@ -18,7 +18,7 @@ public enum ThinkingMode
 
 public sealed class AppConfig
 {
-    public string GatewayUrl { get; set; } = "ws://localhost:18789";
+    public string GatewayUrl { get; set; } = "ws://127.0.0.1:18789";
     public string? AuthToken { get; set; }
     public string? DeviceToken { get; set; }
     public string? TlsFingerprint { get; set; }
