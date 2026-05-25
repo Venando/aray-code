@@ -11,7 +11,6 @@ internal sealed class WebSearchActivityRenderer : IAgentActivityRenderer
         var query = AgentActivityRendererHelpers.GetString(args, "query");
         if (query is null) return "Searching web";
 
-        var display = AgentActivityRendererHelpers.Truncate(query.Replace('\n', ' '), 50);
-        return $"Searching: {display}";
+        return $"Searching: {query.Replace('\n', ' ')}";
     }
 }

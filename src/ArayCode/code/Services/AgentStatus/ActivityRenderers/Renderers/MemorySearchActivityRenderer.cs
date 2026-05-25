@@ -11,7 +11,6 @@ internal sealed class MemorySearchActivityRenderer : IAgentActivityRenderer
         var query = AgentActivityRendererHelpers.GetString(args, "query");
         if (query is null) return "Searching memory";
 
-        var display = AgentActivityRendererHelpers.Truncate(query.Replace('\n', ' '), 50);
-        return $"Searching memory: {display}";
+        return $"Searching memory: {query.Replace('\n', ' ')}";
     }
 }

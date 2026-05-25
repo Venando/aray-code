@@ -11,6 +11,6 @@ internal sealed class ImageGenerateActivityRenderer : IAgentActivityRenderer
         var prompt = AgentActivityRendererHelpers.GetString(args, "prompt");
         if (prompt is null) return "Generating image";
 
-        return $"Generating image: {AgentActivityRendererHelpers.Truncate(prompt, 50)}";
+        return $"Generating image: {prompt}";
     }
 }

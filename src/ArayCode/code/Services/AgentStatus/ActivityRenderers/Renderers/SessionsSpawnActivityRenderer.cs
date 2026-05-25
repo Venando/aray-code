@@ -10,11 +10,11 @@ internal sealed class SessionsSpawnActivityRenderer : IAgentActivityRenderer
     {
         var label = AgentActivityRendererHelpers.GetString(args, "label");
         if (label is not null)
-            return $"Spawning: {AgentActivityRendererHelpers.Truncate(label, 40)}";
+            return $"Spawning: {label}";
 
         var task = AgentActivityRendererHelpers.GetString(args, "task");
         if (task is not null)
-            return $"Spawning: {AgentActivityRendererHelpers.Truncate(task.Replace('\n', ' '), 40)}";
+            return $"Spawning: {task.Replace('\n', ' ')}";
 
         return "Spawning subagent";
     }
