@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            // Path was root/bin/... now it is root/src/ArayCode/bin/...
+            "program": "${workspaceFolder}/src/ArayCode/bin/Debug/net10.0/aray-code.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/ArayCode",
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        }
+    ]
+}
