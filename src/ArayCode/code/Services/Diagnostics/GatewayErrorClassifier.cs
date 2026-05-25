@@ -94,6 +94,32 @@ public static class GatewayErrorClassifier
             };
         }
 
+        // JSON parsing / schema mismatches from the gateway are NOT fatal.
+        // The server may send unexpected shapes; we should log and let the user
+        // reconnect or change configs rather than killing the app.
+        if (ex is KeyNotFoundException ||
+            ex is System.Text.Json.JsonException ||
+            ex is InvalidOperationException ||
+            message.Contains("property", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ErrorClassification
+            {
+                Category = ErrorCategory.Actionable,
+                Code = "GATEWAY_DATA_ERROR",
+                HumanMessage = $"Gateway sent unexpected data: {message}",
+                SuggestedActions = new[]
+                {
+                    "Check gateway version compatibility.",
+                    "Use /reconnect to retry.",
+                    "Use /appconfig to change gateway URL or token."
+                },
+                ShouldRetry = true,
+                ShouldStopApp = false,
+                RawMessage = message,
+                StackTrace = ex.StackTrace
+            };
+        }
+
         // Network-level failures are transient
         if (ex is System.Net.WebSockets.WebSocketException ||
             ex is System.IO.IOException ||

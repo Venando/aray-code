@@ -127,23 +127,36 @@ public class GatewayMessager : IDisposable, IRpcCaller
 
     public void ProcessFrame(string json)
     {
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-        var type = root.GetProperty("type").GetString();
-
-        _console.Log("debug", $"Frame type={type}", LogLevel.Debug);
-
-        switch (type)
+        try
         {
-            case "res":
-                HandleResponse(root);
-                break;
-            case "event":
-                HandleEvent(root);
-                break;
-            default:
-                _console.Log("debug", $"Unknown frame type: {type}", LogLevel.Debug);
-                break;
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var type = root.GetProperty("type").GetString();
+
+            _console.Log("debug", $"Frame type={type}", LogLevel.Debug);
+
+            switch (type)
+            {
+                case "res":
+                    HandleResponse(root);
+                    break;
+                case "event":
+                    HandleEvent(root);
+                    break;
+                default:
+                    _console.Log("debug", $"Unknown frame type: {type}", LogLevel.Debug);
+                    break;
+            }
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _console.LogError("gateway", $"Malformed JSON frame received: {ex.Message}");
+            _console.Log("debug", $"Raw frame: {json[..Math.Min(json.Length, 400)]}", LogLevel.Debug);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _console.LogError("gateway", $"Frame missing expected property: {ex.Message}");
+            _console.Log("debug", $"Raw frame: {json[..Math.Min(json.Length, 400)]}", LogLevel.Debug);
         }
     }
 
