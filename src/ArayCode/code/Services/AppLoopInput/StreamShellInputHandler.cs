@@ -136,8 +136,8 @@ public sealed class StreamShellInputHandler : IDisposable
         _registry.Register(new AppHelpCommand(_host, _console));
         _registry.Register(new QuitCommand(_host, _onQuit));
         _registry.Register(new ReconfigureCommand(_host, _wizard ?? new ConfigWizardOrchestrator(_configService), _configService));
-        _registry.Register(new CrewCommand(_host, _agentSettingsPersistence, _appConfig, _historyService, _configService));
-        _registry.Register(new ChatCommand(_host, _configService, _historyService, _appConfig));
+        _registry.Register(new CrewCommand(_host, _agentSettingsPersistence, () => _appConfig, _historyService, _configService));
+        _registry.Register(new ChatCommand(_host, _configService, _historyService));
         _registry.Register(new CleanCommand(_host));
         _registry.Register(new ErrorsCommand(_host, _errorLog));
 
@@ -146,9 +146,9 @@ public sealed class StreamShellInputHandler : IDisposable
         reconnectCmd.OnReconnectSuccess = OnGatewayReconnected;
         _registry.Register(reconnectCmd);
 
-        _registry.Register(new AppConfigCommand(_host, _appConfig, _configService));
+        _registry.Register(new AppConfigCommand(_host, () => _appConfig, _configService));
         _registry.Register(new AppStatusCommand(_host, _statusService, () => _appConfig));
-        _registry.Register(new ThemeCommand(_host, _themeService, _configService, _historyService, _appConfig));
+        _registry.Register(new ThemeCommand(_host, _themeService, _configService, _historyService, () => _appConfig));
 
         // ── Wire input handling ────────────────────────────────────────────
         _host.UserInputSubmitted += OnUserInput;
@@ -220,7 +220,7 @@ public sealed class StreamShellInputHandler : IDisposable
     private void RegisterGatewayCommands()
     {
         // Native gateway-dependent commands
-        _registry.Register(new HistoryCommand(_host, _gatewayService, _console, _pttStateMachine, _appConfig));
+        _registry.Register(new HistoryCommand(_host, _gatewayService, _console, _pttStateMachine, () => _appConfig));
 
         // All OpenClaw forwarded commands
         foreach (var name in OpenClawCommandNames)
@@ -303,6 +303,7 @@ public sealed class StreamShellInputHandler : IDisposable
     {
         // Keep _appConfig in sync — RegisterDirectLlmCommand() reads it.
         _appConfig = e.NewConfig;
+        _historyService.UpdateConfig(_appConfig);
 
         bool llmChanged = e.AnyChanged(nameof(AppConfig.DirectLlmUrl), nameof(AppConfig.DirectLlmModelName));
         if (!llmChanged)

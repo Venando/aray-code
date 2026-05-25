@@ -8,7 +8,7 @@ namespace ArayCode.Services.Commands;
 public sealed class AppConfigCommand : ICommand
 {
     private readonly IStreamShellHost _host;
-    private readonly AppConfig _appConfig;
+    private readonly Func<AppConfig> _getConfig;
     private readonly IConfigurationService _configService;
 
     public string Name => "appconfig";
@@ -19,11 +19,11 @@ public sealed class AppConfigCommand : ICommand
 
     public AppConfigCommand(
         IStreamShellHost host,
-        AppConfig appConfig,
+        Func<AppConfig> getConfig,
         IConfigurationService configService)
     {
         _host = host;
-        _appConfig = appConfig;
+        _getConfig = getConfig;
         _configService = configService;
         Suggestions = OpenClawCommandSuggestions.GetAppConfigSuggestions();
     }
@@ -54,10 +54,11 @@ public sealed class AppConfigCommand : ICommand
         }
 
         key = property.Name;
+        var appConfig = _getConfig();
 
         if (value == null)
         {
-            var currentValue = property.GetValue(_appConfig);
+            var currentValue = property.GetValue(appConfig);
             var displayValue = currentValue?.ToString() ?? "(null)";
             _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Highlight}]  {key}:[/] {displayValue}");
 
@@ -96,13 +97,13 @@ public sealed class AppConfigCommand : ICommand
                 }
 
                 // Apply the change to a clone for validation before save
-                var originalValue = property.GetValue(_appConfig);
+                var originalValue = property.GetValue(appConfig);
 
                 // Set on the live config (AppConfigCommand owns this reference)
-                property.SetValue(_appConfig, convertedValue);
+                property.SetValue(appConfig, convertedValue);
 
                 // Validate before persisting
-                var issues = _configService.Validate(_appConfig);
+                var issues = _configService.Validate(appConfig);
                 if (issues.Count > 0)
                 {
                     _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Warning}]  Validation warnings:[/]");
@@ -111,7 +112,7 @@ public sealed class AppConfigCommand : ICommand
                     _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Info}]  The value will be saved despite warnings.[/]");
                 }
 
-                _configService.Save(_appConfig);
+                _configService.Save(appConfig);
                 _host.AddMessage($"[{ThemeProvider.Current.Tools.Messages.Success}]  {key} set to: {convertedValue}[/]");
             }
             catch (FormatException)
