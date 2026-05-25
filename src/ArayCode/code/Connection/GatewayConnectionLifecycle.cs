@@ -244,7 +244,7 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         return new Dictionary<string, object?>
         {
             ["minProtocol"] = 3,
-            ["maxProtocol"] = 3,
+            ["maxProtocol"] = 4,
             ["client"] = new Dictionary<string, object>
             {
                 ["id"] = clientId,
