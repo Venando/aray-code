@@ -199,7 +199,11 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
             try
             {
                 var challenge = await challengeTcs.Task.ConfigureAwait(false);
-                return challenge.GetProperty("nonce").GetString()!;
+                if (!challenge.TryGetProperty("nonce", out var nonceEl))
+                {
+                    throw new GatewayException("connect.challenge payload missing 'nonce' property.", challenge.Clone());
+                }
+                return nonceEl.GetString() ?? throw new GatewayException("connect.challenge 'nonce' is null or empty.", challenge.Clone());
             }
             catch (OperationCanceledException) when (timeCts.IsCancellationRequested && !linkedCt.IsCancellationRequested)
             {
@@ -305,7 +309,15 @@ public sealed class GatewayConnectionLifecycle : IGatewayConnector, IGatewayConn
         if (previousAgentId != null)
             _cfg.LastActiveAgentId = previousAgentId;
 
-        _snapshotProcessor.ProcessSnapshot(hello);
+        try
+        {
+            _snapshotProcessor.ProcessSnapshot(hello);
+        }
+        catch (Exception ex)
+        {
+            _console.LogError("gateway", $"Failed to process snapshot from hello payload: {ex.GetType().Name}: {ex.Message}");
+            _console.Log("gateway", "Continuing without agent snapshot — agent list may be empty until events arrive.", LogLevel.Info);
+        }
 
         // Restore last active agent after snapshot
         var restoreId = _cfg.LastActiveAgentId;
