@@ -42,9 +42,35 @@ public sealed class SnapshotProcessor : ISnapshotProcessor
             var agentList = new List<AgentInfo>();
             foreach (JsonElement agent in agents.EnumerateArray())
             {
-                string agentId = agent.GetProperty("agentId").GetString() ?? "";
-                string name = agent.GetProperty("name").GetString() ?? "";
-                bool isDefault = agent.GetProperty("isDefault").GetBoolean();
+                if (!agent.TryGetProperty("agentId", out var agentIdEl))
+                {
+                    _logger.Log("gateway", "Snapshot agent missing 'agentId' — skipping malformed entry.", LogLevel.Info);
+                    continue;
+                }
+
+                string name;
+
+                if (!agent.TryGetProperty("name", out var nameEl))
+                {
+                    name = "Unnamed";
+                }
+                else
+                {
+                    name = nameEl.GetString() ?? "";
+                }
+
+                bool isDefault = false;
+                
+                if (!agent.TryGetProperty("isDefault", out var isDefaultEl))
+                {
+                    _logger.Log("gateway", $"Snapshot agent '{agentIdEl.GetString()}' missing 'isDefault'", LogLevel.Info);
+                }
+                else
+                {
+                    isDefault = isDefaultEl.GetBoolean();
+                }
+
+                string agentId = agentIdEl.GetString() ?? "";
                 string sessionKey = $"agent:{agentId}:main";
 
                 agentList.Add(new AgentInfo
