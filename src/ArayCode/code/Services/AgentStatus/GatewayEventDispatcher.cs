@@ -47,9 +47,10 @@ public static class GatewayEventDispatcher
             "session.tool" => ExtractTool(payload, console),
             "agent" => ExtractAgent(payload, console),
             "chat" => ExtractChat(payload, console),
+            "chat.side_result" => null,          // handled directly by GatewayMessager → SideResultHandler
 
             // Infrastructure — intentionally skipped
-            "presence" or "tick" or "heartbeat" or "health" => LogSkip(eventName, console),
+            "presence" or "tick" or "heartbeat" or "health" or "cron" => LogSkip(eventName, console),
 
             // Unknown event type — log for coverage
             _ => LogUnknown(eventName, console),
