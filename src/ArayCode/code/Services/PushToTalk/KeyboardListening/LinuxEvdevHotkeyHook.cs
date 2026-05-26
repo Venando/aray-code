@@ -300,7 +300,7 @@ internal sealed class LinuxEvdevHotkeyHook : IGlobalHotkeyHook
     private static int EVIOCGBIT(int type, int len) =>
         (int)(0x80000000u | ((uint)len << 16) | ((uint)'E' << 8) | (uint)(0x20 + type));
 
-    private static FileStream? TryOpenDevice(string path)
+    private FileStream? TryOpenDevice(string path)
     {
         try
         {
@@ -308,7 +308,16 @@ internal sealed class LinuxEvdevHotkeyHook : IGlobalHotkeyHook
                 FileAccess.Read, FileShare.ReadWrite,
                 bufferSize: 0, useAsync: true);
         }
-        catch { return null; }
+        catch (UnauthorizedAccessException)
+        {
+            _console.Log("hotkey", $"Permission denied: {path}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _console.Log("hotkey", $"Cannot open {path}: {ex.Message}");
+            return null;
+        }
     }
 
     public void Dispose() => _cts.Cancel();
