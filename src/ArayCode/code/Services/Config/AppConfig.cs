@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json.Serialization;
 using ArayCode.Services;
 using ArayCode.TTS;
@@ -160,8 +161,52 @@ public sealed class AppConfig
     [JsonIgnore]
     public string DataDir => CustomDataDir
         ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            GetUserHomeDirectory(),
             ".aray-code");
+
+    /// <summary>
+    /// Returns the invoking user's home directory, even when the app is
+    /// launched with <c>sudo</c>.  Falls back to
+    /// <see cref="Environment.SpecialFolder.UserProfile"/> when not under sudo.
+    /// </summary>
+    private static string GetUserHomeDirectory()
+    {
+        var sudoUser = Environment.GetEnvironmentVariable("SUDO_USER");
+        if (!string.IsNullOrEmpty(sudoUser))
+        {
+            // Typical home path for the sudo user on Linux
+            var potentialHome = $"/home/{sudoUser}";
+            if (Directory.Exists(potentialHome))
+                return potentialHome;
+
+            // Fallback: query passwd database for the exact home directory
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "getent",
+                    Arguments = $"passwd {sudoUser}",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    proc.WaitForExit(1000);
+                    var output = proc.StandardOutput.ReadToEnd().Trim();
+                    // Format: username:password:uid:gid:gecos:home:shell
+                    var parts = output.Split(':');
+                    if (parts.Length >= 6 && Directory.Exists(parts[5]))
+                        return parts[5];
+                }
+            }
+            catch { }
+        }
+
+        return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    }
 
     /// <summary>Full path to the themes folder under DataDir.</summary>
     [JsonIgnore]
