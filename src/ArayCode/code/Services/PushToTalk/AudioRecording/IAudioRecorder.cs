@@ -12,7 +12,7 @@ public interface IAudioRecorder : IDisposable
 
     /// <summary>
     /// Returns the current RMS audio level normalized to 0.0–1.0.
-    /// Returns -1 if audio level monitoring is unavailable for this platform/backend.
+    /// Returns 0 if audio level monitoring is unavailable for this platform/backend.
     /// Only valid while recording; behavior is undefined after StopRecording.
     /// </summary>
     float GetCurrentAudioLevel();
