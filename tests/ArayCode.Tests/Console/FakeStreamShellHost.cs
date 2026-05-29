@@ -90,4 +90,16 @@ public sealed class FakeStreamShellHost : IStreamShellHost, IDisposable
     public void SetSelectionMarkup(string markup) { }
     public void SetCommandSlashMarkup(string markup) { }
     public void ApplyStreamShellTheme(int prefixWidth) { }
+
+    public IDisposable SubscribeKey(StreamShell.KeyCombination combination, Action<ConsoleKeyInfo> handler)
+        => new NoopDisposable();
+
+    public IDisposable SubscribeKey(Func<ConsoleKeyInfo, bool> predicate, Action<ConsoleKeyInfo> handler)
+        => new NoopDisposable();
+
+    /// <summary>Minimal IDisposable stub for subscription tokens.</summary>
+    private sealed class NoopDisposable : IDisposable
+    {
+        public void Dispose() { }
+    }
 }

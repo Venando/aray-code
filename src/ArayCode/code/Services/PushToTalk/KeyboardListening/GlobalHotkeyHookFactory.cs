@@ -5,29 +5,55 @@ namespace ArayCode;
 
 internal static class GlobalHotkeyHookFactory
 {
-    public static IGlobalHotkeyHook Create(IColorConsole console)
+    /// <summary>
+    /// Creates the appropriate hotkey hook based on platform and config.
+    /// When <paramref name="config"/> is null or <c>IsGlobalHotkeys</c> is true,
+    /// tries OS-level global hooks first. Falls back to terminal subscriptions
+    /// via StreamShell when the global path is unavailable.
+    /// </summary>
+    public static IGlobalHotkeyHook Create(
+        IColorConsole console,
+        AppConfig? config = null,
+        IStreamShellHost? shellHost = null)
     {
+        bool useGlobal = config?.IsGlobalHotkeys ?? true;
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return new WindowsHotkeyHook();
+        {
+            if (useGlobal)
+                return new WindowsHotkeyHook();
+
+            return CreateStreamShellHook(shellHost, console);
+        }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            // Prefer evdev (/dev/input/event*) — works when running as root
-            // or when the user is in the 'input' group.
-            if (CanUseEvdev())
-                return new LinuxEvdevHotkeyHook(console);
+            if (useGlobal)
+            {
+                if (CanUseEvdev())
+                    return new LinuxEvdevHotkeyHook(console);
 
-            // Fall back to X11 when evdev is inaccessible.
-            if (CanUseX11())
-                return new LinuxX11HotkeyHook(console);
+                console.PrintWarning(
+                    "Global hotkeys enabled but evdev (/dev/input/event*) not accessible. " +
+                    "Falling back to terminal-scoped hotkeys (only work while terminal is focused).\n" +
+                    "  To use global hotkeys: sudo usermod -aG input $USER  (then re-login)\n" +
+                    "  To suppress this warning: set IsGlobalHotkeys=false in config");
+            }
 
-            console.PrintWarning("Hotkey. No keyboard hook available (neither evdev nor X11). Hotkeys disabled.");
-            
-            return new NoopHotkeyHook();
+            return CreateStreamShellHook(shellHost, console);
         }
 
         throw new PlatformNotSupportedException(
             $"Global hotkeys are not supported on {RuntimeInformation.OSDescription}");
+    }
+
+    private static IGlobalHotkeyHook CreateStreamShellHook(IStreamShellHost? shellHost, IColorConsole console)
+    {
+        if (shellHost != null)
+            return new StreamShellHotkeyHook(shellHost, console);
+
+        console.PrintWarning("StreamShell host not available for terminal hotkeys. Hotkeys disabled.");
+        return new NoopHotkeyHook();
     }
 
     private static bool CanUseEvdev()
@@ -45,10 +71,5 @@ internal static class GlobalHotkeyHookFactory
         {
             return false;
         }
-    }
-
-    private static bool CanUseX11()
-    {
-        return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
     }
 }
