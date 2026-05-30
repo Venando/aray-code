@@ -164,5 +164,11 @@ public sealed class StreamShellHost : IStreamShellHost, IDisposable
     public Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariantEntry[] variants, StreamShell.SelectionInfo? info = null)
         => _host.PromptSelection(title, variants, info);
 
+    public IDisposable SubscribeKey(StreamShell.KeyCombination combination, Action<ConsoleKeyInfo> handler)
+        => _host.SubscribeKey(combination, handler);
+
+    public IDisposable SubscribeKey(Func<ConsoleKeyInfo, bool> predicate, Action<ConsoleKeyInfo> handler)
+        => _host.SubscribeKey(predicate, handler);
+
     public void Dispose() => _host.Dispose();
 }

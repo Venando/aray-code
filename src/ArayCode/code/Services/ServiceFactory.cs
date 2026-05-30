@@ -87,7 +87,9 @@ public class ServiceFactory : IServiceFactory
 
     public IPttController CreatePttController(AppConfig cfg, IAudioService audioService, IHotkeyHookFactory? hotkeyHookFactory = null)
     {
-        var controller = new PttController(hotkeyHookFactory ?? new HotkeyHookFactory(), _colorConsole);
+        var controller = new PttController(
+            hotkeyHookFactory ?? new HotkeyHookFactory(cfg, _shellHost),
+            _colorConsole, cfg, _shellHost);
         controller.SetHotkey(cfg.HotkeyCombination, cfg.HoldToTalk);
         return controller;
     }

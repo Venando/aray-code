@@ -101,4 +101,10 @@ public interface IStreamShellHost
     /// Opens an interactive selection panel. Returns selected variants, or null if cancelled.
     /// </summary>
     Task<StreamShell.IVariant[]?> PromptSelection(string title, StreamShell.IVariantEntry[] variants, StreamShell.SelectionInfo? info = null);
+
+    /// <summary>Subscribes to a specific key combination. The key is consumed and won't reach the input buffer.</summary>
+    IDisposable SubscribeKey(StreamShell.KeyCombination combination, Action<ConsoleKeyInfo> handler);
+
+    /// <summary>Subscribes to keys matching a predicate. The key is consumed and won't reach the input buffer.</summary>
+    IDisposable SubscribeKey(Func<ConsoleKeyInfo, bool> predicate, Action<ConsoleKeyInfo> handler);
 }

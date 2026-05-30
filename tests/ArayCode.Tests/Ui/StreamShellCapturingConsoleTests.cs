@@ -109,5 +109,10 @@ public class StreamShellCapturingConsoleTests
         public void SetSelectionMarkup(string markup) { }
         public void SetCommandSlashMarkup(string markup) { }
         public void ApplyStreamShellTheme(int prefixWidth) { }
+
+        public IDisposable SubscribeKey(StreamShell.KeyCombination combination, Action<ConsoleKeyInfo> handler) => _noop;
+        public IDisposable SubscribeKey(Func<ConsoleKeyInfo, bool> predicate, Action<ConsoleKeyInfo> handler) => _noop;
+        private static readonly IDisposable _noop = new NoopDisposable();
+        private sealed class NoopDisposable : IDisposable { public void Dispose() { } }
     }
 }

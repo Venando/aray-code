@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading;
+using System.Threading.Tasks;
 using ArayCode.Services;
 
 namespace ArayCode;
@@ -199,7 +201,9 @@ internal sealed class LinuxEvdevHotkeyHook : IGlobalHotkeyHook
 
         if (type != EV_KEY) return;
 
-        // Update modifier counts
+        // Update modifier counts.
+        // Explicitly skip VALUE_REPEAT — auto-repeat would keep incrementing the
+        // count and break ModifiersMatch for any subsequent key press.
         switch (code)
         {
             case KEY_LEFTALT:
@@ -230,14 +234,17 @@ internal sealed class LinuxEvdevHotkeyHook : IGlobalHotkeyHook
             if (BlockEscape)
             {
                 ThreadPool.QueueUserWorkItem(_ => EscapePressed?.Invoke());
+                return; // don't fall through into hotkey matching
             }
         }
 
-        // Check all configured hotkeys
+        // Check all configured hotkeys.
+        // Use Interlocked.CompareExchange to guard against concurrent events from
+        // multiple device tasks both seeing _activeHotkeyIndex == -1 simultaneously.
         int matchedIndex = FindMatchingHotkeyIndex(code);
-        if (value == VALUE_DOWN && matchedIndex >= 0 && _activeHotkeyIndex < 0)
+        if (value == VALUE_DOWN && matchedIndex >= 0 &&
+            Interlocked.CompareExchange(ref _activeHotkeyIndex, matchedIndex, -1) == -1)
         {
-            _activeHotkeyIndex = matchedIndex;
             int capturedIndex = matchedIndex;
             ThreadPool.QueueUserWorkItem(_ =>
             {
@@ -251,18 +258,19 @@ internal sealed class LinuxEvdevHotkeyHook : IGlobalHotkeyHook
             // Use the saved index rather than re-matching — modifiers may
             // already be released (user lifted Alt before D), causing
             // FindMatchingHotkeyIndex to miss and _activeHotkeyIndex to stick.
-            var activeHotkey = _activeHotkeyIndex < _hotkeys.Count
-                ? _hotkeys[_activeHotkeyIndex]
-                : null;
-            if (activeHotkey != null && HotkeyMapping.GetPlatformKeyCode(activeHotkey.Key) == code)
+            int active = Volatile.Read(ref _activeHotkeyIndex);
+            if (active >= 0 && active < _hotkeys.Count &&
+                HotkeyMapping.GetPlatformKeyCode(_hotkeys[active].Key) == code)
             {
-                int capturedIndex = _activeHotkeyIndex;
-                _activeHotkeyIndex = -1;
-                ThreadPool.QueueUserWorkItem(_ =>
+                int capturedIndex = Interlocked.Exchange(ref _activeHotkeyIndex, -1);
+                if (capturedIndex >= 0)
                 {
-                    HotkeyReleased?.Invoke();
-                    HotkeyIndexReleased?.Invoke(capturedIndex);
-                });
+                    ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        HotkeyReleased?.Invoke();
+                        HotkeyIndexReleased?.Invoke(capturedIndex);
+                    });
+                }
             }
         }
     }
@@ -296,9 +304,12 @@ internal sealed class LinuxEvdevHotkeyHook : IGlobalHotkeyHook
                winRequired == winPressed;
     }
 
-    // EVIOCGBIT(type, len) ioctl number for Linux/x86-64
+    // EVIOCGBIT(type, len) ioctl number for Linux/x86-64.
+    // Direction 2 = _IOR (read from device into userspace).
+    // Was incorrectly 0x80000000u (write direction bit), making every ioctl
+    // return -1 and IsKeyboardDevice always return false.
     private static int EVIOCGBIT(int type, int len) =>
-        (int)(0x80000000u | ((uint)len << 16) | ((uint)'E' << 8) | (uint)(0x20 + type));
+        (int)((2u << 30) | ((uint)len << 16) | ((uint)'E' << 8) | (uint)(0x20 + type));
 
     private static FileStream? TryOpenDevice(string path)
     {

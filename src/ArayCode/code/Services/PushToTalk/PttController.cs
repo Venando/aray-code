@@ -6,6 +6,8 @@ internal sealed class PttController : IPttController
 {
     private readonly IHotkeyHookFactory? _hotkeyHookFactory;
     private readonly IColorConsole? _console;
+    private readonly AppConfig? _config;
+    private readonly IStreamShellHost? _shellHost;
     private IGlobalHotkeyHook? _hotkeyHook;
     private bool _disposed;
 
@@ -13,10 +15,13 @@ internal sealed class PttController : IPttController
     private volatile bool _externalHotkeyRelease;
     private volatile bool _cancelRecording;
 
-    public PttController(IHotkeyHookFactory? hotkeyHookFactory = null, IColorConsole? console = null)
+    public PttController(IHotkeyHookFactory? hotkeyHookFactory = null, IColorConsole? console = null,
+        AppConfig? config = null, IStreamShellHost? shellHost = null)
     {
         _hotkeyHookFactory = hotkeyHookFactory;
         _console = console;
+        _config = config;
+        _shellHost = shellHost;
     }
 
     public void SetHotkey(string hotkeyCombination, bool holdToTalk)
@@ -31,7 +36,7 @@ internal sealed class PttController : IPttController
         }
         else if (_console != null)
         {
-            _hotkeyHook = GlobalHotkeyHookFactory.Create(_console);
+            _hotkeyHook = GlobalHotkeyHookFactory.Create(_console, _config, _shellHost);
             _hotkeyHook.SetHotkey(mapping);
         }
         else

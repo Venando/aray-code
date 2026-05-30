@@ -1,5 +1,6 @@
 using Spectre.Console;
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using ArayCode.Services;
@@ -25,8 +26,10 @@ public sealed class AgentHotkeyService : IDisposable
     private readonly IAgentSettingsPersistence _agentSettingsPersistence;
     private readonly IPttStateMachine? _pttStateMachine;
 
-    // Maps agent session key → saved input field ID for preserving text across switches
-    private readonly Dictionary<string, string> _savedInputs = new();
+    // Maps agent session key → saved input field ID for preserving text across switches.
+    // ConcurrentDictionary because HotkeyPressed events arrive on thread-pool threads
+    // (QueueUserWorkItem in StreamShellHotkeyHook/WindowsHotkeyHook) and can overlap.
+    private readonly ConcurrentDictionary<string, string> _savedInputs = new();
 
     public AgentHotkeyService(
         IPttController pttController,
@@ -55,7 +58,7 @@ public sealed class AgentHotkeyService : IDisposable
         }
         else
         {
-            _hook = GlobalHotkeyHookFactory.Create(_console);
+            _hook = GlobalHotkeyHookFactory.Create(_console, _cfg, _shellHost);
         }
 
         if (AgentRegistry.Agents.Count > 0)
@@ -110,6 +113,11 @@ public sealed class AgentHotkeyService : IDisposable
         }
         else
         {
+            // If a recording was in progress for the previous agent, cancel it
+            // so the transcribed audio doesn't go to the newly switched agent.
+            _pttController.CancelRecording();
+            if (_hook != null) _hook.BlockEscape = false;
+
             // Save current input for the previously active agent before switching
             var inputHandler = _shellHost.InputHandler;
             if (activeKey != null && inputHandler != null)
@@ -126,18 +134,16 @@ public sealed class AgentHotkeyService : IDisposable
             AgentRegistry.SetActiveAgent(agent.AgentId);
 
             // Restore saved input for the target agent (if previously saved)
-            if (inputHandler != null && _savedInputs.TryGetValue(agent.SessionKey, out var restoredId))
+            if (inputHandler != null && _savedInputs.TryRemove(agent.SessionKey, out var restoredId))
             {
                 inputHandler.LoadInputField(restoredId);
-                _savedInputs.Remove(agent.SessionKey);
             }
 
             // Fetch and print session history, then agent intro (fire-and-forget)
-            if (_gatewayService != null)
-                if (PrintSessionHistoryAsync != null)
-                {
-                    _ = PrintSessionHistoryAsync(agent.SessionKey);
-                }
+            if (_gatewayService != null && PrintSessionHistoryAsync != null)
+            {
+                _ = PrintSessionHistorySafe(agent.SessionKey);
+            }
         }
     }
 
@@ -166,6 +172,19 @@ public sealed class AgentHotkeyService : IDisposable
     /// </summary>
     public Func<string, Task>? PrintSessionHistoryAsync { get; set; }
 
+    /// <summary>Fire-and-forget wrapper with exception guard for the session history call.</summary>
+    private async Task PrintSessionHistorySafe(string sessionKey)
+    {
+        try
+        {
+            if (PrintSessionHistoryAsync != null)
+                await PrintSessionHistoryAsync(sessionKey);
+        }
+        catch (Exception ex)
+        {
+            _console.LogError("hotkey", $"Session history failed after agent switch: {ex.Message}");
+        }
+    }
 
     private void OnHotkeyPressed(int index) => HandleHotkeyPressed(index);
     private void OnHotkeyReleased(int index) => HandleHotkeyReleased(index);

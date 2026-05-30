@@ -60,6 +60,11 @@ public sealed class AppConfig
     public bool RequireConfirmBeforeSend { get; set; } = false;
     public bool AppendTranscriptionToInput { get; set; } = false;
 
+    /// <summary>Use OS-level global hotkeys (evdev on Linux, Win32 on Windows).
+    /// When false, hotkeys are handled via terminal input subscriptions (StreamShell),
+    /// which don't require special permissions but only work while the terminal is focused.</summary>
+    public bool IsGlobalHotkeys { get; set; } = true;
+
     /// <summary>Theme JSON file name (relative to themes folder). Empty = use ThemeConfig defaults.</summary>
     public string ThemeFile { get; set; } = "drakula";
 
@@ -244,6 +249,7 @@ public sealed class AppConfig
         ["HistoryDisplayCount"] = "Number of previous messages to show on connect",
         ["RequireConfirmBeforeSend"] = "Ask for confirmation before sending messages",
         ["AppendTranscriptionToInput"] = "Append transcribed text to the input field instead of sending directly",
+        ["IsGlobalHotkeys"] = "Use OS-level global hotkeys (requires root/input group on Linux). When false, hotkeys work only when terminal is focused.",
 
 
 
