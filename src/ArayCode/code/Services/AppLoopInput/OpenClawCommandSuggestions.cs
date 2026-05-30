@@ -183,8 +183,6 @@ public static class OpenClawCommandSuggestions
     /// <summary>
     /// Known value suggestions for string-backed AppConfig properties that have
     /// a constrained set of valid values (e.g. API type names).
-    /// These are appended to the property-name suggestions so that tab-completion
-    /// offers the valid values after the user has typed the key name.
     /// </summary>
     private static readonly Dictionary<string, string[]> KnownConfigPropertyValues = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -192,26 +190,42 @@ public static class OpenClawCommandSuggestions
     };
 
     /// <summary>
-    /// Dynamically builds suggestions from all writable public properties on AppConfig.
-    /// Used for the local /appconfig command tab completion.
-    /// Also appends known valid values for constrained-string properties (e.g. DirectLlmApiType)
-    /// so the user can tab-complete the value after typing the key.
+    /// Dynamically builds multi-level suggestions from all writable public properties
+    /// on AppConfig for the /appconfig command tab completion.
+    ///
+    /// Format follows StreamShell's hierarchical suggestion model:
+    ///   <c>"PropertyName"</c> — first-level suggestion (property name).
+    ///   <c>"PropertyName EnumValue"</c> — second-level suggestion for enum properties.
+    ///   <c>"PropertyName KnownValue"</c> — second-level for constrained-string properties.
     /// </summary>
     public static string[] GetAppConfigSuggestions()
     {
-        var propertyNames = typeof(AppConfig)
+        var props = typeof(AppConfig)
             .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
             .Where(p => p.CanWrite && p.SetMethod?.IsPublic == true)
-            .Select(p => p.Name)
             .ToList();
 
-        // Append known values for constrained-string properties
-        foreach (var (propName, values) in KnownConfigPropertyValues)
+        var suggestions = new List<string>();
+
+        foreach (var prop in props)
         {
-            if (propertyNames.Contains(propName))
-                propertyNames.AddRange(values.Where(v => !propertyNames.Contains(v)));
+            // First-level: property name
+            suggestions.Add(prop.Name);
+
+            // Second-level: enum values for enum-typed properties
+            if (prop.PropertyType.IsEnum)
+            {
+                foreach (var enumName in Enum.GetNames(prop.PropertyType))
+                    suggestions.Add($"{prop.Name} {enumName}");
+            }
+            // Second-level: known valid values for constrained-string properties
+            else if (KnownConfigPropertyValues.TryGetValue(prop.Name, out var values))
+            {
+                foreach (var val in values)
+                    suggestions.Add($"{prop.Name} {val}");
+            }
         }
 
-        return propertyNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+        return suggestions.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 }

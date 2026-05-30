@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace ArayCode.Services;
 
@@ -19,7 +20,11 @@ public interface IConfigStorage
 /// </summary>
 public sealed class FileConfigStorage : IConfigStorage
 {
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
     private static readonly object _saveLock = new();
 
     public AppConfig? Load()
