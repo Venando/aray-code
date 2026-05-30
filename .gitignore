@@ -3,6 +3,11 @@ bin/
 obj/
 publish/
 
+# Linux packaging build artifacts
+packaging/linux/*.AppImage
+packaging/linux/*.tar.gz
+
+
 # User-specific files
 *.user
 *.suo
