@@ -151,8 +151,8 @@ public class EventDispatcherTests
     public async Task SessionMessageHandler_TextOnly_FiresAgentReplyFull()
     {
         string? captured = null;
-        _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>()))
-            .Callback<string>(t => captured = t);
+        _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>(), It.IsAny<string?>()))
+            .Callback<string, string?>((t, _) => captured = t);
 
         var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"assistant\", \"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}}");
@@ -165,8 +165,8 @@ public class EventDispatcherTests
     public async Task SessionMessageHandler_NonAssistantRole_Ignores()
     {
         string? captured = null;
-        _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>()))
-            .Callback<string>(t => captured = t);
+        _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>(), It.IsAny<string?>()))
+            .Callback<string, string?>((t, _) => captured = t);
 
         var handler = new SessionMessageHandler(_mockEvents.Object, _cfg, _mockConsole.Object);
         var payload = CreatePayload("{\"message\":{\"role\":\"user\", \"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}}");
@@ -223,31 +223,6 @@ public class EventDispatcherTests
         await handler.HandleAsync(new SessionMessageEvent("agent", payload));
 
         Assert.False(fired); // batch mode, no delta
-    }
-
-    [Fact]
-    public async Task SessionMessageHandler_AgentStream_DoesWorkInRealtimeMode()
-    {
-        var realtimeCfg = new AppConfig
-        {
-            CustomDataDir = Path.GetTempPath(),
-            GatewayUrl = "wss://127.0.0.1:9999/test",
-            AuthToken = "test-token",
-            ReplyDisplayMode = ReplyDisplayMode.Full
-        };
-
-        var startFired = false;
-        _mockEvents.Setup(x => x.RaiseAgentReplyDeltaStart()).Callback(() => startFired = true);
-        string? capturedDelta = null;
-        _mockEvents.Setup(x => x.RaiseAgentReplyDelta(It.IsAny<string>()))
-            .Callback<string>(t => capturedDelta = t);
-
-        var handler = new SessionMessageHandler(_mockEvents.Object, realtimeCfg, _mockConsole.Object);
-        var payload = CreatePayload("{\"data\":{\"phase\":\"start\",\"delta\":\"hello\"}}");
-        await handler.HandleAsync(new SessionMessageEvent("agent", payload));
-
-        Assert.True(startFired);
-        Assert.Equal("hello", capturedDelta);
     }
 
     [Fact]

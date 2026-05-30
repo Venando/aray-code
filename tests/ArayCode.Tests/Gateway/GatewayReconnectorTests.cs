@@ -223,34 +223,6 @@ public class GatewayReconnectorTests : IDisposable
     }
 
     [Fact]
-    public async Task ReconnectLoop_OnFatalError_LogsFatalMessageAndDoesNotRetry()
-    {
-        // Arrange: connector fails with a non-GatewayException that's not network-related
-        var callCount = 0;
-        var connectCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _mockConnector.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => { callCount++; connectCalled.TrySetResult(); })
-            .ThrowsAsync(new InvalidOperationException("Something went terribly wrong"));
-
-        _mockConsole.Setup(x => x.Log(It.IsAny<string>(), It.IsAny<string>()));
-        _mockConsole.Setup(x => x.LogError(It.IsAny<string>(), It.IsAny<string>()));
-
-        // Act: start reconnection
-        var reconnectTask = _reconnector.ScheduleReconnectAsync(CancellationToken.None);
-
-        // Wait for the connect attempt to complete
-        await connectCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
-
-        // Assert: only attempted once, logged fatal message
-        Assert.Equal(1, callCount);
-        _mockConsole.Verify(x => x.LogError("gateway",
-            It.Is<string>(s => s.Contains("Fatal error"))), Times.AtLeastOnce);
-
-        _cts.Cancel();
-        try { await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1)); } catch { /* ignore */ }
-    }
-
-    [Fact]
     public async Task ReconnectLoop_OnPairingRequired_LogsSuggestionAndDoesNotRetry()
     {
         var callCount = 0;

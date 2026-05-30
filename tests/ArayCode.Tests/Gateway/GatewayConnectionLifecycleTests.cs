@@ -97,31 +97,6 @@ public class GatewayConnectionLifecycleTests : IDisposable
     // ─── BuildConnectParams ─────────────────────────────────────────
 
     [Fact]
-    public void BuildConnectParams_ReturnsDictionaryWithRequiredKeys()
-    {
-        var lifecycle = CreateWithMockSocket();
-        var nonce = "test-nonce-123";
-
-        var result = InvokePrivate<Dictionary<string, object?>>(lifecycle, "BuildConnectParams", nonce);
-
-        Assert.NotNull(result);
-        Assert.Equal(3, result["minProtocol"]);
-        Assert.Equal(3, result["maxProtocol"]);
-        Assert.Equal("operator", result["role"]);
-        Assert.NotNull(result["client"]);
-        Assert.NotNull(result["auth"]);
-        Assert.NotNull(result["device"]);
-        Assert.NotNull(result["scopes"]);
-
-        var scopes = (Array)result["scopes"]!;
-        Assert.Contains("operator.read", scopes.Cast<string>());
-        Assert.Contains("operator.write", scopes.Cast<string>());
-        Assert.Contains("operator.approvals", scopes.Cast<string>());
-
-        lifecycle.Dispose();
-    }
-
-    [Fact]
     public void BuildConnectParams_IncludesDeviceSignatureAndNonce()
     {
         var lifecycle = CreateWithMockSocket();

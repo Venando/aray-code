@@ -3,6 +3,7 @@ using Moq;
 using ArayCode.Services;
 using ArayCode;
 using ArayCode.Services.StatusParts;
+using ArayCode.Services.Themes;
 
 namespace ArayCode.Tests;
 
@@ -12,6 +13,20 @@ public class StatusServiceTests
     static StatusServiceTests()
     {
         AgentSettingsPersistenceLegacy.Initialize(Mock.Of<IAgentSettingsPersistence>());
+        // Use a stable test theme so color assertions are deterministic
+        ThemeProvider.Current = new ThemeConfig
+        {
+            Tools = new ToolTheme
+            {
+                Messages = new MessageStyles
+                {
+                    Success = "green",
+                    Warning = "yellow",
+                    Error = "red",
+                    Info = "grey"
+                }
+            }
+        };
     }
 
     [Fact]
@@ -23,8 +38,8 @@ public class StatusServiceTests
         service.SetServiceStatus(ServiceKind.Gateway, StatusColor.Green);
 
         Assert.Contains("GW:", host.LastSeparatorRightText);
-        Assert.Contains("[green]", host.LastSeparatorRightText);
-        Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
+        Assert.Contains("[" + ThemeProvider.Current.Tools.Messages.Success + "]", host.LastSeparatorRightText);
+        Assert.Contains("●", host.LastSeparatorRightText); // ●
     }
 
     [Fact]
@@ -36,8 +51,8 @@ public class StatusServiceTests
         service.SetServiceStatus(ServiceKind.Tts, StatusColor.Red);
 
         Assert.Contains("TTS:", host.LastSeparatorRightText);
-        Assert.Contains("[red]", host.LastSeparatorRightText);
-        Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
+        Assert.Contains("[" + ThemeProvider.Current.Tools.Messages.Error + "]", host.LastSeparatorRightText);
+        Assert.Contains("●", host.LastSeparatorRightText); // ●
     }
 
     [Fact]
@@ -52,10 +67,10 @@ public class StatusServiceTests
         // Should show labels + green dot + yellow animating dot
         Assert.Contains("GW:", host.LastSeparatorRightText);
         Assert.Contains("TTS:", host.LastSeparatorRightText);
-        Assert.Contains("[green]", host.LastSeparatorRightText);
-        Assert.Contains("[yellow]", host.LastSeparatorRightText);
+        Assert.Contains("[" + ThemeProvider.Current.Tools.Messages.Success + "]", host.LastSeparatorRightText);
+        Assert.Contains("[" + ThemeProvider.Current.Tools.Messages.Warning + "]", host.LastSeparatorRightText);
         // Yellow dot animates — first frame is '•'
-        Assert.Contains("\u2022", host.LastSeparatorRightText); // •
+        Assert.Contains("•", host.LastSeparatorRightText); // •
     }
 
     [Fact]
@@ -67,11 +82,9 @@ public class StatusServiceTests
         service.SetServiceStatus(ServiceKind.DirectLlm, StatusColor.Green);
 
         Assert.Contains("LLM:", host.LastSeparatorRightText);
-        Assert.Contains("[green]", host.LastSeparatorRightText);
-        Assert.Contains("\u25CF", host.LastSeparatorRightText); // ●
+        Assert.Contains("[" + ThemeProvider.Current.Tools.Messages.Success + "]", host.LastSeparatorRightText);
+        Assert.Contains("●", host.LastSeparatorRightText); // ●
     }
-
-
 
     [Fact]
     public async Task ThreadSafe_ConcurrentCalls_NoCrash()
@@ -106,6 +119,4 @@ public class StatusServiceTests
     {
         Assert.Throws<ArgumentNullException>(() => new StatusService(null!));
     }
-
-
 }

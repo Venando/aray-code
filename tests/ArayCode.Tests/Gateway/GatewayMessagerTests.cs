@@ -95,8 +95,8 @@ public class GatewayMessagerTests : IDisposable
     public void TestProcessFrame_SessionMessageEvent_FiresAgentReplyFull()
     {
         string? capturedText = null;
-        _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>()))
-            .Callback<string>(t => capturedText = t);
+        _mockEvents.Setup(x => x.RaiseAgentReplyFull(It.IsAny<string>(), It.IsAny<string?>()))
+            .Callback<string, string?>((t, _) => capturedText = t);
 
         var json = @"{""type"":""event"",""event"":""session.message"",""payload"":{""message"":{""role"":""assistant"",""content"":[{""type"":""text"",""text"":""hello world""}]}}}";
         _messager.TestProcessFrame(json);
