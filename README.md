@@ -1,9 +1,12 @@
-# Aray Code
+
+# <img src="https://github.com/user-attachments/assets/0f03335a-787a-4404-934f-7648aba9010b" width="48" align="middle"> <sub>Aray Code</sub>
 
 It's [OpenClaw](https://github.com/openclaw/openclaw) Node desktop CLI app, inspired by Claude Code, Kimi Code and other CLI apps.
+
+
 Built-in TTS and STT. Multi agent management.
 
-<img width="830" height="471" alt="image" src="https://github.com/user-attachments/assets/bd257035-bab4-4e83-959b-764ccc30417a" />
+https://github.com/user-attachments/assets/70ef031a-cc58-46d8-832f-04d353a6e29c
 
 ## Quick Start
 
