@@ -10,6 +10,55 @@ It's [OpenClaw](https://github.com/openclaw/openclaw) Node desktop CLI app, insp
 dotnet run
 ```
 
+## Installation (Linux)
+
+Download the latest release from the [Releases](https://github.com/Venando/aray-code/releases) page.
+
+### Option 1: tar.gz — portable, no dependencies (recommended)
+
+```bash
+# Download, extract, install & clean up — one command
+curl -L https://github.com/Venando/aray-code/releases/latest/download/aray.tar.gz | tar xz && bash aray/setup.sh && rm -rf aray/
+
+# Run
+aray
+```
+
+### Uninstall
+
+```bash
+bash ~/.local/share/aray-code/uninstall-aray.sh
+```
+
+### Option 2: AppImage — single file, needs FUSE
+
+```bash
+# Download
+wget https://github.com/Venando/aray-code/releases/latest/download/aray.AppImage
+
+# Install to PATH
+sudo install -m 755 aray.AppImage /usr/local/bin/aray
+
+# Run
+aray
+```
+
+### Building from source
+
+```bash
+# Prerequisites: .NET 10.0 SDK
+
+# Clone
+git clone https://github.com/Venando/aray-code.git
+cd aray-code
+
+# Run directly
+dotnet run
+
+# Or build both AppImage + tar.gz
+bash packaging/linux/build-appimage.sh
+```
+
 ## Features
 
 - **Multi-agent**: Per-agent hotkeys and other settings via `agents.json`
