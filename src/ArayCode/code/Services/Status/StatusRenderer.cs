@@ -81,6 +81,8 @@ public sealed class StatusRenderer
             // Build and set top separator
             string topLeftText = BuildTopLeftText(ComposePositionText(_topLeft));
             string topRightText = ComposePositionText(_topRight);
+            if (!OperatingSystem.IsWindows())
+                topRightText += ' ';
             _shellHost.SetTopSeparator(leftText: topLeftText, rightText: topRightText,
                 repeatedCharacter: Style.StatusBar.SeparatorChar[0], repeatedCharMarkup: Style.StatusBar.SeparatorCharMarkup);
 

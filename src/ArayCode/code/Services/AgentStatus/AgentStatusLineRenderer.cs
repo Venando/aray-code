@@ -12,7 +12,7 @@ namespace ArayCode.Services;
 public static class AgentStatusLineRenderer
 {
     // ── Layout ───────────────────────────────────────────────────────────
-    public const int NameColWidth = 12;  // "• " + name (max 10)
+    public const int NameColWidth = 12;  // "• " (win) / " • " (unix) + name (max 10)
     public const int TimeColWidth = 4;   // "12m", "1h", etc.
     public const int GapAfterName = 2;
     public const int GapBeforeTime = 2;
@@ -40,7 +40,9 @@ public static class AgentStatusLineRenderer
         nameDisplay = isActive
             ? $"[{tools.Panel.ActiveName}]{nameDisplay}[/]"
             : nameDisplay;
-        var leftCol = $"{bullet} {nameDisplay}";
+        var leftCol = OperatingSystem.IsWindows()
+            ? $"{bullet} {nameDisplay}"
+            : $" {bullet} {nameDisplay}";
         int bulletWidth = CharacterWidth.GetDisplayWidth(StripMarkup(bullet));
         int nameDisplayWidth = CharacterWidth.GetDisplayWidth(StripMarkup(nameDisplay));
         int leftRaw = bulletWidth + 1 + nameDisplayWidth;
