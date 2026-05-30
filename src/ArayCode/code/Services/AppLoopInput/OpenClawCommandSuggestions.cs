@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace ArayCode;
 
@@ -209,9 +210,6 @@ public static class OpenClawCommandSuggestions
 
         foreach (var prop in props)
         {
-            // First-level: property name
-            suggestions.Add(prop.Name);
-
             // Second-level: enum values for enum-typed properties
             if (prop.PropertyType.IsEnum)
             {
@@ -226,6 +224,8 @@ public static class OpenClawCommandSuggestions
             }
         }
 
-        return suggestions.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+        string[] result = suggestions.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToArray();
+
+        return result;
     }
 }
