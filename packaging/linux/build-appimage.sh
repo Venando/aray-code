@@ -20,13 +20,14 @@ echo "=== ArayCode Build Script ==="
 # Step 1: Clean and prepare
 echo "[1/6] Cleaning previous build..."
 rm -rf "$APPDIR/usr/bin/"* 2>/dev/null || true
+rm -rf "$PUBLISH_DIR/"* 2>/dev/null || true
 rm -f "$SCRIPT_DIR/aray.AppImage" 2>/dev/null || true
 rm -f "$SCRIPT_DIR/aray.tar.gz" 2>/dev/null || true
 
-# Step 2: Publish .NET app
+# Step 2: Publish .NET app (main project only, not tests)
 echo "[2/6] Publishing .NET app for Linux..."
 cd "$SCRIPT_DIR/../.."
-dotnet publish -c Release -r linux-x64 --self-contained true -o "$PUBLISH_DIR"
+dotnet publish src/ArayCode/ArayCode.csproj -c Release -r linux-x64 --self-contained true -o "$PUBLISH_DIR"
 
 # Step 3: Copy published files to AppDir
 echo "[3/6] Copying files to AppDir..."
