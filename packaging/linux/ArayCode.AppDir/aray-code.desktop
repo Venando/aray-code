@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ArayCode
+Comment=Code analysis and transformation tool
+Exec=aray-code %U
+Icon=aray-code
+Terminal=true
+Type=Application
+Categories=Development;
+Keywords=code;aray;analysis;

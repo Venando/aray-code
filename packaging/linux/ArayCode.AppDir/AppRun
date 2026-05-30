@@ -1,0 +1,13 @@
+#!/bin/bash
+# AppRun - Launches ArayCode with PATH set to include the bundled bin directory
+
+HERE="$(dirname "$(readlink -f "${0}")")"
+export PATH="${HERE}/usr/bin:${PATH}"
+
+# If called as 'aray', exec aray-code (symlink); otherwise pass through
+SELF="$(basename "$0")"
+if [ "$SELF" = "aray" ]; then
+    exec "${HERE}/usr/bin/aray-code" "$@"
+else
+    exec "${HERE}/usr/bin/aray-code" "$@"
+fi
