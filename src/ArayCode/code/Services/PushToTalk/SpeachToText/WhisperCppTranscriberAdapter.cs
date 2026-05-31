@@ -91,6 +91,10 @@ public sealed class WhisperCppTranscriberAdapter : ITranscriber
 
         // Write to a unique temp file for whisper CLI to process (random name avoids concurrent collisions)
         var tempDir = Path.Combine(Path.GetTempPath(), "aray-code");
+        if (File.Exists(tempDir))
+        {
+            File.Delete(tempDir);
+        }
         Directory.CreateDirectory(tempDir);
         var uniqueName = $"{Path.GetRandomFileName()}.wav";
         var tempFile = Path.Combine(tempDir, uniqueName);

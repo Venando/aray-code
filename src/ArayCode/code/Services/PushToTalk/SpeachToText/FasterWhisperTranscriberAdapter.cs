@@ -73,6 +73,10 @@ public sealed class FasterWhisperTranscriberAdapter : ITranscriber
 
         // Write WAV to a unique temp file
         var tempDir = Path.Combine(Path.GetTempPath(), "aray-code");
+        if (File.Exists(tempDir))
+        {
+            File.Delete(tempDir);
+        }
         Directory.CreateDirectory(tempDir);
         var uniqueName = $"{Path.GetRandomFileName()}.wav";
         var tempFile = Path.Combine(tempDir, uniqueName);
