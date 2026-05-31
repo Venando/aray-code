@@ -2,7 +2,7 @@
 ; Build from Release folder: iscc aray-code.iss
 
 #define MyAppName "ArayCode"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "0.1.0"
 #define MyAppPublisher "ArayCode"
 #define MyAppURL ""
 #define MyAppExeName "aray-code.exe"
