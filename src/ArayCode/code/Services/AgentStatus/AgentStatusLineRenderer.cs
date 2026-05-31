@@ -12,7 +12,11 @@ namespace ArayCode.Services;
 public static class AgentStatusLineRenderer
 {
     // ── Layout ───────────────────────────────────────────────────────────
-    public const int NameColWidth = 12;  // "• " (win) / " • " (unix) + name (max 10)
+#if WINDOWS
+    public const int NameColWidth = 12;  // "• " + name (max 10)
+#else
+    public const int NameColWidth = 13;  // " • " + name (max 10)
+#endif
     public const int TimeColWidth = 4;   // "12m", "1h", etc.
     public const int GapAfterName = 2;
     public const int GapBeforeTime = 2;
@@ -40,12 +44,20 @@ public static class AgentStatusLineRenderer
         nameDisplay = isActive
             ? $"[{tools.Panel.ActiveName}]{nameDisplay}[/]"
             : nameDisplay;
-        var leftCol = OperatingSystem.IsWindows()
-            ? $"{bullet} {nameDisplay}"
-            : $" {bullet} {nameDisplay}";
+        var leftCol =
+#if WINDOWS
+            $"{bullet} {nameDisplay}";
+#else
+            $" {bullet} {nameDisplay}";
+#endif
         int bulletWidth = CharacterWidth.GetDisplayWidth(StripMarkup(bullet));
         int nameDisplayWidth = CharacterWidth.GetDisplayWidth(StripMarkup(nameDisplay));
-        int leftRaw = bulletWidth + 1 + nameDisplayWidth;
+        int leftRaw =
+#if WINDOWS
+            bulletWidth + 1 + nameDisplayWidth;
+#else
+            1 + bulletWidth + 1 + nameDisplayWidth;
+#endif
         int leftPad = NameColWidth - leftRaw;
         var leftPadded = leftPad > 0 ? leftCol + new string(' ', leftPad) : leftCol;
 
