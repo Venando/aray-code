@@ -7,6 +7,9 @@ publish/
 packaging/linux/*.AppImage
 packaging/linux/*.tar.gz
 
+# Windows packaging build artifacts
+packaging/windows/installer/
+
 
 # User-specific files
 *.user
